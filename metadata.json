@@ -1,0 +1,6 @@
+{
+  "name": "DocuMind - PDF RAG & Vector Intelligence",
+  "description": "Full PDF text & page extraction, vector database chunking with ChromaDB-style storage, conversational Q&A with Gemini, and transparent source highlighting.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,59 @@
+# Node
+node_modules/
+build/
+dist/
+coverage/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local databases / generated vector stores
+chroma_db/
+*.db
+*.sqlite
+*.sqlite3
+
+# IDE
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.temp
+
+# RAG runtime/generated data
+data/chroma_db/
+data/uploads/
+
+# Generated document metadata and extracted stores
+python_backend/doc_metadata/
+python_backend/structured_store/
+python_backend/table_store/
+
+# User-uploaded documents
+python_backend/uploaded_pdfs/
+
+# Generated RAG/index data
+data/chroma_db.json
+data/documents.json
+python_backend/data/terminology_store.json
+
+# Local/obsolete tests
+python_backend/tests/
