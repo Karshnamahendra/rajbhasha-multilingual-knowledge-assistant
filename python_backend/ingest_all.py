@@ -1,3 +1,4 @@
+"""Batch ingestion pipeline for processing uploaded PDF and DOCX files into Qdrant logical collections."""
 import os
 import sys
 import json
@@ -16,7 +17,7 @@ logger = logging.getLogger("IngestAll")
 
 from config import settings
 from pipeline import RAGPipeline
-from document_extractor import detect_file_type, extract_document_pages
+from extractor import detect_file_type, extract_document_pages
 
 def ingest_directory(upload_dir: str = None) -> dict:
     if upload_dir is None:
@@ -47,9 +48,9 @@ def ingest_directory(upload_dir: str = None) -> dict:
         doc_id = filename
         logger.info(f"--- Ingesting: {filename} ---")
         try:
-            doc_type = "report" if "report" in filename.lower() else "magazine"
-            res = pipeline.index_document(file_path=file_path, document_id=doc_id, filename=filename, document_type=doc_type)
+            res = pipeline.index_document(file_path=file_path, document_id=doc_id, filename=filename, document_type=None)
             results[filename] = res
+            doc_type = res.get("document_type", "magazine")
 
             # Update cached metadata for frontend
             try:
@@ -128,7 +129,23 @@ def ingest_directory(upload_dir: str = None) -> dict:
             logger.error(f"Failed to ingest {filename}: {e}", exc_info=True)
             errors.append({"filename": filename, "error": str(e)})
 
+    # Aggregate chunk counts across all processed documents
+    total_index_chunks = sum(r.get("index_chunks", 0) for r in results.values())
+    total_content_chunks = sum(r.get("content_chunks", 0) for r in results.values())
+    total_table_chunks = sum(r.get("table_chunks", 0) for r in results.values())
+    total_all_chunks = sum(r.get("total_chunks", 0) for r in results.values())
+
+    logger.info("=== Ingestion Summary Across All Documents ===")
+    logger.info(f"  Total Documents Ingested : {len(results)}")
+    logger.info(f"  Total Index Chunks       : {total_index_chunks}")
+    logger.info(f"  Total Content Chunks     : {total_content_chunks}")
+    logger.info(f"  Total Table Chunks       : {total_table_chunks}")
+    logger.info(f"  Total Document Chunks    : {total_all_chunks}")
+    if errors:
+        logger.warning(f"  Errors Encountered       : {len(errors)}")
+
     # Summary of Qdrant collection counts
+    qdrant_counts = {}
     try:
         from qdrant_client import QdrantClient
         qc = QdrantClient(url=getattr(settings, "QDRANT_URL", "http://localhost:6333"))
@@ -140,11 +157,21 @@ def ingest_directory(upload_dir: str = None) -> dict:
         logger.info("=== Qdrant Collection Stats ===")
         for c in colls:
             info = qc.get_collection(c)
+            qdrant_counts[c] = info.points_count
             logger.info(f"  {c}: {info.points_count} points")
     except Exception as e:
         logger.warning(f"Could not retrieve Qdrant stats: {e}")
 
-    return {"processed": len(results), "errors": errors, "details": results}
+    return {
+        "processed": len(results),
+        "total_index_chunks": total_index_chunks,
+        "total_content_chunks": total_content_chunks,
+        "total_table_chunks": total_table_chunks,
+        "total_chunks": total_all_chunks,
+        "qdrant_counts": qdrant_counts,
+        "errors": errors,
+        "details": results
+    }
 
 if __name__ == "__main__":
     ingest_directory()

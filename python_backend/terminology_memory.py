@@ -1,3 +1,4 @@
+"""Persistent cross-lingual terminology store mapping Hindi, English, and Hinglish Rajbhasha terms dynamically."""
 import json
 import os
 import re
@@ -316,23 +317,3 @@ class DynamicTerminologyMemory:
                 record.setdefault("document_ids", set()).discard(document_id)
             self._rebuild_alias_index()
             self.save_to_disk()
-
-    def _is_valid_term(self, term: str) -> bool:
-        if not term or not isinstance(term, str):
-            return False
-        cleaned = term.strip()
-        words = cleaned.split()
-        
-        # Word limit 4 -> 10 ki aur char length 50 -> 100 ki
-        if len(words) == 0 or len(words) > 10 or len(cleaned) > 100:
-            return False
-
-        # Colon (:) hata diya taaki subtitled titles reject na hon
-        sentence_markers = [".", "?", "!", ";", "\n"]
-        if any(marker in cleaned for marker in sentence_markers):
-            return False
-
-        if self.FORBIDDEN_RELATIONAL_PATTERNS.search(cleaned):
-            return False
-
-        return True        

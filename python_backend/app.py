@@ -1,23 +1,25 @@
+"""FastAPI REST server providing document ingestion, Qdrant vector retrieval, and grounded Q&A endpoints."""
 import os
 import sys
 import shutil
 import json
-from typing import Optional, List, Dict, Any
+import datetime
+from typing import Optional, List, Dict
 
 # Ensure UTF-8 output encoding on Windows so Hindi prints never crash with UnicodeEncodeError
 if sys.platform == "win32":
-    import io
     try:
         sys.stdout.reconfigure(encoding='utf-8', errors='replace')
         sys.stderr.reconfigure(encoding='utf-8', errors='replace')
     except Exception:
         pass
 
-from fastapi import FastAPI, UploadFile, File, Form, Request, HTTPException
+from fastapi import FastAPI, UploadFile, File, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from pipeline import RAGPipeline
+from extractor import detect_file_type, extract_document_pages
 from config import settings
 
 app = FastAPI(title="Rajbhasha Knowledge Assistant API")
@@ -110,6 +112,14 @@ def debug_structured_records(doc_id: str):
     """Inspect the exact persisted evidence used for structured questions."""
     records = pipeline.structured_store.get_records(doc_id)
     return {"success": True, "document_id": doc_id, "count": len(records), "records": records}
+
+@app.get("/api/hierarchy/{doc_id}")
+def get_document_hierarchy(doc_id: str):
+    """Inspect the universal hierarchical Key-Subkey-Value representation for a document."""
+    data = pipeline.hierarchical_store.load_hierarchy(doc_id)
+    if data:
+        return {"success": True, "document_id": doc_id, "data": data}
+    raise HTTPException(status_code=404, detail="Hierarchy representation not found for this document.")
 
 @app.get("/api/documents")
 @app.get("/documents")
@@ -242,7 +252,6 @@ async def upload_document(
             else:
                 raise HTTPException(status_code=400, detail="No document file uploaded in request.")
 
-        from document_extractor import detect_file_type, extract_document_pages
         try:
             file_type = detect_file_type(doc_filename)
         except ValueError as exc:
@@ -253,7 +262,6 @@ async def upload_document(
         result = pipeline.index_document(file_path, document_id=doc_id, filename=doc_filename, document_type=doc_type)
 
         # --- Extract page-level data for pipeline inspection modals ---
-        import datetime
         pages_raw = []
         try:
             pages_raw = extract_document_pages(file_path)
@@ -460,6 +468,29 @@ def chat_or_ask(req: QueryRequest):
         "processingTimeMs": 0,
         "conversationId": req.conversation_id,
     }
+
+
+
+
+@app.get("/api/hierarchy/{doc_id}/points")
+def get_hierarchy_points(
+    doc_id: str,
+    limit: int = 50,
+    node_type: Optional[str] = None
+):
+    """Debug inspection endpoint to verify indexed hierarchical Qdrant points."""
+    points = pipeline.vector_store.get_hierarchical_points(
+        document_id=doc_id,
+        limit=limit,
+        node_type=node_type
+    )
+    return {
+        "document_id": doc_id,
+        "count": len(points),
+        "collection": pipeline.vector_store.hierarchical_collection_name,
+        "points": points
+    }
+
 
 if __name__ == "__main__":
     import uvicorn

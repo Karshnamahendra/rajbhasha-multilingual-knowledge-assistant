@@ -36,26 +36,6 @@ def fix_devanagari_ligatures(text: str) -> str:
     # Unicode canonical composition
     text = unicodedata.normalize('NFKC', text)
     
-    # Common PDF extraction artifact replacements for Hindi
-    replacements = {
-        'ि': 'ि',
-        'ी': 'ी',
-        'े': 'े',
-        'ै': 'ै',
-        'ो': 'ो',
-        'ौ': 'ौ',
-        '्': '्',
-        'ं': 'ं',
-        'ँ': 'ँ',
-        '़': '़',
-        'ा': 'ा',
-        'ु': 'ु',
-        'ू': 'ू',
-        'ृ': 'ृ',
-    }
-    for k, v in replacements.items():
-        text = text.replace(k, v)
-        
     # Fix broken whitespace inside words
     text = re.sub(r'([अ-ह])\s+([ा-्])', r'\1\2', text)
     text = re.sub(r'[ \t]+', ' ', text)
@@ -331,18 +311,36 @@ class DocumentMetadataExtractor:
         return quarter, period
 
     @classmethod
+    def detect_document_type(cls, pages: List[Dict[str, Any]], filename: str) -> str:
+        """Dynamically detect whether document is a report or magazine based on text and filename."""
+        text_corpus = (filename or "").lower() + " "
+        if pages:
+            text_corpus += " ".join(p.get("text", "")[:400].lower() for p in pages[:3])
+
+        report_keywords = ["report", "रिपोर्ट", "प्रतिवेदन", "कार्यालयीन", "प्रगति", "समीक्षा", "quarterly", "वार्षिक विवरण", "quarter"]
+        magazine_keywords = ["magazine", "पत्रिका", "अभिव्यक्ति", "विशेषांक", "संपादकीय", "रचना", "कविता", "कहानी", "लेख"]
+
+        report_score = sum(1 for kw in report_keywords if kw in text_corpus)
+        magazine_score = sum(1 for kw in magazine_keywords if kw in text_corpus)
+
+        if report_score > magazine_score:
+            return "report"
+        return "magazine"
+
+    @classmethod
     def extract_metadata(
         cls,
         pages: List[Dict[str, Any]],
         filename: str,
-        document_type: str = "magazine"
+        document_type: Optional[str] = None
     ) -> Dict[str, Any]:
+        doc_type = document_type or cls.detect_document_type(pages, filename)
         year = cls.extract_year(pages, filename)
         quarter, period = cls.extract_quarter_and_period(pages, filename)
 
         return {
             "document_name": filename,
-            "document_type": document_type.lower() if document_type else "magazine",
+            "document_type": doc_type.lower() if doc_type else "magazine",
             "year": year,
             "quarter": quarter,
             "report_period": period,
@@ -362,12 +360,15 @@ def structure_aware_chunking(
     chunk_overlap: int = 150,
     document_name: Optional[str] = None,
     document_type: str = "magazine",
-    year: Optional[int] = None
+    year: Optional[int] = None,
+    content_type: str = "content",
+    chunk_prefix: Optional[str] = None
 ) -> List[Dict[str, Any]]:
-    """Produces boundary-aware text chunks with uniform container attributes."""
+    """Produces boundary-aware text chunks with uniform container attributes and distinct prefix."""
     chunks = []
     chunk_counter = 0
     doc_display_name = document_name or source_filename
+    prefix = chunk_prefix or ("idx" if content_type == "index" else "cnt")
     
     for page in pages:
         p_num = page.get("page_number")
@@ -379,7 +380,7 @@ def structure_aware_chunking(
         current_chunk_text = ""
         for para in paragraphs:
             if len(current_chunk_text) + len(para) > target_chunk_size and current_chunk_text:
-                chunk_id = f"{document_id}_chunk_{chunk_counter}"
+                chunk_id = f"{document_id}_{prefix}_{chunk_counter}"
                 chunks.append({
                     "id": chunk_id,
                     "chunk_id": chunk_id,
@@ -388,20 +389,24 @@ def structure_aware_chunking(
                     "document_name": doc_display_name,
                     "document_type": document_type,
                     "year": year,
-                    "content_type": "content",
+                    "content_type": content_type,
                     "page": p_num,
                     "page_number": p_num,
                     "author": author,
+                    "filename": source_filename,
+                    "source": source_filename,
                     "source_filename": source_filename,
                     "metadata": {
                         "document_id": document_id,
                         "document_name": doc_display_name,
                         "document_type": document_type,
                         "year": year,
-                        "content_type": "content",
+                        "content_type": content_type,
                         "page": p_num,
                         "page_number": p_num,
                         "author": author,
+                        "filename": source_filename,
+                        "source": source_filename,
                         "source_filename": source_filename,
                         "chunk_id": chunk_id
                     }
@@ -421,7 +426,7 @@ def structure_aware_chunking(
                     current_chunk_text = para
                     
         if current_chunk_text.strip():
-            chunk_id = f"{document_id}_chunk_{chunk_counter}"
+            chunk_id = f"{document_id}_{prefix}_{chunk_counter}"
             chunks.append({
                 "id": chunk_id,
                 "chunk_id": chunk_id,
@@ -430,20 +435,24 @@ def structure_aware_chunking(
                 "document_name": doc_display_name,
                 "document_type": document_type,
                 "year": year,
-                "content_type": "content",
+                "content_type": content_type,
                 "page": p_num,
                 "page_number": p_num,
                 "author": author,
+                "filename": source_filename,
+                "source": source_filename,
                 "source_filename": source_filename,
                 "metadata": {
                     "document_id": document_id,
                     "document_name": doc_display_name,
                     "document_type": document_type,
                     "year": year,
-                    "content_type": "content",
+                    "content_type": content_type,
                     "page": p_num,
                     "page_number": p_num,
                     "author": author,
+                    "filename": source_filename,
+                    "source": source_filename,
                     "source_filename": source_filename,
                     "chunk_id": chunk_id
                 }

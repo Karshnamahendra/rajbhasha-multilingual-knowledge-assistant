@@ -203,11 +203,15 @@ def table_chunks(
     chunks = []
     doc_display_name = document_name or source_filename
     for table_index, table in enumerate(tables, 1):
+        headers = table.get("headers", [])
+        # 1. Holistic Table Summary Chunk (retains complete structural context)
         chunks.append({
             "id": f"{table['table_id']}:summary",
             "text": table_to_text(table),
             "metadata": {
                 "document_id": table["document_id"],
+                "filename": source_filename,
+                "source": source_filename,
                 "document_name": doc_display_name,
                 "document_type": document_type,
                 "year": year,
@@ -217,6 +221,7 @@ def table_chunks(
                 "page_number": table.get("page_number"),
                 "location": f"page {table.get('page_number') or 'document'}",
                 "section": table.get("section", "General"),
+                "headers": headers,
                 "chunk_id": f"{table['table_id']}:summary",
                 "chunk_type": "table",
                 "table_id": table["table_id"],
@@ -227,14 +232,54 @@ def table_chunks(
                 "extraction_confidence": table.get("extraction_confidence", 0.0)
             }
         })
-        # Form fields receive their own semantic record. This lets multilingual
-        # vector search identify a specific label before exact structured lookup.
+
+        # 2. Multi-row Data Tables: generate row-level chunks preserving column header -> cell value relationships
+        rows = table.get("rows", [])
+        if len(rows) > 1 and table.get("extraction_method") != "key_value_form":
+            for row_idx, row in enumerate(rows, 1):
+                row_items = [f"{k} = {v}" for k, v in row.items() if str(v).strip()]
+                if row_items:
+                    heading_str = table.get("heading") or "Data Table"
+                    page_str = table.get("page_number") or "N/A"
+                    row_text = f"Table '{heading_str}' (Page {page_str}), Row {row_idx}: " + "; ".join(row_items) + "."
+                    chunks.append({
+                        "id": f"{table['table_id']}:r{row_idx}",
+                        "text": row_text,
+                        "metadata": {
+                            "document_id": table["document_id"],
+                            "filename": source_filename,
+                            "source": source_filename,
+                            "document_name": doc_display_name,
+                            "document_type": document_type,
+                            "year": year,
+                            "content_type": "table",
+                            "source_filename": source_filename,
+                            "page": table.get("page_number"),
+                            "page_number": table.get("page_number"),
+                            "location": f"page {table.get('page_number') or 'document'}",
+                            "section": table.get("section", "General"),
+                            "headers": headers,
+                            "chunk_id": f"{table['table_id']}:r{row_idx}",
+                            "chunk_type": "table_row",
+                            "table_id": table["table_id"],
+                            "table_index": table_index,
+                            "row_index": row_idx,
+                            "row_count": table.get("row_count", 0),
+                            "column_count": table.get("column_count", 0),
+                            "extraction_method": table.get("extraction_method", "unknown"),
+                            "extraction_confidence": table.get("extraction_confidence", 0.0)
+                        }
+                    })
+
+        # 3. Form fields receive their own semantic record for exact label/field lookup
         for field_index, field in enumerate(table.get("structured_fields", []), 1):
             chunks.append({
                 "id": f"{table['table_id']}:field:{field_index}",
                 "text": f"Form field: {field['label']}. Recorded value: {field['value']}. Value state: {field['value_state']}.",
                 "metadata": {
                     "document_id": table["document_id"],
+                    "filename": source_filename,
+                    "source": source_filename,
                     "document_name": doc_display_name,
                     "document_type": document_type,
                     "year": year,
@@ -244,6 +289,7 @@ def table_chunks(
                     "page_number": table.get("page_number"),
                     "location": f"page {table.get('page_number') or 'document'}",
                     "section": table.get("section", "General"),
+                    "headers": headers,
                     "chunk_id": f"{table['table_id']}:field:{field_index}",
                     "chunk_type": "form_field",
                     "table_id": table["table_id"],

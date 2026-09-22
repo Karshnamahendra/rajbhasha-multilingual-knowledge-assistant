@@ -1,3 +1,4 @@
+"""Analyzes user queries for intent, script detection (Devanagari/Roman/English), transliteration, and routing."""
 import re
 import unicodedata
 import logging
@@ -26,9 +27,11 @@ class QueryNormalizer:
 
         # Universal ISO/ITRANS phonetic mapping for Hindi transliteration
         self.consonants = {
-            'kh': 'ख', 'gh': 'घ', 'ch': 'च', 'chh': 'छ', 'jh': 'झ',
+            'ndr': 'न्द्र', 'ksh': 'क्ष', 'chh': 'छ', 'shh': 'ष',
+            'kh': 'ख', 'gh': 'घ', 'ch': 'च', 'jh': 'झ',
             'th': 'थ', 'dh': 'ध', 'ph': 'फ', 'bh': 'भ', 'sh': 'श',
-            'shh': 'ष', 'tr': 'त्र', 'gy': 'ज्ञ', 'gn': 'ज्ञ',
+            'tr': 'त्र', 'gy': 'ज्ञ', 'gn': 'ज्ञ', 'dr': 'द्र',
+            'pr': 'प्र', 'kr': 'क्र', 'gr': 'ग्र', 'br': 'ब्र',
             'k': 'क', 'g': 'ग', 'c': 'क', 'j': 'ज', 't': 'त',
             'd': 'द', 'n': 'न', 'p': 'प', 'f': 'फ़', 'b': 'ब',
             'm': 'म', 'y': 'य', 'r': 'र', 'l': 'ल', 'v': 'व',
@@ -64,7 +67,7 @@ class QueryNormalizer:
         cleaned = re.sub(r"[\'\"`~@#$%^*()_+=\[\]{}|\\<>/]", " ", text)
         return re.sub(r"\s+", " ", cleaned).strip()
 
-    def algorithmic_transliterate(self, text: str) -> str:
+    def algorithmic_transliterate(self, text: str, to_script: Optional[str] = None, *args, **kwargs) -> str:
         words = re.findall(r"\b[a-zA-Z]+\b", text.lower())
         out_words = []
         for word in words:
@@ -196,12 +199,58 @@ class QueryNormalizer:
         query_words = set(re.findall(r"\b[a-zA-Z]+\b", cleaned.lower()))
         is_english = bool(query_words and (len(query_words & common_en) / len(query_words) >= 0.3 or query_words & {"how", "what", "which", "issued", "received", "bilingual", "bilingually"}))
 
-        if script in ["latin_english_or_hinglish", "mixed_hinglish"] and not is_english:
-            deva_trans = self.algorithmic_transliterate(cleaned)
-            if deva_trans and deva_trans != cleaned:
-                variants.add(deva_trans)
+        if script in ["latin_english_or_hinglish", "mixed_hinglish"]:
+            if not is_english:
+                deva_trans = self.algorithmic_transliterate(cleaned)
+                if deva_trans and deva_trans != cleaned:
+                    variants.add(deva_trans)
+                en_stops = {"what", "are", "the", "and", "is", "in", "of", "to", "for", "from", "how", "many", "under", "kaun", "se", "hain", "ke", "ki", "ka", "aur", "antargat"}
+                content_words = [w for w in re.findall(r"\b[a-zA-Z]+\b", cleaned) if w.lower() not in en_stops]
+                for cw in content_words:
+                    tr = self.algorithmic_transliterate(cw)
+                    if tr and tr.lower() != cw.lower() and re.search(r'[\u0900-\u097F]', tr):
+                        variants.add(tr)
 
-        variant_list = [v for v in sorted(list(variants)) if len(v.strip()) > 1]
+            # Universal cross-lingual vocabulary bridging for bilingual and Roman Hindi administrative documents
+            bilingual_vocab = {
+                # English terms
+                "region": "क्षेत्र", "regions": "क्षेत्र", "section": "धारा", "sections": "धारा",
+                "dhara": "धारा", "kshetra": "क्षेत्र",
+                "poetry": "काव्य", "poem": "कविता", "poems": "कविताएं",
+                "recitation": "पाठ", "competition": "प्रतियोगिता",
+                "participated": "प्रतिभागिता", "participation": "प्रतिभागिता", "participants": "प्रतिभागी",
+                "prize": "पुरस्कार", "award": "पुरस्कार", "awards": "पुरस्कार",
+                "workshop": "कार्यशाला", "workshops": "कार्यशाला",
+                "training": "प्रशिक्षण", "trained": "प्रशिक्षित",
+                "meeting": "बैठक", "meetings": "बैठकें",
+                "bilingual": "द्विभाषी", "bilingually": "द्विभाषी",
+                "quarter": "तिमाही", "quarterly": "तिमाही",
+                "officer": "अधिकारी", "officers": "अधिकारियों",
+                "employee": "कर्मचारी", "employees": "कर्मचारियों",
+                "personnel": "कार्मिक",
+                "letter": "पत्र", "letters": "पत्रों",
+                "phrases": "वाक्यांशों", "notes": "टिप्पणियों",
+                "terminology": "शब्दावली", "administrative": "प्रशासनिक", "accounts": "लेखा",
+
+                # Roman Hindi terms
+                "kavya": "काव्य", "paath": "पाठ", "pratiyogita": "प्रतियोगिता", "puraskar": "पुरस्कार",
+                "karyashala": "कार्यशाला", "karyashalayen": "कार्यशालाएं", "shabdavali": "शब्दावली",
+                "aadharbhoot": "आधारभूत", "prashasnik": "प्रशासनिक", "lekha": "लेखा",
+                "karmachariyon": "कर्मचारियों", "karmachari": "कर्मचारी", "karmik": "कार्मिक",
+                "baithak": "बैठक", "baithakon": "बैठकों", "patra": "पत्र", "patron": "पत्रों",
+                "tippaniyon": "टिप्पणियों", "tippani": "टिप्पणी", "vakyanshon": "वाक्यांशों", "vakyansh": "वाक्यांश",
+                "prashikshan": "प्रशिक्षण", "aayojit": "आयोजित", "jankari": "जानकारी",
+                "varsh": "वर्ष", "mahine": "महीने", "timahi": "तिमाही",
+                "varishth": "वरिष्ठ", "adhikariyon": "अधिकारियों", "adhikari": "अधिकारी",
+                "manak": "मानक", "maanak": "मानक", "dwibhashi": "द्विभाषी", "dvibhashi": "द्विभाषी",
+                "sankalit": "संकलित", "pratibhadita": "प्रतिभागिता", "bhaag": "भाग",
+            }
+            en_words = [w.lower() for w in re.findall(r"\b[a-zA-Z]+\b", cleaned)]
+            for ew in en_words:
+                if ew in bilingual_vocab:
+                    variants.add(bilingual_vocab[ew])
+
+        variant_list = [v for v in sorted(list(variants)) if len(v.strip()) > 1 or (len(v.strip()) == 1 and re.match(r'[\u0900-\u097F]', v.strip()))]
 
         metadata = {
             "original_query": original_query,
@@ -255,18 +304,18 @@ class SemanticQueryAnalyzer:
             return 0.0
         return float(np.dot(a, b) / (na * nb))
 
-    def algorithmic_transliterate(self, text: str) -> str:
-        return self.normalizer.algorithmic_transliterate(text)
+    def algorithmic_transliterate(self, text: str, to_script: Optional[str] = None, *args, **kwargs) -> str:
+        return self.normalizer.algorithmic_transliterate(text, to_script=to_script, *args, **kwargs)
 
     def extract_entities(self, query: str, document_id: Optional[str] = None) -> List[str]:
         # Strip unbalanced quotes and clean query
         cleaned_query = re.sub(r'[\'"]', '', query)
         
-        capitalized = re.findall(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b', query)
+        capitalized = re.findall(r'\b[A-Z][a-z]*(?:\s+[A-Z][a-z]*)*\b', query)
         acronyms = re.findall(r'\b[A-Z]{2,6}\b', query)
 
         # Filter common English interrogatives/command words from capitalized
-        english_stops = {"tell", "explain", "what", "who", "where", "when", "why", "how", "describe", "show", "list", "give", "write", "the", "and", "about"}
+        english_stops = {"tell", "explain", "what", "who", "where", "when", "why", "how", "describe", "show", "list", "give", "write", "the", "and", "about", "are", "is", "in", "to", "of", "under"}
         clean_cap = [c for c in capitalized if c.lower() not in english_stops]
         clean_acr = [a for a in acronyms if a.lower() not in english_stops]
 
@@ -291,7 +340,7 @@ class SemanticQueryAnalyzer:
         unique_entities = []
         for e in clean_cap + clean_acr + hindi_entities:
             e_clean = e.strip()
-            if len(e_clean) >= 2 and e_clean.lower() not in seen:
+            if len(e_clean) >= 1 and e_clean.lower() not in english_stops and e_clean.lower() not in seen:
                 seen.add(e_clean.lower())
                 unique_entities.append(e_clean)
 
@@ -323,14 +372,16 @@ class SemanticQueryAnalyzer:
             variants.append(roman)
         all_variants_lower = " ".join(variants)
 
-        # 1. Detect Content-Based Question Indicators (explanations, challenges, reasons, summaries)
+        # 1. Detect Content-Based Question Indicators (explanations, challenges, reasons, summaries, mechanisms, impact)
         is_content_question = (
             any(k in lower_q for k in [
                 "challenge", "challenges", "chunauti", "chunautiyan", "चुनौती", "चुनौतियां", "चुनौतियाँ",
                 "solution", "solutions", "samadhan", "समाधान",
                 "explain", "describe", "summary", "summarize", "karan", "reason", "impact", "prabhav",
                 "why", "how", "what is", "what are", "kya hai", "kya hain", "kaise", "kyun", "kyu",
-                "importance", "benefits", "surveillance", "suraksha ki chunautiyan", "सुरक्षा की चुनौतियां"
+                "importance", "benefits", "surveillance", "suraksha ki chunautiyan", "सुरक्षा की चुनौतियां",
+                "प्रभाव", "असर", "परिणाम", "माध्यम", "किसके माध्यम", "किस माध्यम", "किस तरह", "तरीका", "उद्देश्य", "कारण", "विवरण", "प्रक्रिया", "विस्तार",
+                "madhyam", "kiske madhyam", "tarika", "uddeshya", "vivaran"
             ]) and not any(k in lower_q for k in [
                 "who wrote", "author", "writer", "kisne likha", "lekhak kaun", "लेखक",
                 "how many", "total articles", "kitne lekh", "kul kitne", "कुल कितने",
@@ -341,13 +392,13 @@ class SemanticQueryAnalyzer:
         # 2. Detect COUNT Queries across English, Hindi, Roman Hindi, and Hinglish
         is_count = (
             any(k in lower_q for k in [
-                "how many", "count", "kitne", "kitni", "kul kitne", "kitna",
-                "कितने", "कुल कितने", "कुल", "संख्या", "गिनती"
+                "how many", "count", "kitne", "kitni", "kitnon", "kul kitne", "kitna",
+                "कितने", "कितनों", "कुल कितने", "कुल", "संख्या", "गिनती"
             ])
             or bool(re.search(r'\btotal\s+(?:\w+\s+)*(?:articles?|lekh|kavita|poems?|stories|kahani|items?|records?)\b', lower_q))
-            or bool(re.search(r'\b(?:total|kul)\s+(?:kitne|kitni|count)\b', lower_q))
-            or bool(re.search(r'\b(?:kitne|kitni)\s+(?:\w+\s+)*(?:articles?|lekh|kavita|poems?|stories|kahani|items?|records?|documents?|docs?)\b', lower_q))
-            or bool(re.search(r'\b(?:articles?|lekh|kavita|poems?|documents?)\s+(?:count|sankhya|kitne|kitni|total|numbers?)\b', lower_q))
+            or bool(re.search(r'\b(?:total|kul)\s+(?:kitne|kitni|kitnon|count)\b', lower_q))
+            or bool(re.search(r'\b(?:kitne|kitni|kitnon)\s+(?:\w+\s+)*(?:articles?|lekh|kavita|poems?|stories|kahani|items?|records?|documents?|docs?)\b', lower_q))
+            or bool(re.search(r'\b(?:articles?|lekh|kavita|poems?|documents?)\s+(?:count|sankhya|kitne|kitni|kitnon|total|numbers?)\b', lower_q))
             or bool(re.search(r'\btotal\s+(?:articles?\s+|documents?\s+)?present\b', lower_q))
             or bool(re.search(r'\b(?:is\s+)?document\s+(?:mein|me)\s+(?:total\s+)?kitne\b', lower_q))
             # English: "no of X", "number of X", "total no of X", "total number of X"
@@ -355,12 +406,115 @@ class SemanticQueryAnalyzer:
             or bool(re.search(r'\b(?:total\s+no\.?|total\s+number)\b', lower_q))
         )
 
+        # Universal Expected Value-Type / Answer-Type Detection
+        is_pct_query = bool(re.search(
+            r'(?<![\w\u0900-\u097F])(?:प्रतिशत|प्रतिशतता|फीसदी|percent|percentage|pct|%)(?![\w\u0900-\u097F])',
+            all_variants_lower, re.IGNORECASE
+        ))
+        is_duration_query = bool(re.search(
+            r'(?<![\w\u0900-\u097F])(?:कितने\s*(?:वर्ष|साल|माह|महीने|दिन|घंटे)|कितनी\s*(?:अवधि)|how\s+many\s+(?:years?|months?|days?|hours?)|kitn[ei]\s+(?:saal|varsh|mahine)|duration|tenure|समय|अवधि)(?![\w\u0900-\u097F])',
+            all_variants_lower, re.IGNORECASE
+        ))
+        is_date_query = bool(re.search(
+            r'(?<![\w\u0900-\u097F])(?:कब|किस\s*(?:तारीख|तिथि|दिनांक|दिन)|what\s+date|which\s+date|when|kis\s*(?:tithi|tarikh|din)|date\s+of)(?![\w\u0900-\u097F])',
+            all_variants_lower, re.IGNORECASE
+        ))
+        is_monetary_query = bool(re.search(
+            r'(?<![\w\u0900-\u097F])(?:रुपये|रुपए|rupees?|rupaye|rs\.?|inr|राशि|amount|नकद\s*पुरस्कार|नकद\s*राशि|cash\s*prize|prize\s*money)(?![\w\u0900-\u097F])',
+            all_variants_lower, re.IGNORECASE
+        ))
+        is_person_query = bool(re.search(
+            r'(?<![\w\u0900-\u097F])(?:किन\s*लोगों|किसने|किसको|कौन|who|whom|kin\s*logon|kisne|kise)(?![\w\u0900-\u097F])',
+            all_variants_lower, re.IGNORECASE
+        ))
+
+        expected_value_type = "TEXT"
+        if is_pct_query:
+            expected_value_type = "PERCENTAGE"
+        elif is_person_query:
+            expected_value_type = "PERSON"
+        elif is_duration_query:
+            expected_value_type = "DURATION"
+        elif is_date_query:
+            expected_value_type = "DATE"
+        elif is_monetary_query:
+            expected_value_type = "MONETARY"
+        elif is_content_question:
+            expected_value_type = "DESCRIPTION"
+        elif is_count:
+            expected_value_type = "COUNT"
+
+        # Condition vs Target clause analysis (e.g. "X में से Y कितनों के ...")
+        condition_clause = ""
+        target_clause = lower_q
+        split_match = re.search(r'(?<![\w\u0900-\u097F])(?:में\s*से|out\s+of|from\s+among)(?![\w\u0900-\u097F])', lower_q)
+        if split_match:
+            condition_clause = lower_q[:split_match.start()].strip()
+            target_clause = lower_q[split_match.end():].strip()
+
+        _LANG_PATTERNS = {
+            "hindi": r'(?<![\w\u0900-\u097F])(?:हिन्दी|हिंदी|hindi)(?![\w\u0900-\u097F])',
+            "english": r'(?<![\w\u0900-\u097F])(?:अंग्रेजी|अंग्रेज़ी|english)(?![\w\u0900-\u097F])',
+            "bilingual": r'(?<![\w\u0900-\u097F])(?:द्विभाषी|द्विभाषीय|bilingual)(?![\w\u0900-\u097F])',
+        }
+        target_langs = set()
+        condition_langs = set()
+        for lang_name, lang_pat in _LANG_PATTERNS.items():
+            if re.search(lang_pat, target_clause, re.IGNORECASE):
+                target_langs.add(lang_name)
+            if condition_clause and re.search(lang_pat, condition_clause, re.IGNORECASE):
+                condition_langs.add(lang_name)
+
+        if not split_match:
+            for lang_name, lang_pat in _LANG_PATTERNS.items():
+                if re.search(lang_pat, lower_q, re.IGNORECASE):
+                    target_langs.add(lang_name)
+
         # 3. Detect LIST Queries
         is_list = any(k in lower_q for k in [
             "list", "name all", "name any", "sabke naam", "kaun kaun se", "kaun-kaun se",
             "नाम बताओ", "सूची", "कौन-कौन से लेख", "कौन से लेख", "which articles", "which poems", "कौन सी कविताएं", "बताओ",
             "show all", "list of all", "list all articles"
         ])
+
+        # 3b. Detect BRANCH / CHILD ENUMERATION Queries across English, Hindi, and Hinglish
+        # Generic: matches questions seeking enumeration of child branches, categories,
+        # regions, divisions, or sub-items under a parent or across named siblings.
+        is_branch_enumeration = (
+            # Hindi Devanagari: "धारा 6 के अंतर्गत कौन-कौन से क्षेत्र हैं", "के अंतर्गत कौन से ...", "कौन-कौन से क्षेत्र"
+            bool(re.search(
+                r'(?<![\w\u0900-\u097F])(?:के\s*अंतर्गत|के\s*तहत|में)\s+(?:कौन-कौन\s*से|कौन\s*से|क्या-क्या)\b',
+                lower_q
+            ))
+            or bool(re.search(
+                r'(?<![\w\u0900-\u097F])(?:कौन-कौन\s*से|कौन\s*से)\s+(?:क्षेत्र|भाग|श्रेणियां|वर्ग|मद|विषय|प्रावधान|नियम)\b',
+                lower_q
+            ))
+            # Roman / Hinglish: "ke antargat kaun kaun se", "under X kaun kaun se"
+            or bool(re.search(
+                r'\b(?:kaun\s*kaun\s*se|kon\s*kon\s*se|kya\s*kya)\s+(?:kshetra|regions?|categories|sections?|parts?|types?|items?|bhaag|shreni|varg)\b',
+                lower_q
+            ))
+            or bool(re.search(
+                r'\b(?:ke\s+antargat|ke\s+tahat|under|in)\s+.*?\b(?:kaun\s*kaun\s*se|kon\s*kon\s*se|kaun\s*se|kya\s*kya)\b',
+                lower_q
+            ))
+            # English: "What are the regions under Section 6?", "which regions are under..."
+            or bool(re.search(
+                r'\b(?:what\s+are|which|list)\s+(?:the\s+)?(?:\w+\s+)*(?:regions?|categories|sections?|divisions?|zones?|groups?|parts?|types?|items?|provisions?|clauses?|rules?)\s+(?:under|in|of|within)\b',
+                lower_q
+            ))
+            # English sibling enumeration: "What are the K, Kh and G regions?", "What are the X, Y and Z categories?"
+            or bool(re.search(
+                r'\bwhat\s+are\s+(?:the\s+)?(?:\b\w+\b\s*[,/]\s*)*\b\w+\b\s+(?:and|or)\s+\b\w+\b\s+(?:regions?|categories|sections?|divisions?|zones?|groups?|parts?|types?|items?|provisions?|clauses?)\b',
+                lower_q
+            ))
+            # Generic "what is/are in [Section/Chapter/Parent]":
+            or bool(re.search(
+                r'\bwhat\s+(?:is|are|comes?|falls?)\s+(?:in|under|inside)\s+(?:section|dhara|chapter|part|rule|category|धारा)\b',
+                lower_q
+            ))
+        )
 
         # 4. Detect ARTICLE_BY_AUTHOR Queries (asking which article was written by author X)
         is_title_by_author = (
@@ -440,7 +594,7 @@ class SemanticQueryAnalyzer:
         # schema, or business column. Exact column matching happens dynamically against
         # extracted headers in StructuredTableEngine.
         numeric_reference = bool(re.search(r"\b(?:19|20)\d{2}\b|\b\d+(?:\.\d+)?\s*(?:%|₹|rs\.?|cr\.?|lakh|crore)\b", lower_q))
-        calculation_signal = bool(re.search(r"\b(difference|diff|increase|decrease|average|mean|total|sum|highest|lowest|maximum|minimum|percentage|percent|अंतर|फर्क|औसत|योग|कुल|अधिकतम|न्यूनतम|प्रतिशत)\b", lower_q))
+        calculation_signal = bool(re.search(r"(?<![\w\u0900-\u097F])(difference|diff|increase|decrease|average|mean|total|sum|highest|lowest|maximum|minimum|percentage|percent|अंतर|फर्क|औसत|योग|कुल|अधिकतम|न्यूनतम|प्रतिशत)(?![\w\u0900-\u097F])", lower_q))
         value_signal = bool(re.search(r"\b(how much|how many|what was|show (?:the )?data|kitna|kitne|kitni|कितना|कितने|संख्या|डेटा)\b", lower_q))
         # Clean regex signals containing ONLY canonical concept keywords in English.
         # Transliteration into all_variants_lower allows Roman-Hindi queries to match,
@@ -476,6 +630,9 @@ class SemanticQueryAnalyzer:
                         or (numeric_reference and (value_signal or calculation_signal or len(re.findall(r"\b(?:19|20)\d{2}\b", lower_q)) >= 2))
                         or calculation_signal or (is_count and not index_subject)
                         or report_metadata_signal or form_request_signal)
+        # Content / explanation / prose questions should NEVER be hijacked by table intent
+        if is_content_question and not (is_pct_query or is_count or is_monetary_query):
+            table_intent = False
         is_hybrid = table_intent and is_content_question
 
         # Extract explicit quoted titles (e.g., "Nayi Subah" or 'Semiconductor Ecosystem')
@@ -528,6 +685,10 @@ class SemanticQueryAnalyzer:
         elif is_count:
             intent = "count"
             operation = "COUNT"
+        elif is_branch_enumeration:
+            intent = "branch_enumeration"
+            operation = "BRANCH_ENUMERATION"
+            requested_field = "branch_children"
         elif is_list:
             intent = "list"
             operation = "LIST"
@@ -619,14 +780,18 @@ class SemanticQueryAnalyzer:
             "target_year": target_year,
             "target_document_type": target_doc_type,
             "requested_field": requested_field,
-            "is_count_or_list": is_count or is_list or is_author_by_article or is_title_by_author or is_structure,
+            "is_count_or_list": is_count or is_list or is_branch_enumeration or is_author_by_article or is_title_by_author or is_structure,
+            "is_branch_enumeration": is_branch_enumeration,
             "is_index_question": is_index_question,
             "normalized_variants": normalized_variants,
             "resolved_entities": resolved_entities,
             "document_id": document_id,
             "table_intent": table_intent,
             "table_operation": "calculation" if calculation_signal else ("lookup" if table_intent else None),
-            "is_hybrid": is_hybrid
+            "is_hybrid": is_hybrid,
+            "expected_value_type": expected_value_type,
+            "target_languages": list(target_langs),
+            "condition_languages": list(condition_langs),
         }
 
     def expand_query(self, analysis: Dict[str, Any]) -> List[str]:
@@ -657,9 +822,9 @@ class SemanticQueryAnalyzer:
                     variants.add(al)
 
         # For author or entity queries, always search TOC and Poetry index
-        if analysis["intent"] == "find_author" or analysis["is_count_or_list"]:
+        if (analysis["intent"] == "find_author" or analysis["is_count_or_list"]) and analysis.get("intent") != "branch_enumeration":
             variants.add("Table of Contents Index विषय सूची अनुक्रमणिका कविताएं")
 
-        return list(set([v for v in variants if len(v.strip()) > 1]))
+        return list(set([v for v in variants if len(v.strip()) > 1 or (len(v.strip()) == 1 and re.match(r'[\u0900-\u097F]', v.strip()))]))
 
 QueryAnalyzer = SemanticQueryAnalyzer

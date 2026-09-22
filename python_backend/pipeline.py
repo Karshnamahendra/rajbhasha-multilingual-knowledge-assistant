@@ -1,6 +1,7 @@
+"""End-to-end RAG orchestrator coordinating document parsing, segmentation, Qdrant indexing, and query resolution."""
 import sys
 import re
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List, Tuple
 
 if sys.platform == "win32":
     try:
@@ -13,21 +14,25 @@ from vector_store import VectorStore
 from query_analyzer import SemanticQueryAnalyzer
 from retriever import HybridRetriever
 from reranker import EvidenceReranker
-from generator import OllamaGroundedGenerator
-from document_extractor import detect_file_type, extract_document_pages
-from extractor import structure_aware_chunking
+from generator import OllamaGroundedGenerator, extract_factual_span
+from extractor import (
+    detect_file_type,
+    extract_document_pages,
+    structure_aware_chunking,
+    DocumentMetadataExtractor
+)
 from term_extractor import TerminologyExtractor
 from pdf_segmenter import PDFSegmenter
-from metadata_extractor import DocumentMetadataExtractor
 from index_knowledge_layer import (
     StructuredIndexStore,
     StructuredIndexEngine,
     TOCExtractor
 )
-from table_extractor import TableExtractor, table_chunks
-from table_store import StructuredTableStore
+from table_extractor import TableExtractor, table_chunks, StructuredTableStore
 from table_query_engine import StructuredTableEngine
 from structured_store import StructuredRecordStore, build_structured_records, FieldNormalizer
+from hierarchical_model import HierarchicalStore
+from hierarchical_builder import build_document_hierarchy
 
 
 class RAGPipeline:
@@ -51,6 +56,7 @@ class RAGPipeline:
         self.table_store = StructuredTableStore()
         self.table_engine = StructuredTableEngine(self.table_store, embed_fn=self.vector_store.embed_fn)
         self.structured_store = StructuredRecordStore()
+        self.hierarchical_store = HierarchicalStore()
 
         self.retriever = HybridRetriever(
             self.vector_store,
@@ -89,10 +95,13 @@ class RAGPipeline:
         # Extract dynamic document metadata (year, quarter, report_period)
         doc_meta = DocumentMetadataExtractor.extract_metadata(pages, filename, document_type=document_type)
         extracted_year = doc_meta.get("year")
-        extracted_doc_type = doc_meta.get("document_type", document_type)
+        extracted_doc_type = doc_meta.get("document_type", "magazine")
         quarter = doc_meta.get("quarter")
         report_period = doc_meta.get("report_period")
         print(f"[RAGPipeline] Extracted metadata: Year={extracted_year}, Type={extracted_doc_type}, Quarter={quarter}, Period={report_period}")
+
+        # IDEMPOTENCY: Clear any prior points for this document_id across all collections
+        self.vector_store.delete_document(document_id)
 
         # Extract structured tables/forms independently from normal text.
         try:
@@ -145,7 +154,9 @@ class RAGPipeline:
             source_filename=filename,
             document_name=filename,
             document_type=extracted_doc_type,
-            year=extracted_year
+            year=extracted_year,
+            content_type="index",
+            chunk_prefix="idx"
         ) if index_pages else []
 
         content_chunks = structure_aware_chunking(
@@ -154,7 +165,9 @@ class RAGPipeline:
             source_filename=filename,
             document_name=filename,
             document_type=extracted_doc_type,
-            year=extracted_year
+            year=extracted_year,
+            content_type="content",
+            chunk_prefix="cnt"
         ) if content_pages else []
 
         total_chunks = index_chunks + content_chunks
@@ -179,10 +192,48 @@ class RAGPipeline:
             print(f"[RAGPipeline] Non-blocking terminology extraction notice: {exc}")
             terminology_count = 0
 
+        # -------------------------------------------------------------
+        # 7. Universal Dynamic Hierarchical Document Representation
+        # -------------------------------------------------------------
+        total_hierarchy_nodes = 0
+        total_hierarchical_points = 0
+        try:
+            doc_meta = {
+                "document_id": document_id,
+                "document_name": filename,
+                "filename": filename,
+                "document_type": extracted_doc_type,
+                "year": extracted_year,
+                "quarter": quarter,
+                "report_period": report_period,
+                "total_pages": len(pages),
+            }
+            doc_hierarchy = build_document_hierarchy(
+                file_path=file_path,
+                pages=pages,
+                tables=tables,
+                toc_records=self.index_store.get_records(document_id),
+                doc_meta=doc_meta
+            )
+            self.hierarchical_store.save_hierarchy(document_id, filename, doc_hierarchy)
+            total_hierarchy_nodes = doc_hierarchy.root.count_nodes()
+
+            # Step 3: Index universal hierarchy into Qdrant hierarchical collection
+            hier_points = doc_hierarchy.to_indexable_points(include_branches=True)
+            total_hierarchical_points = self.vector_store.add_hierarchical_points(hier_points)
+            print(
+                f"[RAGPipeline] Created universal hierarchy for '{filename}': "
+                f"{total_hierarchy_nodes} recursive nodes, "
+                f"indexed {total_hierarchical_points} points into Qdrant '{self.vector_store.hierarchical_collection_name}'."
+            )
+        except Exception as exc:
+            print(f"[RAGPipeline] Non-blocking universal hierarchy notice: {exc}")
+
         print(
             f"[RAGPipeline] Indexed '{filename}' -> "
             f"Pages={len(pages)} (Index={len(index_pages)}, Content={len(content_pages)}), "
             f"Chunks={len(total_chunks)} (Index={len(index_chunks)}, Content={len(content_chunks)}, Table={len(vector_table_chunks)}), "
+            f"HierarchyNodes={total_hierarchy_nodes}, HierarchicalPoints={total_hierarchical_points}, "
             f"DocumentID={document_id}"
         )
 
@@ -206,12 +257,96 @@ class RAGPipeline:
             "terminology_terms": terminology_count,
             "table_records": len(tables),
             "structured_records": len(structured_records),
+            "hierarchy_nodes": total_hierarchy_nodes,
+            "hierarchical_points": total_hierarchical_points,
             "status": "ready"
         }
 
     # Existing callers retain this API while new callers use the format-neutral name.
     def index_pdf(self, file_path: str, document_id: str, filename: str) -> Dict[str, Any]:
         return self.index_document(file_path, document_id, filename)
+
+    # =========================================================
+    # HIERARCHICAL BRANCH EXPANSION HELPER
+    # =========================================================
+
+    def _expand_branch_evidence(
+        self,
+        evidence: List[Dict[str, Any]],
+        query: str,
+        analysis: Dict[str, Any],
+        document_id: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Generic branch node child expansion.
+
+        After initial reranking, any branch node (node_type='branch', node_value=None)
+        in the top-3 results is expanded by fetching its direct children from Qdrant
+        via path-prefix matching. The expanded pool is then re-reranked.
+
+        This allows the generator to answer:
+          - "What is in section X?" (branch aggregation — fixes K/L)
+          - "What page is article X on?" (fetches पृष्ठ संख्या child leaf — fixes I)
+          - Any hierarchical "description" question where the relevant data is in children
+
+        No document-specific logic. Works for any hierarchy shape or document type.
+        """
+        expanded = list(evidence)
+        existing_ids = {e.get("id") for e in expanded}
+        is_branch_enum = (
+            analysis.get("intent") == "branch_enumeration"
+            or analysis.get("is_branch_enumeration")
+        )
+
+        seen_prefixes = set()
+        for cand in evidence[:3]:   # only expand top-3 to keep context focused
+            branch_path = cand.get("hierarchy_path") or []
+            if not branch_path:
+                continue
+
+            target_prefix = None
+            if cand.get("node_type") == "branch" and cand.get("node_value") is None:
+                target_prefix = branch_path
+            elif is_branch_enum and len(branch_path) >= 2:
+                # For branch enumeration on leaf candidates, expand siblings under common parent
+                target_prefix = branch_path[:-1]
+
+            if not target_prefix:
+                continue
+
+            doc_scope = cand.get("document_id") or cand.get("metadata", {}).get("document_id") or document_id
+            print(f"[RAGPipeline:Debug] _expand_branch_evidence cand_id={cand.get('id')} key={cand.get('node_key')} path={branch_path} doc={doc_scope} target_prefix={target_prefix}")
+
+            prefix_key = (doc_scope, " > ".join(target_prefix))
+            if prefix_key in seen_prefixes:
+                continue
+            seen_prefixes.add(prefix_key)
+
+            n_expand = 100 if is_branch_enum else 12
+            children = self.vector_store.search_children_by_path_prefix(
+                path_prefix=target_prefix,
+                document_id=doc_scope,
+                n_results=n_expand
+            )
+            print(f"[RAGPipeline:Debug] search_children_by_path_prefix prefix={target_prefix} doc={doc_scope} -> found {len(children)}: {[c.get('node_key') for c in children][:15]}")
+            added = 0
+            for child in children:
+                if child.get("id") not in existing_ids:
+                    existing_ids.add(child.get("id"))
+                    expanded.append(child)
+                    added += 1
+            if added:
+                print(
+                    f"[RAGPipeline] Branch expanded: '{target_prefix}' "
+                    f"→ +{added} child nodes (doc: {doc_scope})"
+                )
+
+        # Re-rerank the expanded pool so the most relevant nodes (including new
+        # children) surface at the top. Cap at 25 for branch enumeration to preserve all siblings.
+        top_cap = 25 if is_branch_enum else 8
+        if len(expanded) > len(evidence):
+            expanded = self.reranker.rerank(analysis, expanded, top_n=top_cap)
+
+        return expanded
 
     # =========================================================
     # QUESTION ANSWERING
@@ -249,8 +384,451 @@ class RAGPipeline:
         print(f"[RAGPipeline] Query route: document={document_id}, mode={resolved_mode}, "
               f"intent={analysis.get('intent')}, script={analysis.get('detected_script')}, query={safe_q!r}")
 
+        # =========================================================================
+        # 1.5 PRIMARY UNIFIED HIERARCHICAL RETRIEVAL (Step 4 Primary Search Branch)
+        # Search rajbhasha_hierarchical_collection as unified knowledge representation
+        # across all document formats (magazine TOC, quarterly reports, tables, forms).
+        # =========================================================================
+        hier_candidates = self.retriever.retrieve_hierarchical_candidates(
+            query=query,
+            document_id=document_id,
+            document_type=document_type,
+            year=year,
+            top_k=35,
+            analysis=analysis
+        )
+
+        if hier_candidates:
+            hier_best_evidence = self.reranker.rerank(
+                analysis,
+                hier_candidates,
+                top_n=5
+            )
+
+            # ── Branch Node Child Expansion (fixes K/L/I) ─────────────────────
+            # For any branch node in top-3 results, fetch its child nodes from
+            # Qdrant using a generic path-prefix scroll. This lets the generator
+            # answer "what is in this section?" and "what page is article X on?"
+            # by seeing the branch's concrete children (including पृष्ठ संख्या leaves).
+            # No document-specific logic — works for any hierarchy shape.
+            hier_best_evidence = self._expand_branch_evidence(
+                hier_best_evidence,
+                query=query,
+                analysis=analysis,
+                document_id=document_id
+            )
+
+            # Accept any hierarchical candidate that clears the reranker quality floor.
+            # The threshold is intentionally permissive (>= 0.30) because the reranker
+            # already applies multi-factor scoring; a lower score still means the node
+            # is the best match available and should be attempted.
+            if hier_best_evidence and hier_best_evidence[0].get("rerank_score", 0.0) >= 0.30:
+                top_cand = hier_best_evidence[0]
+                top_val = top_cand.get("node_value")
+                top_key = top_cand.get("node_key")
+
+                # Value-Type & Content Quality Gating
+                exp_type = analysis.get("expected_value_type")
+                if exp_type == "DURATION":
+                    cand_dur_txt = (str(top_val or "") + " " + str(top_key or "") + " " + str(top_cand.get("hierarchy_path_text") or "")).lower()
+                    if not re.search(r'(?<![\w\u0900-\u097F])(?:वर्ष|साल|माह|महीने|दिन|घंटे|years?|months?|days?|hours?)(?![\w\u0900-\u097F])', cand_dur_txt):
+                        dur_cands = [
+                            c for c in hier_best_evidence
+                            if re.search(r'(?<![\w\u0900-\u097F])(?:वर्ष|साल|माह|महीने|दिन|घंटे|years?|months?|days?|hours?)(?![\w\u0900-\u097F])',
+                                         (str(c.get("node_value") or "") + " " + str(c.get("node_key") or "") + " " + str(c.get("hierarchy_path_text") or "")).lower())
+                        ]
+                        if dur_cands:
+                            top_cand = dur_cands[0]
+                            top_val = top_cand.get("node_value")
+                            top_key = top_cand.get("node_key")
+                        else:
+                            top_cand = None
+
+                elif exp_type in {"PERSON", "DESCRIPTION"} or analysis.get("is_content_question"):
+                    val_str = str(top_val or "").strip()
+                    if top_cand and (re.fullmatch(r"[-+]?\d+(?:[,.]\d+)?%?", val_str) or len(val_str.split()) <= 2):
+                        desc_cands = [
+                            c for c in hier_best_evidence
+                            if len(str(c.get("node_value") or "").strip().split()) >= 4
+                        ]
+                        if desc_cands:
+                            top_cand = desc_cands[0]
+                            top_val = top_cand.get("node_value")
+                            top_key = top_cand.get("node_key")
+                        else:
+                            top_cand = None
+
+                elif exp_type == "MONETARY":
+                    cand_mon_txt = (str(top_val or "") + " " + str(top_key or "") + " " + str(top_cand.get("hierarchy_path_text") or "")).lower()
+                    if not re.search(r'(?:रुपए|रुपये|रु\.|rs\.?|inr|नगद|पुरस्कार|cash|prize)', cand_mon_txt):
+                        mon_cands = [
+                            c for c in hier_best_evidence
+                            if re.search(r'(?:रुपए|रुपये|रु\.|rs\.?|inr|नगद|पुरस्कार|cash|prize)',
+                                         (str(c.get("node_value") or "") + " " + str(c.get("node_key") or "") + " " + str(c.get("hierarchy_path_text") or "")).lower())
+                        ]
+                        if mon_cands:
+                            top_cand = mon_cands[0]
+                            top_val = top_cand.get("node_value")
+                            top_key = top_cand.get("node_key")
+                        else:
+                            top_cand = None
+
+                elif exp_type == "DATE":
+                    cand_date_txt = (str(top_val or "") + " " + str(top_key or "") + " " + str(top_cand.get("hierarchy_path_text") or "")).lower()
+                    if not re.search(r'\b\d{1,2}[./-]\d{1,2}[./-]\d{2,4}\b|(?:दिनांक|जनवरी|फरवरी|मार्च|अप्रैल|मई|जून|जुलाई|अगस्त|सितंबर|अक्टूबर|नवंबर|दिसंबर)', cand_date_txt):
+                        date_cands = [
+                            c for c in hier_best_evidence
+                            if re.search(r'\b\d{1,2}[./-]\d{1,2}[./-]\d{2,4}\b|(?:दिनांक|जनवरी|फरवरी|मार्च|अप्रैल|मई|जून|जुलाई|अगस्त|सितंबर|अक्टूबर|नवंबर|दिसंबर)',
+                                         (str(c.get("node_value") or "") + " " + str(c.get("node_key") or "") + " " + str(c.get("hierarchy_path_text") or "")).lower())
+                        ]
+                        if date_cands:
+                            top_cand = date_cands[0]
+                            top_val = top_cand.get("node_value")
+                            top_key = top_cand.get("node_key")
+                        else:
+                            top_cand = None
+
+                if top_cand is not None and top_cand != hier_best_evidence[0]:
+                    hier_best_evidence = [top_cand] + [c for c in hier_best_evidence if c != top_cand]
+
+                if top_cand is None:
+                    print("[RAGPipeline] Hierarchical candidate did not satisfy expected value type; falling through to content RAG.")
+                else:
+                    print(
+                        f"[RAGPipeline] Unified Hierarchical Match: id={top_cand.get('id')} | "
+                        f"score={top_cand.get('rerank_score')} | path={top_cand.get('hierarchy_path_text')}"
+                    )
+                    is_branch_enum = (
+                        analysis.get("intent") == "branch_enumeration"
+                        or analysis.get("is_branch_enumeration")
+                    )
+
+                    # Always inject verified_hier_meta for any leaf node that carries a concrete value.
+                    # This gives the generator an explicit authoritative anchor regardless of rerank score.
+                    verified_hier_meta = None
+                    top_val = top_cand.get("node_value")
+                    top_key = top_cand.get("node_key")
+
+                    if is_branch_enum:
+                        # 1. Generic structural target mapping: map each requested entity to its target representations
+                        meta_words = {"section", "धारा", "dhara", "rule", "नियम", "act", "अधिनियम", "report", "रिपोर्ट"}
+                        target_entities = [str(e).strip() for e in analysis.get("entities", []) if str(e).strip().lower() not in meta_words]
+
+                        branch_targets: Dict[str, set] = {}
+                        for ent in target_entities:
+                            e_low = ent.lower()
+                            t_set = {e_low}
+                            if hasattr(self, "analyzer") and hasattr(self.analyzer, "algorithmic_transliterate"):
+                                try:
+                                    trans = self.analyzer.algorithmic_transliterate(ent)
+                                    if trans:
+                                        t_set.add(trans.lower().strip())
+                                except Exception:
+                                    pass
+                            for v in analysis.get("normalized_variants", []):
+                                v_c = str(v).strip().lower()
+                                if len(v_c) <= 4 and (v_c in t_set or any(t in v_c for t in t_set)):
+                                    t_set.add(v_c)
+                            branch_targets[ent] = t_set
+
+                        cat_terms = {"क्षेत्र", "region", "regions", "भाग", "श्रेणी", "category", "वर्ग"}
+                        q_cats = {ct for ct in cat_terms if ct in query.lower() or any(ct in v.lower() for v in analysis.get("normalized_variants", []))}
+
+                        # 2. Segregate parent hierarchy candidates by (doc_scope, parent_path_tuple)
+                        parent_candidates: Dict[Tuple[str, tuple], List[Dict[str, Any]]] = {}
+                        for c in hier_best_evidence:
+                            h_path = c.get("hierarchy_path") or c.get("metadata", {}).get("hierarchy_path") or []
+                            doc_chunk = str(c.get("document_id") or c.get("metadata", {}).get("document_id") or c.get("file_name") or c.get("metadata", {}).get("file_name") or "")
+                            if len(h_path) >= 2:
+                                p_tuple = tuple(h_path[:-1])
+                                parent_candidates.setdefault((doc_chunk, p_tuple), []).append(c)
+                            elif len(h_path) == 1 and c.get("node_type") == "branch":
+                                p_tuple = tuple(h_path)
+                                parent_candidates.setdefault((doc_chunk, p_tuple), []).append(c)
+
+                        # 3. Score candidate parent paths based on count of matched target branch entities
+                        best_parent_key = None
+                        best_parent_score = -1.0
+                        for (p_doc, p_tuple), sibs in parent_candidates.items():
+                            matched_entities_for_parent = set()
+                            desc_count = 0
+                            sum_rerank = 0.0
+                            for s in sibs:
+                                s_path = s.get("hierarchy_path") or s.get("metadata", {}).get("hierarchy_path") or []
+                                if len(s_path) > len(p_tuple):
+                                    sk = str(s.get("node_key") or s_path[len(p_tuple)]).strip()
+                                    clean_sk = re.sub(r'["\'“”‘’\(\)\[\]]', ' ', sk).strip()
+                                    sk_tokens = set(t.lower() for t in re.findall(r'[\w\u0900-\u097F]+', clean_sk) if t)
+
+                                    for ent_name, t_set in branch_targets.items():
+                                        if sk_tokens.intersection(t_set):
+                                            matched_entities_for_parent.add(ent_name)
+
+                                sv = str(s.get("node_value") or "").strip()
+                                if sv and not re.fullmatch(r"[-+]?\d+(?:[,.]\d+)?%?", sv):
+                                    desc_count += 1
+                                sum_rerank += s.get("rerank_score", 0.0)
+
+                            p_score = (len(matched_entities_for_parent) * 10.0) + (desc_count * 2.0) + sum_rerank
+                            if p_score > best_parent_score:
+                                best_parent_score = p_score
+                                best_parent_key = (p_doc, p_tuple)
+
+                        if best_parent_key:
+                            best_doc, best_parent_tuple = best_parent_key
+                            parent_path = list(best_parent_tuple)
+
+                            # 4. Gather direct child candidates under best_parent_tuple for best_doc
+                            candidate_pool = list(hier_best_evidence)
+                            if hasattr(self, "vector_store") and hasattr(self.vector_store, "search_children_by_path_prefix"):
+                                try:
+                                    extra_children = self.vector_store.search_children_by_path_prefix(
+                                        path_prefix=parent_path,
+                                        document_id=best_doc if best_doc else None,
+                                        n_results=100
+                                    )
+                                    existing_pool_ids = {cp.get("id") for cp in candidate_pool}
+                                    for ec in extra_children:
+                                        if ec.get("id") not in existing_pool_ids:
+                                            existing_pool_ids.add(ec.get("id"))
+                                            candidate_pool.append(ec)
+                                except Exception as e_pool:
+                                    print(f"[RAGPipeline:Debug] extra_children fetch notice: {e_pool}")
+
+                            # 5. Structurally match each requested entity to EXACTLY its corresponding child leaf
+                            matched_by_entity: Dict[str, Dict[str, Any]] = {}
+                            fallback_matching: List[Dict[str, Any]] = []
+
+                            for s in candidate_pool:
+                                s_doc = str(s.get("document_id") or s.get("metadata", {}).get("document_id") or s.get("file_name") or s.get("metadata", {}).get("file_name") or "")
+                                if best_doc and s_doc and s_doc != best_doc:
+                                    continue
+                                s_path = s.get("hierarchy_path") or s.get("metadata", {}).get("hierarchy_path") or []
+                                if tuple(s_path[:len(parent_path)]) != best_parent_tuple or len(s_path) <= len(parent_path):
+                                    continue
+
+                                child_key = str(s.get("node_key") or s_path[len(parent_path)]).strip()
+                                clean_key = re.sub(r'["\'“”‘’\(\)\[\]]', ' ', child_key).strip()
+                                key_tokens = set(t.lower() for t in re.findall(r'[\w\u0900-\u097F]+', clean_key) if t)
+
+                                cat_aligned = not q_cats or any(ct in clean_key.lower() for ct in q_cats) or any(ct in p.lower() for p in parent_path for ct in q_cats)
+                                if not cat_aligned:
+                                    continue
+
+                                if branch_targets:
+                                    for ent_name, t_set in branch_targets.items():
+                                        if key_tokens.intersection(t_set):
+                                            if ent_name not in matched_by_entity:
+                                                matched_by_entity[ent_name] = s
+                                            else:
+                                                # Prefer candidate with non-empty descriptive node_value
+                                                curr_val = str(matched_by_entity[ent_name].get("node_value") or "").strip()
+                                                cand_val = str(s.get("node_value") or "").strip()
+                                                if cand_val and not curr_val:
+                                                    matched_by_entity[ent_name] = s
+                                else:
+                                    fallback_matching.append(s)
+
+                            # Final scoped sibling leaves: strictly 1 per requested entity
+                            if matched_by_entity:
+                                scoped_chunks = list(matched_by_entity.values())
+                            else:
+                                # Fallback if no specific entity letters in query: deduplicate by child key
+                                seen_keys = set()
+                                scoped_chunks = []
+                                for s in fallback_matching:
+                                    sk = str(s.get("node_key") or (s.get("hierarchy_path") or [])[len(parent_path)]).strip()
+                                    if sk not in seen_keys:
+                                        seen_keys.add(sk)
+                                        scoped_chunks.append(s)
+
+                            # Build verified_hier_meta and child lines from ONLY scoped_chunks
+                            child_lines = []
+                            grouped_siblings: Dict[str, Dict[str, Any]] = {}
+                            for chunk in scoped_chunks:
+                                ck = str(chunk.get("node_key") or (chunk.get("hierarchy_path") or [])[len(parent_path)]).strip()
+                                cv = str(chunk.get("node_value") or "").strip()
+                                grouped_siblings[ck] = {
+                                    "chunk": chunk,
+                                    "value": cv if cv else None,
+                                    "path": chunk.get("hierarchy_path_text") or " > ".join(chunk.get("hierarchy_path", []))
+                                }
+                                det_str = f" = {cv}" if cv else ""
+                                child_lines.append(f"{ck}{det_str}")
+
+                            summary_str = "\n".join(child_lines)
+                            parent_name = parent_path[-1] if parent_path else "Section"
+                            verified_hier_meta = {
+                                "Field": parent_name,
+                                "Value": summary_str,
+                                "Entries": summary_str,
+                                "Hierarchy Path": " > ".join(parent_path)
+                            }
+
+                            # Strictly scope hier_best_evidence to ONLY the authoritative sibling leaves
+                            # so that generator context and final sources contain ONLY the relevant branches
+                            hier_best_evidence = scoped_chunks
+                            grouped = grouped_siblings
+                            print(f"[RAGPipeline:Debug] ask: is_branch_enum=True, selected doc={best_doc}, parent_path={parent_path}, scoped_siblings={list(grouped.keys())}")
+
+                    if not verified_hier_meta:
+                        if top_val is not None and str(top_val).strip() != "":
+                            verified_hier_meta = {
+                                "Field": top_key or "Value",
+                                "Value": str(top_val).strip(),
+                                "Hierarchy Path": top_cand.get("hierarchy_path_text") or " > ".join(top_cand.get("hierarchy_path", []))
+                            }
+                        else:
+                            # Top candidate is a branch with no node_value.
+                            # For page-intent queries, expose source_page as a locator field
+                            # so the generator can answer "which page is X on?" using the
+                            # document's source_page metadata (clearly distinguished from a
+                            # printed article page number which would be a पृष्ठ संख्या leaf).
+                            page_intent_tokens = {
+                                "पृष्ठ", "page", "पन्ना", "पेज", "prushth", "prishtha"
+                            }
+                            query_lower_tokens = set(re.findall(r"[\w\u0900-\u097F]+", query.lower()))
+                            if query_lower_tokens.intersection(page_intent_tokens):
+                                sp = top_cand.get("source_page")
+                                if sp is not None:
+                                    verified_hier_meta = {
+                                        "Field": "दस्तावेज़ में स्थान (source_page)",
+                                        "Value": str(sp),
+                                        "Hierarchy Path": top_cand.get("hierarchy_path_text", "")
+                                    }
+
+                            # For branch nodes, aggregate direct children and sub-attributes present in evidence
+                            top_path = top_cand.get("hierarchy_path") or []
+                            if not verified_hier_meta and top_path:
+                                grouped = {}
+                                for c in hier_best_evidence:
+                                    c_path = c.get("hierarchy_path") or c.get("metadata", {}).get("hierarchy_path") or []
+                                    if len(c_path) > len(top_path) and c_path[:len(top_path)] == top_path:
+                                        c_key = c_path[len(top_path)]
+                                        if c_key not in grouped:
+                                            grouped[c_key] = {
+                                                "value": None,
+                                                "attributes": {},
+                                                "path": c.get("hierarchy_path_text") or " > ".join(c_path)
+                                            }
+                                        if len(c_path) == len(top_path) + 1:
+                                            val = c.get("node_value")
+                                            if val is not None and str(val).strip() != "":
+                                                grouped[c_key]["value"] = str(val).strip()
+                                        elif len(c_path) > len(top_path) + 1:
+                                            sub_attr = " > ".join(c_path[len(top_path)+1:])
+                                            sub_val = c.get("node_value")
+                                            if sub_val is not None and str(sub_val).strip() != "":
+                                                grouped[c_key]["attributes"][sub_attr] = str(sub_val).strip()
+                                            elif sub_attr:
+                                                grouped[c_key]["attributes"][sub_attr] = ""
+
+                                if grouped:
+                                    child_lines = []
+                                    child_names = []
+                                    for ck, cv in grouped.items():
+                                        child_names.append(ck)
+                                        details = []
+                                        if cv.get("value"):
+                                            details.append(f"= {cv['value']}")
+                                        for ak, av in cv.get("attributes", {}).items():
+                                            if av:
+                                                details.append(f"{ak}: {av}")
+                                            else:
+                                                details.append(ak)
+                                        det_str = f" ({', '.join(details)})" if details else ""
+                                        child_lines.append(f"{ck}{det_str}")
+
+                                    summary_str = "; ".join(child_lines)
+                                    if len(grouped) == 1 and list(grouped.values())[0].get("value"):
+                                        val_str = list(grouped.values())[0]["value"]
+                                    elif len(child_names) <= 3 and not any(cv.get("value") for cv in grouped.values()):
+                                        val_str = ", ".join(child_names)
+                                    else:
+                                        val_str = summary_str
+                                    verified_hier_meta = {
+                                        "Field": top_key or "Section",
+                                        "Value": val_str,
+                                        "Entries": summary_str,
+                                        "Hierarchy Path": top_cand.get("hierarchy_path_text", "")
+                                    }
+
+                    # Generate Grounded Answer via Llama with hierarchical tree context
+                    raw_answer = self.generator.generate_answer(query, hier_best_evidence, verified_metadata=verified_hier_meta)
+
+                    refusal_phrases = [
+                        "जानकारी नहीं मिली",
+                        "प्रासंगिक जानकारी नहीं",
+                        "not found",
+                    ]
+
+                    is_refusal = bool(raw_answer) and any(
+                        phrase.lower() in raw_answer.lower()
+                        for phrase in refusal_phrases
+                    )
+
+                    def _has_sibling(sibling_key: str, text: str) -> bool:
+                        clean_k = re.sub(r'["\'“”‘’]', '', sibling_key).strip().lower()
+                        clean_t = re.sub(r'["\'“”‘’]', '', text or '').strip().lower()
+                        if clean_k in clean_t:
+                            return True
+                        k_tokens = [t for t in re.findall(r'[\w\u0900-\u097F]+', clean_k) if len(t) > 0]
+                        return bool(k_tokens and all(kt in clean_t for kt in k_tokens))
+
+                    all_siblings_covered = (
+                        all(_has_sibling(sk, raw_answer) for sk in grouped.keys())
+                        if (is_branch_enum and grouped) else True
+                    )
+
+                    if not all_siblings_covered or not raw_answer or is_refusal:
+                        if verified_hier_meta and verified_hier_meta.get("Value"):
+                            raw_answer = str(verified_hier_meta.get("Value")).strip()
+                        elif top_val is not None and str(top_val).strip() != "":
+                            raw_answer = str(top_val).strip()
+
+                    if raw_answer and not is_branch_enum:
+                        raw_answer = extract_factual_span(query, raw_answer, analysis)
+
+                    formatted_evidence = []
+                    for chunk in hier_best_evidence:
+                        meta = chunk.get("metadata", {})
+                        raw_page = chunk.get("source_page") or meta.get("source_page") or meta.get("page")
+                        formatted_evidence.append({
+                            "chunk_id": chunk.get("id"),
+                            "document_id": chunk.get("document_id") or meta.get("document_id"),
+                            "document_name": chunk.get("file_name") or meta.get("file_name") or meta.get("document_name"),
+                            "document_type": chunk.get("document_type") or meta.get("document_type"),
+                            "year": chunk.get("year") or meta.get("year"),
+                            "text": chunk.get("hierarchy_path_text") or chunk.get("text", ""),
+                            "page": raw_page if raw_page not in (0, "0", None) else None,
+                            "section": "Hierarchical",
+                            "score": chunk.get("rerank_score", chunk.get("score", 0.85)),
+                            "chunk_type": "hierarchical",
+                            "node_key": chunk.get("node_key"),
+                            "node_value": chunk.get("node_value"),
+                            "hierarchy_path": chunk.get("hierarchy_path"),
+                            "hierarchy_path_text": chunk.get("hierarchy_path_text")
+                        })
+
+                    return {
+                        "answer": raw_answer,
+                        "evidence": formatted_evidence,
+                        "query_analysis": {
+                            "intent": analysis.get("intent", "hierarchical_search"),
+                            "query_mode": "HIERARCHICAL",
+                            "requested_mode": query_mode,
+                            "detected_script": analysis.get("detected_script", "neutral"),
+                            "target_title": analysis.get("target_title"),
+                            "entities": analysis.get("entities", []),
+                            "normalized_variants": analysis.get("normalized_variants", []),
+                            "resolved_entities": analysis.get("resolved_entities", [])
+                        }
+                    }
+
+        print("[RAGPipeline] Hierarchical search did not find high-confidence candidate; falling back to legacy branches.")
+
         # =====================================================
-        # 2. DYNAMIC STRUCTURED INDEX KNOWLEDGE LAYER EVALUATION
+        # 2. DYNAMIC STRUCTURED INDEX KNOWLEDGE LAYER EVALUATION (FALLBACK)
         # =====================================================
         slot_data = self.index_engine.classify_intent(query, document_id)
         index_intent = slot_data.get("intent")
@@ -401,7 +979,10 @@ class RAGPipeline:
             print(f"[RAGPipeline] Structured form lookup document={document_id}; searching persisted tables directly")
             table_result = self.table_engine.answer(
                 query, document_id, (), (),
-                query_variants=analysis.get("normalized_variants")
+                query_variants=analysis.get("normalized_variants"),
+                expected_value_type=analysis.get("expected_value_type"),
+                target_languages=analysis.get("target_languages"),
+                condition_languages=analysis.get("condition_languages")
             )
             if table_result and not analysis.get("is_hybrid"):
                 try:
@@ -461,7 +1042,7 @@ class RAGPipeline:
             }
 
         # Generate Grounded Answer with LLM
-        verified_table_data = table_result.get("details") if analysis.get("table_intent") and table_result else None
+        verified_table_data = (table_result.get("details") if (analysis.get("table_intent") and "table_result" in locals() and table_result) else None)
         raw_answer = self.generator.generate_answer(query, best_evidence, verified_metadata=verified_table_data)
 
         # Format Evidence For Frontend
@@ -505,6 +1086,7 @@ class RAGPipeline:
         self.term_extractor.memory.delete_document(document_id)
         self.table_store.delete_document(document_id)
         self.structured_store.delete_document(document_id)
+        self.hierarchical_store.delete_document(document_id)
 
     @staticmethod
     def _has_sufficient_content_evidence(query: str, evidence: list[Dict[str, Any]]) -> bool:
@@ -525,7 +1107,12 @@ class RAGPipeline:
         }
         terms = {
             token for token in re.findall(r"[A-Za-z0-9\u0900-\u097F]+", query.lower())
-            if len(token) > 1 and token not in stopwords
+            # Keep single Devanagari characters (e.g., 'क', 'ख', 'ग' as क्षेत्र identifiers)
+            # and single digits; only drop single Latin letters that are not meaningful.
+            if (
+                (len(token) > 1 or re.match(r'^[\u0900-\u097F]$', token) or token.isdigit())
+                and token not in stopwords
+            )
         }
         if not terms:
             # A query without a meaningful subject cannot be safely grounded.
@@ -533,7 +1120,7 @@ class RAGPipeline:
 
         evidence_text = " ".join(chunk.get("text", "").lower() for chunk in evidence)
         has_term_support = any(term in evidence_text for term in terms)
-        top_score = float(evidence[0].get("rerank_score", 0.0))
+        top_score = float(evidence[0].get("rerank_score") if evidence[0].get("rerank_score") is not None else evidence[0].get("score", 0.0))
         return has_term_support and top_score >= 0.30
 
     @staticmethod

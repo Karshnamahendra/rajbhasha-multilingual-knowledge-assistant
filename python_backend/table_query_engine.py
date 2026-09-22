@@ -15,7 +15,7 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple
 
 import numpy as np
 
-from table_store import StructuredTableStore
+from table_extractor import StructuredTableStore
 from index_knowledge_layer import romanize_generic  # algorithmic, no dictionaries
 from terminology_memory import DynamicTerminologyMemory
 
@@ -198,6 +198,9 @@ class StructuredTableEngine:
         table_ids: Iterable[str],
         field_labels: Iterable[str] = (),
         query_variants: Optional[List[str]] = None,
+        expected_value_type: Optional[str] = None,
+        target_languages: Optional[List[str]] = None,
+        condition_languages: Optional[List[str]] = None,
     ) -> Optional[Dict[str, Any]]:
 
         tables = self.store.get_tables(document_id)
@@ -226,7 +229,12 @@ class StructuredTableEngine:
         if len(clauses) >= 2:
             per_clause = []
             for clause in clauses:
-                cands = self._score_candidates(clause, tables, query_variants=query_variants)
+                cands = self._score_candidates(
+                    clause, tables, query_variants=query_variants,
+                    expected_value_type=expected_value_type,
+                    target_languages=target_languages,
+                    condition_languages=condition_languages,
+                )
                 if cands and cands[0]['score'] >= self.MIN_SCORE_THRESHOLD:
                     per_clause.append(cands[0])
             # Accept multi-clause result only when all clauses matched from same table
@@ -235,11 +243,26 @@ class StructuredTableEngine:
                 selected = per_clause
 
         if not selected:
-            scored = self._score_candidates(query, tables, query_variants=query_variants)
+            scored = self._score_candidates(
+                query, tables, query_variants=query_variants,
+                expected_value_type=expected_value_type,
+                target_languages=target_languages,
+                condition_languages=condition_languages,
+            )
             if not scored or scored[0]['score'] < self.MIN_SCORE_THRESHOLD:
                 return None
 
             best = scored[0]
+            # Duration check: if duration was expected, verify the candidate actually represents a duration
+            if (expected_value_type or "").upper() == "DURATION":
+                best_val = str(best.get('details', {}).get('value', ''))
+                best_lbl = str(best.get('details', {}).get('label', ''))
+                has_dur = bool(re.search(r'(?<![\w\u0900-\u097F])(?:वर्ष|साल|माह|महीने|दिन|घंटे|years?|months?|days?|hours?)(?![\w\u0900-\u097F])', best_val + " " + best_lbl, re.IGNORECASE))
+                if not has_dur:
+                    return None
+            if (expected_value_type or "").upper() == "DESCRIPTION":
+                return None
+
             selected = [best]
 
             q_regions = _detect_regions(query)
@@ -495,6 +518,9 @@ class StructuredTableEngine:
         query: str,
         tables: List[Dict[str, Any]],
         query_variants: Optional[List[str]] = None,
+        expected_value_type: Optional[str] = None,
+        target_languages: Optional[List[str]] = None,
+        condition_languages: Optional[List[str]] = None,
     ) -> List[Dict[str, Any]]:
 
         candidates = self._build_candidates(tables)
@@ -575,23 +601,45 @@ class StructuredTableEngine:
             c_cell_langs = c_cell_det.get("language", set())
             c_desc_langs = c_desc_det.get("language", set())
 
+            _LANG_PATTERNS = {
+                "hindi": r'(?<![\w\u0900-\u097F])(?:हिन्दी|हिंदी|hindi)(?![\w\u0900-\u097F])',
+                "english": r'(?<![\w\u0900-\u097F])(?:अंग्रेजी|अंग्रेज़ी|english)(?![\w\u0900-\u097F])',
+                "bilingual": r'(?<![\w\u0900-\u097F])(?:द्विभाषी|द्विभाषीय|bilingual)(?![\w\u0900-\u097F])',
+            }
+            c_label_lower = c_cell_label.lower()
+            detected_cell_langs = set(c_cell_langs)
+            for lang_name, lang_pat in _LANG_PATTERNS.items():
+                if re.search(lang_pat, c_label_lower, re.IGNORECASE):
+                    detected_cell_langs.add(lang_name)
+
             # 5a. Dynamic Language constraint matching
-            if q_langs:
+            effective_target_langs = set(target_languages or [])
+            effective_cond_langs = set(condition_languages or [])
+
+            if effective_target_langs:
+                if effective_target_langs & detected_cell_langs:
+                    score += 12.0
+                elif detected_cell_langs - effective_target_langs:
+                    # Candidate cell specifically represents a conflicting language
+                    score -= 20.0
+                elif effective_target_langs & c_desc_langs:
+                    score += 4.0
+            elif q_langs:
                 # Query explicitly asked for a specific language (e.g. English, Hindi, Bilingual)
-                if q_langs & c_cell_langs:
+                if q_langs & detected_cell_langs:
                     score += 9.0
                 elif q_langs & c_desc_langs:
                     score += 4.0
 
                 # Penalize candidates specifying conflicting languages
-                conflicting_cell_langs = c_cell_langs - q_langs
+                conflicting_cell_langs = detected_cell_langs - q_langs
                 if conflicting_cell_langs:
                     score -= 12.0
                 elif not (q_langs & c_desc_langs):
                     score -= 6.0
             else:
                 # Query did NOT ask for a specific language sub-item (general or total count requested)
-                if c_cell_langs:
+                if detected_cell_langs:
                     score -= 5.0
                 if "total" in q_concepts and "total" in c_concepts:
                     score += 5.0
@@ -612,14 +660,42 @@ class StructuredTableEngine:
             if not cand['val'] or cand['val'] == ':':
                 score += self.EMPTY_VAL_PEN
 
-            # Type alignment: count queries seek numeric counts, not boolean or label strings
-            is_count_query = bool(re.search(r'\b(how many|how much|kitn[ei]|count|sankhya|number|kul|total)\b', query, re.IGNORECASE))
+            # Type alignment based on expected_value_type
+            exp_type = (expected_value_type or "").upper()
+            val_str = str(cand['val']).strip()
+            val_has_digit = bool(re.search(r'\d', val_str))
+            val_is_bool = bool(re.search(r'^(हां|नहीं|हाँ|yes|no|na|n/a)(?:[/|\s]|$)', val_str, re.IGNORECASE))
+            val_is_pct = bool(re.search(r'%|प्रतिशत', val_str)) or bool(re.search(r'%|प्रतिशत', c_cell_label))
+            val_is_date = bool(re.search(r'\b\d{1,2}[./-]\d{1,2}[./-]\d{2,4}\b', val_str))
+            val_is_pure_num = bool(re.fullmatch(r'[-+]?\d+(?:,\d{3})*(?:\.\d+)?', val_str))
+            is_count_query = (exp_type == "COUNT") or bool(re.search(r'\b(how many|how much|kitn[ei]|count|sankhya|number|kul|total)\b', query, re.IGNORECASE))
+
             if is_count_query:
-                val_str = str(cand['val']).strip()
-                val_has_digit = bool(re.search(r'\d', val_str))
-                val_is_bool = bool(re.search(r'^(हां|नहीं|हाँ|yes|no|na|n/a)(?:[/|\s]|$)', val_str, re.IGNORECASE))
                 if val_is_bool or not val_has_digit:
                     score += self.EMPTY_VAL_PEN
+                if val_is_pct:
+                    score -= 18.0
+                elif val_is_date:
+                    score -= 20.0
+                elif val_is_pure_num:
+                    score += 6.0
+            elif exp_type == "PERCENTAGE":
+                if val_is_pct:
+                    score += 15.0
+                elif val_is_pure_num:
+                    score -= 18.0
+            elif exp_type == "DURATION":
+                dur_in_val = bool(re.search(r'(?<![\w\u0900-\u097F])(?:वर्ष|साल|माह|महीने|दिन|घंटे|years?|months?|days?|hours?)(?![\w\u0900-\u097F])', val_str, re.IGNORECASE))
+                dur_in_lbl = bool(re.search(r'(?<![\w\u0900-\u097F])(?:वर्ष|साल|माह|महीने|दिन|घंटे|years?|months?|days?|hours?|अवधि|duration)(?![\w\u0900-\u097F])', c_cell_label, re.IGNORECASE))
+                if dur_in_val or dur_in_lbl:
+                    score += 15.0
+                else:
+                    score -= 20.0
+            elif exp_type == "DATE":
+                if val_is_date:
+                    score += 15.0
+                elif val_is_pure_num:
+                    score -= 18.0
 
             scored.append({
                 'table': cand['table'],

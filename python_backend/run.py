@@ -1,3 +1,4 @@
+"""Standalone entry point to launch the FastAPI backend server using Uvicorn."""
 import sys
 import os
 import uvicorn

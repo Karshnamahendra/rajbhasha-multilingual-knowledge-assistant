@@ -1,3 +1,4 @@
+"""Extracts technical, legal, and administrative bilingual terminology from ingested documents."""
 import re
 import json
 import logging

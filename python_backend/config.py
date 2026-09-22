@@ -1,3 +1,4 @@
+"""Central configuration settings for Qdrant vector database, directories, model parameters, and RRF constants."""
 import os
 from pydantic_settings import BaseSettings
 
@@ -35,12 +36,21 @@ class Settings(BaseSettings):
     QDRANT_INDEX_COLLECTION_NAME: str = "rajbhasha_index_collection"
     QDRANT_CONTENT_COLLECTION_NAME: str = "rajbhasha_content_collection"
     QDRANT_TABLE_COLLECTION_NAME: str = "rajbhasha_table_collection"
+    QDRANT_HIERARCHICAL_COLLECTION_NAME: str = "rajbhasha_hierarchical_collection"
 
     EMBEDDING_MODEL_NAME: str = (
         "paraphrase-multilingual-MiniLM-L12-v2"
     )
 
     GENERATOR_MODEL_NAME: str = "llama3.2"
+
+    # =========================
+    # HYBRID RETRIEVAL (DENSE + SPARSE/BM25 + RRF)
+    # =========================
+    RRF_K: int = 60
+    BM25_K1: float = 1.5
+    BM25_B: float = 0.75
+    RETRIEVAL_TOP_K: int = 20
 
     # =========================
     # OLLAMA

@@ -1,3 +1,4 @@
+"""Segments document pages dynamically into front-matter/index pages versus main content pages."""
 import re
 import logging
 from typing import List, Dict, Any, Tuple

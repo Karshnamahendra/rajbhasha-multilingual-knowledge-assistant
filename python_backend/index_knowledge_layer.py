@@ -1,3 +1,4 @@
+"""Extracts, indexes, and resolves Table of Contents (TOC) records for author-article-page queries."""
 import os
 import re
 import json
@@ -1462,11 +1463,6 @@ class StructuredIndexEngine:
                     if best >= 0.90:
                         return best
         return best
-
-    def _semantic_title_match(self, query_title: str, records: List[Dict[str, Any]], threshold: float = 0.65) -> Tuple[Optional[Dict[str, Any]], float]:
-        """Multilingual semantic embedding fallback for completely unseen titles/topics."""
-        if not self.embed_fn or not query_title or not records:
-            return None, 0.0
 
     def _semantic_title_match_confident(self, query_title: str, records: List[Dict[str, Any]]) -> Tuple[Optional[Dict[str, Any]], Dict[str, Any]]:
         """Use embeddings only with a strict margin and independent title evidence."""
