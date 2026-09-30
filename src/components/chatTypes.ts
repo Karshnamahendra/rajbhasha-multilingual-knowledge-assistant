@@ -26,19 +26,19 @@ export interface SourceItem {
 // ---------------------------------------------------------------------------
 
 /**
- * Raw `chart_data` exactly as the backend sends it. The frontend accepts the
- * common shapes below and normalises them with `normalizeChartData()` in
- * ChatMessages.tsx, so the backend format can change without breaking the UI:
+ * Raw `chart_data` as the backend sends it (report_metrics.py / magazine_metrics.py):
  *
- *  1. Chart.js style:  { labels: ["Metric A", ...],
- *                        datasets: [{ label: "2024", data: [..] }, { label: "2025", data: [..] }] }
- *  2. Rows:            [{ metric: "Metric A", "2024": 12, "2025": 18 }, ...]
- *                      (also accepted inside { rows | data | items: [...] })
- *  3. Years+metrics:   { years: [2024, 2025], metrics: [{ name: "Metric A", values: [12, 18] }] }
+ *    { type: "bar", labels: ["Metric A", ...],
+ *      series: [{ name: "2024", values: [..] }, { name: "2025", values: [..] }], unit: "" }
+ *
+ * `normalizeChartData()` in ChatMessages.tsx also accepts a few other common shapes
+ * (Chart.js `datasets`, row lists, `{years, metrics}`) so a format change does not break the UI.
  */
 export type RawChartData =
   | {
       labels?: (string | number)[];
+      type?: string;
+      series?: { name?: string | number; values?: (number | string | null)[] }[];
       datasets?: { label?: string | number; data?: (number | string | null)[] }[];
       years?: (string | number)[];
       metrics?: { name?: string; metric?: string; label?: string; values?: (number | string | null)[] }[];
@@ -52,9 +52,26 @@ export type RawChartData =
   | Record<string, unknown>[]
   | string;
 
+/**
+ * One row of the backend's `comparison` list (report / magazine comparison).
+ * `values` is keyed by period, e.g. { "2024": 12, "2025": 18 }.
+ */
+export interface BackendComparisonRow {
+  metric: string;
+  region?: string | null;
+  section_no?: string;
+  section?: string;
+  is_percent?: boolean;
+  values: Record<string, number | null>;
+  change?: number | null;
+  change_pct?: number | null;
+}
+
 /** One row of the normalised comparison table. */
 export interface ComparisonRow {
   metric: string;
+  /** True when the values are percentages (shown with %, change in percentage points). */
+  isPercent?: boolean;
   /** Value for each period, in the same order as `ComparisonData.periods`. */
   values: (number | null)[];
   /** Absolute change from the first to the last period (null if either is missing). */
@@ -80,9 +97,13 @@ export interface ChatMessage {
   sources?: SourceItem[];
   detectedScript?: string;
   scopeLabel?: string;
-  /** Comparison data from the backend's `chart_data` field (either spelling is read). */
+  /** Graph data from the backend's `chart_data` field (either spelling is read). */
   chartData?: RawChartData | null;
   chart_data?: RawChartData | null;
+  /** Comparison rows from the backend's `comparison` field (preferred source for the table). */
+  comparison?: BackendComparisonRow[] | null;
+  /** Period labels from the backend's `periods` field, oldest first. */
+  periods?: string[] | null;
 }
 
 export interface OllamaStatusInfo {

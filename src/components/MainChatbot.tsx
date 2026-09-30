@@ -270,7 +270,9 @@ export const MainChatbot: React.FC = () => {
         sources: data.sources || [],
         detectedScript: data.detected_script,
         // Comparison table + bar graph data (rendered by ChatMessages)
-        chartData: data.chart_data ?? data.chartData ?? null
+        chartData: data.chart_data ?? data.chartData ?? null,
+        comparison: Array.isArray(data.comparison) ? data.comparison : null,
+        periods: Array.isArray(data.periods) ? data.periods : null
       };
 
       setMessages((prev) => [...prev, assistantMsg]);

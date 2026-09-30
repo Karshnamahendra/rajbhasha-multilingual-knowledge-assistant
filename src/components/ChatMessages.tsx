@@ -20,6 +20,7 @@ import {
   RawChartData,
   ComparisonData,
   ComparisonRow,
+  BackendComparisonRow,
 } from './chatTypes';
 
 interface ChatMessagesProps {
@@ -108,7 +109,19 @@ export const normalizeChartData = (raw: RawChartData | null | undefined): Compar
     unit: typeof obj.unit === 'string' ? obj.unit : undefined,
   };
 
-  // 1. Chart.js style: labels = metrics, one dataset per period
+  // 1. Backend format: labels = metrics, one `series` entry per period
+  if (Array.isArray(obj.labels) && Array.isArray(obj.series) && obj.series.length) {
+    const periods = obj.series.map((s, i) => String(s.name ?? `Series ${i + 1}`));
+    const rows = obj.labels.map((label, li) =>
+      buildRow(
+        String(label),
+        obj.series!.map((s) => toNumber(s.values?.[li])),
+      ),
+    );
+    return { ...meta, periods, rows };
+  }
+
+  // 1b. Chart.js style: labels = metrics, one dataset per period
   if (Array.isArray(obj.labels) && Array.isArray(obj.datasets) && obj.datasets.length) {
     const periods = obj.datasets.map((d, i) => String(d.label ?? `Series ${i + 1}`));
     const rows = obj.labels.map((label, li) =>
@@ -137,6 +150,36 @@ export const normalizeChartData = (raw: RawChartData | null | undefined): Compar
   }
 
   return null;
+};
+
+/**
+ * The backend's `comparison` rows (report_metrics / magazine_metrics). Preferred over
+ * `chart_data` for the table: it keeps the region, percent flag and backend-computed change.
+ */
+export const fromBackendComparison = (
+  rows: BackendComparisonRow[] | null | undefined,
+  periods: string[] | null | undefined,
+  unit?: string,
+): ComparisonData | null => {
+  if (!Array.isArray(rows) || !rows.length) return null;
+  const cols =
+    Array.isArray(periods) && periods.length
+      ? periods.map(String)
+      : Array.from(new Set(rows.flatMap((r) => Object.keys(r.values || {})))).sort();
+  if (!cols.length) return null;
+
+  const out: ComparisonRow[] = rows.map((r) => {
+    const values = cols.map((p) => toNumber(r.values?.[p]));
+    const base = buildRow((r.region ? `${r.region} क्षेत्र – ` : '') + (r.metric || ''), values);
+    return {
+      ...base,
+      isPercent: !!r.is_percent,
+      // Use the backend's numbers when present; they were computed from the source tables
+      change: r.change !== undefined ? toNumber(r.change) : base.change,
+      changePct: r.is_percent ? null : r.change_pct !== undefined ? toNumber(r.change_pct) : base.changePct,
+    };
+  });
+  return { periods: cols, rows: out, unit };
 };
 
 // ---------------------------------------------------------------------------
@@ -182,6 +225,9 @@ export const parseComparisonFromText = (text: string): ComparisonData | null => 
 const fmt = (n: number | null, digits = 2): string =>
   n === null ? '—' : n.toLocaleString('en-IN', { maximumFractionDigits: digits });
 
+/** A table/graph value: adds "%" for percentage rows. */
+const fmtVal = (n: number | null, isPercent?: boolean): string => (n === null ? '—' : `${fmt(n)}${isPercent ? '%' : ''}`);
+
 /**
  * Period colours, fixed by position (first period → amber, last → indigo).
  * Validated for colour-blind separation and 3:1 contrast on the dark slate-950 surface.
@@ -194,6 +240,9 @@ const PERIOD_COLORS: Record<number, string[]> = {
 /** The graph draws at most 3 periods; with more, it shows first vs last (the table keeps all). */
 const graphPeriodIndexes = (count: number): number[] =>
   count <= 3 ? Array.from({ length: count }, (_, i) => i) : [0, count - 1];
+
+/** The graph shows at most this many metrics; the table always has every row. */
+const GRAPH_ROW_LIMIT = 12;
 
 // ---------------------------------------------------------------------------
 // Change cell (Badlav)
@@ -209,17 +258,25 @@ const ChangeCell: React.FC<{ row: ComparisonRow }> = ({ row }) => {
   return (
     <span className={`inline-flex items-center gap-1 font-medium ${color}`}>
       <Icon className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-      <span>
-        {sign}
-        {fmt(row.change)}
-        {row.changePct !== null && (
-          <span className="text-[11px] opacity-80">
-            {' '}
-            ({sign}
-            {fmt(row.changePct, 1)}%)
-          </span>
-        )}
-      </span>
+      {row.isPercent ? (
+        // Percent rows: the change is in percentage points, not a % of a %
+        <span title="percentage points">
+          {sign}
+          {fmt(row.change)} pp
+        </span>
+      ) : (
+        <span>
+          {sign}
+          {fmt(row.change)}
+          {row.changePct !== null && (
+            <span className="text-[11px] opacity-80">
+              {' '}
+              ({sign}
+              {fmt(row.changePct, 1)}%)
+            </span>
+          )}
+        </span>
+      )}
     </span>
   );
 };
@@ -228,40 +285,46 @@ const ChangeCell: React.FC<{ row: ComparisonRow }> = ({ row }) => {
 // Comparison table
 // ---------------------------------------------------------------------------
 
-const ComparisonTable: React.FC<{ data: ComparisonData }> = ({ data }) => (
-  <div className="overflow-x-auto rounded-xl border border-slate-800">
-    <table className="w-full text-xs border-collapse">
-      <thead>
-        <tr className="bg-slate-900/80 text-slate-300">
-          <th scope="col" className="text-left font-semibold px-3 py-2">Metric</th>
-          {data.periods.map((p) => (
-            <th key={p} scope="col" className="text-right font-semibold px-3 py-2 whitespace-nowrap">
-              {p}
-            </th>
-          ))}
-          <th scope="col" className="text-right font-semibold px-3 py-2">Badlav</th>
-        </tr>
-      </thead>
-      <tbody>
-        {data.rows.map((row, ri) => (
-          <tr key={`${row.metric}-${ri}`} className="border-t border-slate-800/80 hover:bg-slate-900/50">
-            <th scope="row" className="text-left font-normal text-slate-200 px-3 py-2">
-              {row.metric}
-            </th>
-            {row.values.map((v, vi) => (
-              <td key={vi} className="text-right tabular-nums text-slate-200 px-3 py-2 whitespace-nowrap">
-                {fmt(v)}
-              </td>
+const ComparisonTable: React.FC<{ data: ComparisonData }> = ({ data }) => {
+  // "Badlav" only means something when there are at least two periods
+  const showChange = data.periods.length >= 2;
+  return (
+    <div className="overflow-x-auto rounded-xl border border-slate-800">
+      <table className="w-full text-xs border-collapse">
+        <thead>
+          <tr className="bg-slate-900/80 text-slate-300">
+            <th scope="col" className="text-left font-semibold px-3 py-2">Metric</th>
+            {data.periods.map((p) => (
+              <th key={p} scope="col" className="text-right font-semibold px-3 py-2 whitespace-nowrap">
+                {p}
+              </th>
             ))}
-            <td className="text-right tabular-nums px-3 py-2 whitespace-nowrap">
-              <ChangeCell row={row} />
-            </td>
+            {showChange && <th scope="col" className="text-right font-semibold px-3 py-2">Badlav</th>}
           </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-);
+        </thead>
+        <tbody>
+          {data.rows.map((row, ri) => (
+            <tr key={`${row.metric}-${ri}`} className="border-t border-slate-800/80 hover:bg-slate-900/50">
+              <th scope="row" className="text-left font-normal text-slate-200 px-3 py-2">
+                {row.metric}
+              </th>
+              {row.values.map((v, vi) => (
+                <td key={vi} className="text-right tabular-nums text-slate-200 px-3 py-2 whitespace-nowrap">
+                  {fmtVal(v, row.isPercent)}
+                </td>
+              ))}
+              {showChange && (
+                <td className="text-right tabular-nums px-3 py-2 whitespace-nowrap">
+                  <ChangeCell row={row} />
+                </td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
 
 // ---------------------------------------------------------------------------
 // Bar graph
@@ -274,11 +337,19 @@ const ComparisonBars: React.FC<{ data: ComparisonData }> = ({ data }) => {
   const idx = graphPeriodIndexes(data.periods.length);
   const colors = PERIOD_COLORS[idx.length] ?? PERIOD_COLORS[2];
 
-  const drawable = data.rows.filter((r) => idx.some((i) => r.values[i] !== null));
+  const allDrawable = data.rows.filter((r) => idx.some((i) => r.values[i] !== null));
+  const drawable = allDrawable.slice(0, GRAPH_ROW_LIMIT);
   if (!drawable.length) return null;
 
+  // Several periods: each metric has its own scale (compares years within a metric).
+  // One period (e.g. works per author): one shared scale, so the rows can be compared.
+  const sharedMax =
+    idx.length === 1
+      ? Math.max(...drawable.map((r) => r.values[idx[0]] ?? 0).map((v) => (v > 0 ? v : 0)), 0)
+      : null;
+
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3" role="img" aria-label="Bar graph comparing periods for each metric">
+    <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3" role="img" aria-label="Bar graph of the table values">
       {/* Legend */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-3 text-[11px] text-slate-300">
         {idx.map((pi, ci) => (
@@ -288,14 +359,19 @@ const ComparisonBars: React.FC<{ data: ComparisonData }> = ({ data }) => {
           </span>
         ))}
         {data.periods.length > 3 && (
-          <span className="text-slate-500">(graph: first vs last; all years in the table)</span>
+          <span className="text-slate-500">(graph mein pehla aur aakhri saal; baaki table mein)</span>
+        )}
+        {allDrawable.length > drawable.length && (
+          <span className="text-slate-500">
+            (graph mein pehle {drawable.length} mad; saare {allDrawable.length} table mein)
+          </span>
         )}
       </div>
 
       <div className="space-y-3">
         {drawable.map((row, ri) => {
           const vals = idx.map((i) => row.values[i]);
-          const max = Math.max(...vals.map((v) => (v !== null && v > 0 ? v : 0)), 0);
+          const max = sharedMax ?? Math.max(...vals.map((v) => (v !== null && v > 0 ? v : 0)), 0);
           return (
             <div key={`${row.metric}-${ri}`}>
               <div className="text-[11px] text-slate-300 mb-1 truncate" title={row.metric}>
@@ -324,12 +400,13 @@ const ComparisonBars: React.FC<{ data: ComparisonData }> = ({ data }) => {
                         />
                       </div>
                       <span className="w-20 shrink-0 text-right text-[11px] tabular-nums text-slate-300">
-                        {fmt(v)}
+                        {fmtVal(v, row.isPercent)}
                       </span>
                       {isHover && (
                         <div className="absolute left-0 -top-7 z-10 pointer-events-none whitespace-nowrap rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 shadow-lg">
-                          {row.metric} · {data.periods[idx[ci]]}: <span className="font-semibold">{fmt(v)}</span>
-                          {data.unit ? ` ${data.unit}` : ''}
+                          {row.metric} · {data.periods[idx[ci]]}:{' '}
+                          <span className="font-semibold">{fmtVal(v, row.isPercent)}</span>
+                          {data.unit && !row.isPercent ? ` ${data.unit}` : ''}
                         </div>
                       )}
                     </div>
@@ -346,17 +423,27 @@ const ComparisonBars: React.FC<{ data: ComparisonData }> = ({ data }) => {
 
 // ---------------------------------------------------------------------------
 // Block shown under an answer: title + table + graph
+// Data source, best first: backend `comparison` rows → backend `chart_data` → the answer text.
 // ---------------------------------------------------------------------------
 
-const ComparisonBlock: React.FC<{ raw: RawChartData | null | undefined; text: string }> = ({ raw, text }) => {
-  const data = useMemo(() => normalizeChartData(raw) ?? parseComparisonFromText(text), [raw, text]);
+const ComparisonBlock: React.FC<{
+  raw: RawChartData | null | undefined;
+  comparison?: BackendComparisonRow[] | null;
+  periods?: string[] | null;
+  text: string;
+}> = ({ raw, comparison, periods, text }) => {
+  const data = useMemo(() => {
+    const chart = normalizeChartData(raw);
+    return fromBackendComparison(comparison, periods, chart?.unit) ?? chart ?? parseComparisonFromText(text);
+  }, [raw, comparison, periods, text]);
   if (!data || !data.rows.length) return null;
 
+  const heading = data.title || (data.periods.length >= 2 ? 'Tulna (Comparison)' : 'Aankde (Figures)');
   return (
     <div className="mt-3.5 pt-3 border-t border-slate-800/80 space-y-3">
       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
         <BarChart3 className="w-3.5 h-3.5 text-indigo-400" />
-        {data.title || 'Tulna (Comparison)'}
+        {heading}
         {data.unit && <span className="normal-case font-normal text-slate-500">· {data.unit}</span>}
       </span>
       <ComparisonTable data={data} />
@@ -563,8 +650,13 @@ export const ChatMessages: React.FC<ChatMessagesProps> = ({
               <ReactMarkdown>{msg.text}</ReactMarkdown>
             </div>
 
-            {/* Comparison table + bar graph (only when the backend sent chart_data) */}
-            {msg.sender === 'assistant' && <ComparisonBlock raw={msg.chartData ?? msg.chart_data} text={msg.text} />}
+            {/* Comparison table + bar graph (backend data, else read from the answer text) */}
+            {msg.sender === 'assistant' && <ComparisonBlock
+                raw={msg.chartData ?? msg.chart_data}
+                comparison={msg.comparison}
+                periods={msg.periods}
+                text={msg.text}
+              />}
 
             {/* Referenced sources, grouped by document */}
             {msg.sources && msg.sources.length > 0 && (
