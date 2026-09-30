@@ -18,6 +18,9 @@ export const MainChatbot: React.FC = () => {
   
   // Selected documents for the query. Empty = search all documents.
   const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
+
+  // Small screens: the document sidebar opens as a drawer
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
   
   // Document category tab: 'magazines' | 'reports'
   const [activeCategoryTab, setActiveCategoryTab] = useState<'magazines' | 'reports'>('magazines');
@@ -44,7 +47,8 @@ export const MainChatbot: React.FC = () => {
     {
       id: 'welcome',
       sender: 'assistant',
-      text: 'नमस्ते! Hello! I am your Rajbhasha Multilingual Knowledge Assistant.\n\nI dynamically search across your **Magazines** and **Reports** stored in the Qdrant Vector Database. Ask me anything in **Hindi, English, or Hinglish** — about articles, authors, poetry, quarterly reports, tables, or proformas.',
+      // Shown as the welcome screen with suggested questions (ChatMessages), not as a chat bubble
+      text: 'नमस्ते! मैं राजभाषा पत्रिकाओं और रिपोर्टों से आपके सवालों के जवाब देता हूँ।',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
   ]);
@@ -210,11 +214,17 @@ export const MainChatbot: React.FC = () => {
     }
   };
 
-  const handleSendMessage = async (e: React.FormEvent) => {
+  const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputQuery.trim() || isQuerying) return;
+    sendQuery(inputQuery);
+  };
 
-    const userQueryText = inputQuery.trim();
+  /** Ask a question: from the input box, or from a suggested-question chip. */
+  const sendQuery = async (text: string) => {
+    if (!text.trim() || isQuerying) return;
+
+    const userQueryText = text.trim();
+    setSidebarOpen(false);
 
     // Selected documents → backend scope. Drop ids of documents that no longer exist.
     const scopeIds = selectedDocIds.filter((id) => documents.some((d) => d.id === id));
@@ -280,7 +290,7 @@ export const MainChatbot: React.FC = () => {
       const errorMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         sender: 'assistant',
-        text: 'Error processing your request. Please ensure the backend and Ollama are running.',
+        text: 'जवाब नहीं मिल सका। कृपया जाँचें कि Python backend (port 8000) और Ollama चल रहे हैं, फिर दोबारा पूछें।',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
       setMessages((prev) => [...prev, errorMsg]);
@@ -295,39 +305,75 @@ export const MainChatbot: React.FC = () => {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
+  // "सभी दस्तावेज़" or "2 फ़ाइलें", shown under the input box
+  const liveSelected = selectedDocIds.filter((id) => documents.some((d) => d.id === id));
+  const scopeText =
+    liveSelected.length === 0
+      ? 'सभी दस्तावेज़'
+      : liveSelected.length === 1
+      ? (documents.find((d) => d.id === liveSelected[0])?.fileName || '1 फ़ाइल').replace(/\.(pdf|docx?)$/i, '')
+      : `${liveSelected.length} फ़ाइलें`;
+
+  const sidebar = (
+    <DocumentSelector
+      documents={documents}
+      selectedIds={selectedDocIds}
+      onSelectionChange={setSelectedDocIds}
+      activeTab={activeCategoryTab}
+      onTabChange={setActiveCategoryTab}
+      onUploadClick={() => {
+        setIsUploadModalOpen(true);
+        setUploadError(null);
+        setUploadSuccessSummary(null);
+      }}
+      onDelete={handleDeleteDocument}
+      onClose={() => setSidebarOpen(false)}
+    />
+  );
+
   return (
-    <div className="w-full max-w-5xl mx-auto flex flex-col space-y-4 py-4 px-3 md:px-4">
-      <Header ollamaStatus={ollamaStatus} />
+    // One screen tall: top bar, then sidebar | chat. Only the chat and the file list scroll.
+    <div className="h-full flex flex-col">
+      <Header ollamaStatus={ollamaStatus} onMenuClick={() => setSidebarOpen(true)} />
 
-      <DocumentSelector
-        documents={documents}
-        selectedIds={selectedDocIds}
-        onSelectionChange={setSelectedDocIds}
-        activeTab={activeCategoryTab}
-        onTabChange={setActiveCategoryTab}
-        onUploadClick={() => {
-          setIsUploadModalOpen(true);
-          setUploadError(null);
-          setUploadSuccessSummary(null);
-        }}
-        onDelete={handleDeleteDocument}
-      />
+      <div className="flex-1 min-h-0 flex">
+        {/* Sidebar: always visible on md+ */}
+        <aside className="hidden md:flex w-72 lg:w-80 shrink-0 flex-col border-r border-slate-800 bg-slate-900/40">
+          {sidebar}
+        </aside>
 
-      {/* Chat history + input */}
-      <div className="bg-[#0f172a]/80 border border-slate-800 rounded-3xl shadow-2xl flex flex-col overflow-hidden">
-        <ChatMessages
-          messages={messages}
-          isQuerying={isQuerying}
-          copiedId={copiedId}
-          onCopy={copyToClipboard}
-          onSourceClick={setSelectedChunk}
-        />
-        <ChatInput
-          value={inputQuery}
-          onChange={setInputQuery}
-          onSubmit={handleSendMessage}
-          isQuerying={isQuerying}
-        />
+        {/* Sidebar: drawer on small screens */}
+        {sidebarOpen && (
+          <div className="md:hidden fixed inset-0 z-40 flex">
+            <div className="w-[85%] max-w-sm h-full bg-slate-900 border-r border-slate-800 shadow-2xl">{sidebar}</div>
+            <button
+              type="button"
+              className="flex-1 bg-black/50"
+              aria-label="बंद करें"
+              onClick={() => setSidebarOpen(false)}
+            />
+          </div>
+        )}
+
+        {/* Chat */}
+        <section className="flex-1 min-w-0 flex flex-col">
+          <ChatMessages
+            messages={messages}
+            isQuerying={isQuerying}
+            copiedId={copiedId}
+            onCopy={copyToClipboard}
+            onSourceClick={setSelectedChunk}
+            onSuggestion={sendQuery}
+            scopeLabel={scopeText}
+          />
+          <ChatInput
+            value={inputQuery}
+            onChange={setInputQuery}
+            onSubmit={handleSendMessage}
+            isQuerying={isQuerying}
+            scopeLabel={scopeText}
+          />
+        </section>
       </div>
 
       <UploadModal

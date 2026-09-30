@@ -1,7 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Bot,
-  User,
   BookOpen,
   FileText,
   ExternalLink,
@@ -12,6 +10,9 @@ import {
   TrendingDown,
   Minus,
   BarChart3,
+  Table2,
+  Sparkles,
+  Layers,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import {
@@ -29,6 +30,10 @@ interface ChatMessagesProps {
   copiedId: string | null;
   onCopy: (text: string, id: string) => void;
   onSourceClick: (source: SourceItem) => void;
+  /** Ask a suggested question from the welcome screen. */
+  onSuggestion?: (question: string) => void;
+  /** What the next question will search, shown on the welcome screen. */
+  scopeLabel?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -293,13 +298,13 @@ const ComparisonTable: React.FC<{ data: ComparisonData }> = ({ data }) => {
       <table className="w-full text-xs border-collapse">
         <thead>
           <tr className="bg-slate-900/80 text-slate-300">
-            <th scope="col" className="text-left font-semibold px-3 py-2">Metric</th>
+            <th scope="col" className="text-left font-semibold px-3 py-2">मद</th>
             {data.periods.map((p) => (
               <th key={p} scope="col" className="text-right font-semibold px-3 py-2 whitespace-nowrap">
                 {p}
               </th>
             ))}
-            {showChange && <th scope="col" className="text-right font-semibold px-3 py-2">Badlav</th>}
+            {showChange && <th scope="col" className="text-right font-semibold px-3 py-2">बदलाव</th>}
           </tr>
         </thead>
         <tbody>
@@ -359,11 +364,11 @@ const ComparisonBars: React.FC<{ data: ComparisonData }> = ({ data }) => {
           </span>
         ))}
         {data.periods.length > 3 && (
-          <span className="text-slate-500">(graph mein pehla aur aakhri saal; baaki table mein)</span>
+          <span className="text-slate-500">(ग्राफ़ में पहला और आख़िरी वर्ष; बाकी तालिका में)</span>
         )}
         {allDrawable.length > drawable.length && (
           <span className="text-slate-500">
-            (graph mein pehle {drawable.length} mad; saare {allDrawable.length} table mein)
+            (ग्राफ़ में पहले {drawable.length} मद; सभी {allDrawable.length} तालिका में)
           </span>
         )}
       </div>
@@ -432,22 +437,37 @@ const ComparisonBlock: React.FC<{
   periods?: string[] | null;
   text: string;
 }> = ({ raw, comparison, periods, text }) => {
+  const [view, setView] = useState<'table' | 'graph'>('table');
   const data = useMemo(() => {
     const chart = normalizeChartData(raw);
     return fromBackendComparison(comparison, periods, chart?.unit) ?? chart ?? parseComparisonFromText(text);
   }, [raw, comparison, periods, text]);
   if (!data || !data.rows.length) return null;
 
-  const heading = data.title || (data.periods.length >= 2 ? 'Tulna (Comparison)' : 'Aankde (Figures)');
+  const heading = data.title || (data.periods.length >= 2 ? 'तुलना' : 'आँकड़े');
+  const tabClass = (on: boolean) =>
+    `inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors cursor-pointer ${
+      on ? 'bg-slate-700 text-slate-100' : 'text-slate-400 hover:text-slate-200'
+    }`;
   return (
-    <div className="mt-3.5 pt-3 border-t border-slate-800/80 space-y-3">
-      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-        <BarChart3 className="w-3.5 h-3.5 text-indigo-400" />
-        {heading}
-        {data.unit && <span className="normal-case font-normal text-slate-500">· {data.unit}</span>}
-      </span>
-      <ComparisonTable data={data} />
-      <ComparisonBars data={data} />
+    <div className="mt-4 pt-3 border-t border-slate-800/80 space-y-2.5">
+      <div className="flex items-center gap-2">
+        <span className="text-[11px] font-semibold text-slate-300 flex items-center gap-1.5">
+          <BarChart3 className="w-3.5 h-3.5 text-indigo-400" />
+          {heading}
+          {data.unit && <span className="font-normal text-slate-500">· {data.unit}</span>}
+        </span>
+        {/* One view at a time keeps long answers short */}
+        <div className="ml-auto inline-flex rounded-lg bg-slate-900 border border-slate-800 p-0.5" role="tablist">
+          <button type="button" role="tab" aria-selected={view === 'table'} onClick={() => setView('table')} className={tabClass(view === 'table')}>
+            <Table2 className="w-3.5 h-3.5" /> तालिका
+          </button>
+          <button type="button" role="tab" aria-selected={view === 'graph'} onClick={() => setView('graph')} className={tabClass(view === 'graph')}>
+            <BarChart3 className="w-3.5 h-3.5" /> ग्राफ़
+          </button>
+        </div>
+      </div>
+      {view === 'table' ? <ComparisonTable data={data} /> : <ComparisonBars data={data} />}
     </div>
   );
 };
@@ -457,7 +477,7 @@ const ComparisonBlock: React.FC<{
 // One card per document (name + year shown once), with its pages as small chips.
 // ---------------------------------------------------------------------------
 
-/** How many page chips a document shows before "+N aur". */
+/** How many page chips a document shows before "+N और". */
 const PAGE_CHIP_LIMIT = 6;
 
 const docKey = (s: SourceItem): string => s.document_id || s.document_name || s.docName || 'unknown';
@@ -524,7 +544,7 @@ const DocumentSources: React.FC<{ group: SourceGroup; onSourceClick: (s: SourceI
           </span>
         )}
         <span className="shrink-0 ml-auto text-[10px] text-slate-500">
-          {group.items.length} {group.items.length === 1 ? 'page' : 'pages'}
+          {group.items.length} पृष्ठ
         </span>
       </div>
 
@@ -536,11 +556,11 @@ const DocumentSources: React.FC<{ group: SourceGroup; onSourceClick: (s: SourceI
               key={`${pageOf(src)}-${kind}-${i}`}
               type="button"
               onClick={() => onSourceClick(src)}
-              title={`${group.name}${group.year ? ` (${group.year})` : ''} — Page ${pageOf(src) ?? '?'} (${kind}). Click to inspect.`}
+              title={`${group.name}${group.year ? ` (${group.year})` : ''} — पृष्ठ ${pageOf(src) ?? '?'} (${kind}). क्लिक करके सबूत देखें।`}
               className="inline-flex items-center gap-1 text-[11px] bg-slate-950 hover:bg-indigo-950/70 border border-slate-800 hover:border-indigo-500/50 px-2 py-0.5 rounded-md text-indigo-300 hover:text-indigo-200 transition-colors cursor-pointer group"
             >
               {kind === 'table' && <FileText className="w-3 h-3 text-emerald-400" />}
-              <span>Page {pageOf(src) ?? '?'}</span>
+              <span>पृष्ठ {pageOf(src) ?? '?'}</span>
               {kind !== 'content' && kind !== 'text' && <span className="text-slate-500">· {kind}</span>}
               <ExternalLink className="w-2.5 h-2.5 opacity-50 group-hover:opacity-100" />
             </button>
@@ -552,7 +572,7 @@ const DocumentSources: React.FC<{ group: SourceGroup; onSourceClick: (s: SourceI
             onClick={() => setExpanded(true)}
             className="text-[11px] px-2 py-0.5 rounded-md text-slate-400 hover:text-slate-200 border border-dashed border-slate-700 hover:border-slate-500 cursor-pointer transition-colors"
           >
-            +{hidden} aur
+            +{hidden} और
           </button>
         )}
         {expanded && group.items.length > PAGE_CHIP_LIMIT && (
@@ -561,7 +581,7 @@ const DocumentSources: React.FC<{ group: SourceGroup; onSourceClick: (s: SourceI
             onClick={() => setExpanded(false)}
             className="text-[11px] px-2 py-0.5 rounded-md text-slate-500 hover:text-slate-300 cursor-pointer"
           >
-            kam dikhayein
+            कम दिखाएँ
           </button>
         )}
       </div>
@@ -577,7 +597,7 @@ const SourceGroups: React.FC<{ sources: SourceItem[]; onSourceClick: (s: SourceI
   return (
     <div className="mt-3.5 pt-3 border-t border-slate-800/80 space-y-2">
       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-        Srot (Sources) · page par click karke saboot dekhein
+        स्रोत · पृष्ठ पर क्लिक करके सबूत देखें
       </span>
       <div className="space-y-2">
         {groups.map((g) => (
@@ -589,6 +609,52 @@ const SourceGroups: React.FC<{ sources: SourceItem[]; onSourceClick: (s: SourceI
 };
 
 // ---------------------------------------------------------------------------
+// Welcome screen (before the first question)
+// ---------------------------------------------------------------------------
+
+const SUGGESTIONS: { text: string; hint: string }[] = [
+  { text: '2024 और 2025 अंक में लेखों की तुलना कीजिए', hint: 'पत्रिका · तुलना + ग्राफ़' },
+  { text: 'किस लेखक ने सबसे ज़्यादा लिखा?', hint: 'पत्रिका · लेखक' },
+  { text: 'AI पर कितने लेख हैं?', hint: 'पत्रिका · विषय' },
+  { text: '2024 और 2025 की रिपोर्ट की तुलना कीजिए', hint: 'रिपोर्ट · तुलना + ग्राफ़' },
+  { text: 'तीनों क्षेत्रों को कुल कितने पत्र भेजे गए?', hint: 'रिपोर्ट · गणना' },
+  { text: 'पत्रिका की कविताएँ कौन-सी हैं?', hint: 'पत्रिका · सूची' },
+];
+
+const Welcome: React.FC<{ onSuggestion?: (q: string) => void; scopeLabel?: string }> = ({ onSuggestion, scopeLabel }) => (
+  <div className="h-full flex flex-col items-center justify-center text-center px-4 py-10">
+    <div className="w-12 h-12 rounded-2xl bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center mb-4">
+      <Sparkles className="w-6 h-6 text-indigo-300" />
+    </div>
+    <h2 className="text-xl md:text-2xl font-semibold text-slate-100">नमस्ते! क्या जानना चाहेंगे?</h2>
+    <p className="mt-2 max-w-lg text-sm text-slate-400 leading-relaxed">
+      राजभाषा पत्रिकाओं और रिपोर्टों से पूछिए — हिंदी, English या Hinglish में। हर जवाब के साथ स्रोत पृष्ठ मिलेंगे,
+      और तुलना वाले सवालों पर तालिका व ग्राफ़।
+    </p>
+    {scopeLabel && (
+      <p className="mt-2 text-[11px] text-slate-500">
+        अभी खोज: <span className="text-slate-300">{scopeLabel}</span> · दस्तावेज़ सूची से फ़ाइलें चुनें
+      </p>
+    )}
+    {onSuggestion && (
+      <div className="mt-6 w-full max-w-2xl grid grid-cols-1 sm:grid-cols-2 gap-2 text-left">
+        {SUGGESTIONS.map((s) => (
+          <button
+            key={s.text}
+            type="button"
+            onClick={() => onSuggestion(s.text)}
+            className="group text-left rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-900 hover:border-indigo-500/50 px-3.5 py-2.5 transition-colors cursor-pointer"
+          >
+            <span className="block text-[13px] text-slate-200 group-hover:text-white">{s.text}</span>
+            <span className="block mt-0.5 text-[10px] text-slate-500">{s.hint}</span>
+          </button>
+        ))}
+      </div>
+    )}
+  </div>
+);
+
+// ---------------------------------------------------------------------------
 // Message list
 // ---------------------------------------------------------------------------
 
@@ -598,103 +664,113 @@ export const ChatMessages: React.FC<ChatMessagesProps> = ({
   copiedId,
   onCopy,
   onSourceClick,
+  onSuggestion,
+  scopeLabel,
 }) => {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const lastMsgRef = useRef<HTMLDivElement>(null);
 
+  // The welcome text is shown as the welcome screen, never as a bubble
+  const shown = messages.filter((m) => m.id !== 'welcome');
+
   // Keep the newest message in view. Long answers (table + graph) are scrolled
-  // to their start, so the reader sees the answer first rather than the graph's end.
+  // to their start, so the reader sees the answer first.
   useEffect(() => {
-    const last = messages[messages.length - 1];
+    const last = shown[shown.length - 1];
     if (!isQuerying && last?.sender === 'assistant' && lastMsgRef.current) {
       lastMsgRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } else {
       chatEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }
-  }, [messages, isQuerying]);
+  }, [messages, isQuerying]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (shown.length === 0 && !isQuerying) {
+    return (
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        <Welcome onSuggestion={onSuggestion} scopeLabel={scopeLabel} />
+      </div>
+    );
+  }
 
   return (
-    <div className="p-4 md:p-6 min-h-[300px] max-h-[70vh] overflow-y-auto space-y-4">
-      {messages.map((msg, i) => (
-        <div
-          key={msg.id}
-          ref={i === messages.length - 1 ? lastMsgRef : undefined}
-          className={`flex flex-col scroll-mt-2 ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
-        >
-          {/* Sender Label */}
-          <div className="flex items-center gap-2 text-[11px] text-slate-400 mb-1 px-1">
-            {msg.sender === 'assistant' ? (
-              <span className="text-indigo-400 font-semibold flex items-center gap-1">
-                <Bot className="w-3.5 h-3.5" /> Assistant
-              </span>
-            ) : (
-              <span className="text-slate-300 font-semibold flex items-center gap-1">
-                <User className="w-3.5 h-3.5" /> You
-              </span>
-            )}
-            <span>• {msg.timestamp}</span>
-            {msg.sender === 'user' && (
-              <span className="text-indigo-300/80">• 📎 {msg.scopeLabel || 'All documents'}</span>
-            )}
-          </div>
-
-          {/* Message Bubble */}
-          <div
-            className={`max-w-[88%] rounded-2xl p-4 text-sm leading-relaxed ${
-              msg.sender === 'user'
-                ? 'bg-indigo-600 text-white rounded-tr-sm shadow-md'
-                : 'bg-slate-950/90 border border-slate-800 text-slate-200 rounded-tl-sm'
-            }`}
-          >
-            <div className="prose prose-invert prose-sm max-w-none">
-              <ReactMarkdown>{msg.text}</ReactMarkdown>
-            </div>
-
-            {/* Comparison table + bar graph (backend data, else read from the answer text) */}
-            {msg.sender === 'assistant' && <ComparisonBlock
-                raw={msg.chartData ?? msg.chart_data}
-                comparison={msg.comparison}
-                periods={msg.periods}
-                text={msg.text}
-              />}
-
-            {/* Referenced sources, grouped by document */}
-            {msg.sources && msg.sources.length > 0 && (
-              <SourceGroups sources={msg.sources} onSourceClick={onSourceClick} />
-            )}
-
-            {/* Copy button */}
-            {msg.sender === 'assistant' && (
-              <div className="mt-2 flex justify-end">
-                <button
-                  onClick={() => onCopy(msg.text, msg.id)}
-                  className="text-slate-500 hover:text-slate-300 text-[11px] flex items-center gap-1 cursor-pointer transition-colors"
-                >
-                  {copiedId === msg.id ? (
-                    <>
-                      <Check className="w-3 h-3 text-emerald-400" />
-                      <span className="text-emerald-400">Copied</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3 h-3" />
-                      <span>Copy</span>
-                    </>
-                  )}
-                </button>
+    <div className="flex-1 min-h-0 overflow-y-auto">
+      <div className="mx-auto max-w-4xl px-3 md:px-6 py-6 space-y-6">
+        {shown.map((msg, i) =>
+          msg.sender === 'user' ? (
+            <div key={msg.id} ref={i === shown.length - 1 ? lastMsgRef : undefined} className="flex flex-col items-end scroll-mt-4">
+              <div className="max-w-[85%] rounded-2xl rounded-br-md bg-indigo-600 px-4 py-2.5 text-sm leading-relaxed text-white whitespace-pre-wrap">
+                {msg.text}
               </div>
-            )}
-          </div>
-        </div>
-      ))}
+              <div className="mt-1 px-1 flex items-center gap-1.5 text-[10px] text-slate-500">
+                <span>{msg.timestamp}</span>
+                <span>·</span>
+                <span className="inline-flex items-center gap-1">
+                  <Layers className="w-3 h-3" /> {msg.scopeLabel || 'सभी दस्तावेज़'}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div key={msg.id} ref={i === shown.length - 1 ? lastMsgRef : undefined} className="flex gap-3 scroll-mt-4">
+              <div className="w-7 h-7 shrink-0 rounded-lg bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center mt-0.5">
+                <Sparkles className="w-3.5 h-3.5 text-indigo-300" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="prose prose-invert prose-sm max-w-none text-slate-200 leading-relaxed">
+                  <ReactMarkdown>{msg.text}</ReactMarkdown>
+                </div>
 
-      {isQuerying && (
-        <div className="flex items-center gap-2 text-xs text-indigo-400 animate-pulse p-2">
-          <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-400" />
-          <span>Searching Qdrant Vector Store &amp; Synthesizing Grounded Answer...</span>
-        </div>
-      )}
-      <div ref={chatEndRef} />
+                {/* Comparison table / bar graph (backend data, else read from the answer text) */}
+                <ComparisonBlock
+                  raw={msg.chartData ?? msg.chart_data}
+                  comparison={msg.comparison}
+                  periods={msg.periods}
+                  text={msg.text}
+                />
+
+                {/* Referenced sources, grouped by document */}
+                {msg.sources && msg.sources.length > 0 && (
+                  <SourceGroups sources={msg.sources} onSourceClick={onSourceClick} />
+                )}
+
+                <div className="mt-2 flex items-center gap-3 text-[10px] text-slate-500">
+                  <span>{msg.timestamp}</span>
+                  <button
+                    type="button"
+                    onClick={() => onCopy(msg.text, msg.id)}
+                    className="inline-flex items-center gap-1 hover:text-slate-300 cursor-pointer transition-colors"
+                  >
+                    {copiedId === msg.id ? (
+                      <>
+                        <Check className="w-3 h-3 text-emerald-400" />
+                        <span className="text-emerald-400">कॉपी हो गया</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3 h-3" />
+                        <span>कॉपी करें</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ),
+        )}
+
+        {isQuerying && (
+          <div className="flex gap-3" aria-live="polite">
+            <div className="w-7 h-7 shrink-0 rounded-lg bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center">
+              <RefreshCw className="w-3.5 h-3.5 text-indigo-300 animate-spin" />
+            </div>
+            <div className="flex-1 pt-1 space-y-2">
+              <p className="text-xs text-slate-400">दस्तावेज़ों में खोज रहा हूँ…</p>
+              <div className="h-2.5 w-3/4 rounded bg-slate-800 animate-pulse" />
+              <div className="h-2.5 w-1/2 rounded bg-slate-800 animate-pulse" />
+            </div>
+          </div>
+        )}
+        <div ref={chatEndRef} />
+      </div>
     </div>
   );
 };

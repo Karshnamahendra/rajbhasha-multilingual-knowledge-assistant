@@ -3,14 +3,9 @@ import { MainChatbot } from './components/MainChatbot';
 
 export default function App() {
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
-      <main className="flex-1 w-full">
-        <MainChatbot />
-      </main>
-      
-      <footer className="py-3 text-center text-[11px] text-slate-500 border-t border-slate-900">
-        Rajbhasha Vibhag Knowledge Assistant • Grounded PDF RAG Pipeline
-      </footer>
+    // Exactly one screen tall on every device; the chat and the file list scroll inside
+    <div className="h-dvh overflow-hidden bg-slate-950 text-slate-100 font-sans selection:bg-indigo-500 selection:text-white">
+      <MainChatbot />
     </div>
   );
 }

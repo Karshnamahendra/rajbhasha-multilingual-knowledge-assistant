@@ -1,55 +1,37 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  BookOpen,
-  FileText,
-  UploadCloud,
-  Trash2,
-  Calendar,
-  Search,
-  Check,
-  X,
-  Layers,
-} from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { BookOpen, BarChart3, FileText, Search, Trash2, Upload, CheckSquare, MinusSquare, Square, X, Layers } from 'lucide-react';
 import { UploadedDocument } from '../types';
 
-type CategoryTab = 'magazines' | 'reports';
+type Tab = 'magazines' | 'reports';
 
 interface DocumentSelectorProps {
   documents: UploadedDocument[];
   selectedIds: string[];
   onSelectionChange: (ids: string[]) => void;
-  activeTab: CategoryTab;
-  onTabChange: (tab: CategoryTab) => void;
+  activeTab: Tab;
+  onTabChange: (tab: Tab) => void;
   onUploadClick: () => void;
   onDelete: (docId: string, e: React.MouseEvent) => void;
+  /** Small screens: the sidebar is a drawer; this closes it. */
+  onClose?: () => void;
 }
 
-const docTypeOf = (d: UploadedDocument) => d.document_type || 'magazine';
+const isReport = (d: UploadedDocument) => d.document_type === 'report';
 
-const docLabel = (d: UploadedDocument) => d.document_name || d.fileName || d.id;
+/** "Abhivyakti_Sixeen edition 2024.docx" -> "Abhivyakti Sixeen edition 2024" */
+const displayName = (d: UploadedDocument) =>
+  (d.document_name || d.fileName || d.id).replace(/\.(pdf|docx?)$/i, '').replace(/_/g, ' ');
 
-function TabCheckbox({ checked, indeterminate, onChange, disabled }: {
-  checked: boolean;
-  indeterminate: boolean;
-  onChange: () => void;
-  disabled?: boolean;
-}) {
-  const ref = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    if (ref.current) ref.current.indeterminate = indeterminate;
-  }, [indeterminate]);
-  return (
-    <input
-      ref={ref}
-      type="checkbox"
-      checked={checked}
-      onChange={onChange}
-      disabled={disabled}
-      className="w-4 h-4 accent-indigo-500 cursor-pointer disabled:cursor-not-allowed"
-    />
-  );
-}
+const yearOf = (d: UploadedDocument): string | null => {
+  if (d.year) return String(d.year);
+  const m = (d.fileName || '').match(/(?:^|\D)((?:19|20)\d{2})(?!\d)/);
+  return m ? m[1] : null;
+};
 
+/**
+ * Left sidebar (replaces the old wide document picker): pick which documents the next question searches.
+ * Nothing selected = search every document.
+ */
 export const DocumentSelector: React.FC<DocumentSelectorProps> = ({
   documents,
   selectedIds,
@@ -58,260 +40,258 @@ export const DocumentSelector: React.FC<DocumentSelectorProps> = ({
   onTabChange,
   onUploadClick,
   onDelete,
+  onClose,
 }) => {
   const [search, setSearch] = useState('');
-  const [yearFilter, setYearFilter] = useState<string>('all');
+  const [year, setYear] = useState<string>('all');
 
-  const selected = useMemo(() => new Set(selectedIds), [selectedIds]);
-  const docById = useMemo(() => new Map(documents.map((d) => [d.id, d])), [documents]);
-
-  const magazines = documents.filter((d) => docTypeOf(d) === 'magazine');
-  const reports = documents.filter((d) => docTypeOf(d) === 'report');
+  const magazines = documents.filter((d) => !isReport(d));
+  const reports = documents.filter(isReport);
   const tabDocs = activeTab === 'magazines' ? magazines : reports;
 
   const years = useMemo(
-    () =>
-      [...new Set(tabDocs.map((d) => d.year).filter((y): y is number => !!y))].sort((a, b) => b - a),
-    [tabDocs]
+    () => Array.from(new Set(tabDocs.map(yearOf).filter((y): y is string => !!y))).sort().reverse(),
+    [tabDocs],
   );
 
-  // Reset the year filter if it no longer exists in the new tab
-  useEffect(() => {
-    if (yearFilter !== 'all' && !years.includes(Number(yearFilter))) setYearFilter('all');
-  }, [years, yearFilter]);
+  const visible = tabDocs
+    .filter((d) => year === 'all' || yearOf(d) === year)
+    .filter((d) => !search.trim() || `${displayName(d)} ${d.report_period ?? ''}`.toLowerCase().includes(search.trim().toLowerCase()))
+    .sort((a, b) => (yearOf(a) ?? '').localeCompare(yearOf(b) ?? '') || displayName(a).localeCompare(displayName(b)));
 
-  const visible = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return tabDocs.filter(
-      (d) =>
-        (yearFilter === 'all' || String(d.year) === yearFilter) &&
-        (!q || `${docLabel(d)} ${d.fileName} ${d.report_period ?? ''}`.toLowerCase().includes(q))
+  const selected = new Set(selectedIds);
+  const selectedInTab = (list: UploadedDocument[]) => list.filter((d) => selected.has(d.id)).length;
+  const visibleSelected = visible.filter((d) => selected.has(d.id)).length;
+  const allVisibleSelected = visible.length > 0 && visibleSelected === visible.length;
+
+  const toggle = (id: string) =>
+    onSelectionChange(selected.has(id) ? selectedIds.filter((x) => x !== id) : [...selectedIds, id]);
+
+  const toggleAllVisible = () => {
+    const ids = visible.map((d) => d.id);
+    onSelectionChange(
+      allVisibleSelected
+        ? selectedIds.filter((id) => !ids.includes(id))
+        : Array.from(new Set([...selectedIds, ...ids])),
     );
-  }, [tabDocs, search, yearFilter]);
-
-  const setMany = (ids: string[], on: boolean) => {
-    const next = new Set(selected);
-    ids.forEach((id) => (on ? next.add(id) : next.delete(id)));
-    onSelectionChange([...next]);
   };
 
-  const visibleIds = visible.map((d) => d.id);
-  const visibleSelectedCount = visibleIds.filter((id) => selected.has(id)).length;
-  const allVisibleSelected = visibleIds.length > 0 && visibleSelectedCount === visibleIds.length;
+  const selectedDocs = documents.filter((d) => selected.has(d.id));
 
-  const selectedMagCount = selectedIds.filter((id) => docById.get(id) && docTypeOf(docById.get(id)!) === 'magazine').length;
-  const selectedRepCount = selectedIds.filter((id) => docById.get(id) && docTypeOf(docById.get(id)!) === 'report').length;
-
-  const tabButton = (tab: CategoryTab, icon: React.ReactNode, label: string, total: number, picked: number) => (
-    <button
-      onClick={() => onTabChange(tab)}
-      className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-semibold transition-all cursor-pointer ${
-        activeTab === tab
-          ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30 ring-1 ring-indigo-400/40'
-          : 'bg-slate-950 text-slate-400 hover:text-slate-200 hover:bg-slate-900 border border-slate-800'
-      }`}
-    >
-      {icon}
-      <span>{label}</span>
-      <span className="bg-indigo-950/80 text-indigo-300 px-1.5 py-0.5 rounded-full text-[10px] ml-0.5">
-        {picked > 0 ? `${picked}/${total}` : total}
-      </span>
-    </button>
-  );
+  const TabButton: React.FC<{ tab: Tab; label: string; icon: React.ReactNode; list: UploadedDocument[] }> = ({
+    tab,
+    label,
+    icon,
+    list,
+  }) => {
+    const active = activeTab === tab;
+    const n = selectedInTab(list);
+    return (
+      <button
+        type="button"
+        onClick={() => onTabChange(tab)}
+        className={`flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
+          active ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+        }`}
+      >
+        {icon}
+        {label}
+        <span
+          className={`rounded-full px-1.5 text-[10px] tabular-nums ${
+            active ? 'bg-white/20' : 'bg-slate-800 text-slate-400'
+          }`}
+        >
+          {n > 0 ? `${n}/${list.length}` : list.length}
+        </span>
+      </button>
+    );
+  };
 
   return (
-    <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-4 md:p-5 space-y-4 shadow-lg">
-      {/* Tabs + Upload */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
-        <div className="flex items-center gap-2">
-          {tabButton('magazines', <BookOpen className="w-4 h-4" />, '📖 MAGAZINES', magazines.length, selectedMagCount)}
-          {tabButton('reports', <FileText className="w-4 h-4" />, '📊 REPORTS', reports.length, selectedRepCount)}
+    <div className="h-full flex flex-col">
+      {/* Title */}
+      <div className="shrink-0 flex items-center justify-between px-4 pt-4 pb-3">
+        <div>
+          <h2 className="text-sm font-semibold text-slate-100">दस्तावेज़</h2>
+          <p className="text-[11px] text-slate-500">जिनमें खोजना है, उन्हें चुनें</p>
         </div>
-
-        <button
-          onClick={onUploadClick}
-          className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs px-5 py-2.5 rounded-2xl transition-all shadow-md shadow-indigo-600/30 active:scale-95 cursor-pointer"
-        >
-          <UploadCloud className="w-4 h-4" />
-          <span>Upload Document</span>
-        </button>
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="md:hidden p-1.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800 cursor-pointer"
+            aria-label="बंद करें"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
-      {/* Toolbar: select-all, search, year */}
-      {tabDocs.length > 0 && (
-        <div className="flex flex-col md:flex-row md:items-center gap-2.5">
-          <label className="flex items-center gap-2 text-xs text-slate-300 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 cursor-pointer select-none shrink-0">
-            <TabCheckbox
-              checked={allVisibleSelected}
-              indeterminate={visibleSelectedCount > 0 && !allVisibleSelected}
-              onChange={() => setMany(visibleIds, !allVisibleSelected)}
-              disabled={!visibleIds.length}
-            />
-            <span>{allVisibleSelected ? 'सभी हटाएँ' : 'सभी चुनें'} ({visibleIds.length})</span>
-          </label>
+      {/* Tabs */}
+      <div className="shrink-0 px-3">
+        <div className="flex gap-1 rounded-xl bg-slate-950/70 border border-slate-800 p-1">
+          <TabButton tab="magazines" label="पत्रिकाएँ" icon={<BookOpen className="w-3.5 h-3.5" />} list={magazines} />
+          <TabButton tab="reports" label="रिपोर्ट" icon={<BarChart3 className="w-3.5 h-3.5" />} list={reports} />
+        </div>
+      </div>
 
-          <div className="relative flex-1">
-            <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              type="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="फ़ाइल खोजें / Search files…"
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-8 pr-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-            />
-          </div>
+      {/* Search + year */}
+      <div className="shrink-0 px-3 pt-3 flex gap-2">
+        <label className="flex-1 flex items-center gap-2 rounded-lg bg-slate-950/70 border border-slate-800 focus-within:border-indigo-500/60 px-2.5">
+          <Search className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="फ़ाइल खोजें"
+            className="w-full bg-transparent py-1.5 text-xs text-slate-200 placeholder:text-slate-600 outline-none"
+          />
+        </label>
+        {years.length > 1 && (
+          <select
+            value={year}
+            onChange={(e) => setYear(e.target.value)}
+            className="rounded-lg bg-slate-950/70 border border-slate-800 px-2 text-xs text-slate-300 outline-none cursor-pointer"
+            aria-label="वर्ष"
+          >
+            <option value="all">सभी वर्ष</option>
+            {years.map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
 
-          {years.length > 0 && (
-            <select
-              value={yearFilter}
-              onChange={(e) => setYearFilter(e.target.value)}
-              className="bg-slate-950 border border-slate-800 text-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 cursor-pointer"
-            >
-              <option value="all">सभी वर्ष / All years</option>
-              {years.map((y) => (
-                <option key={y} value={String(y)}>
-                  {y}
-                </option>
-              ))}
-            </select>
-          )}
+      {/* Select all in view */}
+      {visible.length > 0 && (
+        <div className="shrink-0 px-4 pt-3 pb-1 flex items-center justify-between text-[11px]">
+          <button
+            type="button"
+            onClick={toggleAllVisible}
+            className="inline-flex items-center gap-1.5 text-slate-400 hover:text-slate-200 cursor-pointer"
+          >
+            {allVisibleSelected ? (
+              <CheckSquare className="w-3.5 h-3.5 text-indigo-400" />
+            ) : visibleSelected > 0 ? (
+              <MinusSquare className="w-3.5 h-3.5 text-indigo-400" />
+            ) : (
+              <Square className="w-3.5 h-3.5" />
+            )}
+            {allVisibleSelected ? 'सभी हटाएँ' : 'सभी चुनें'}
+          </button>
+          <span className="text-slate-600">{visible.length} फ़ाइलें</span>
         </div>
       )}
 
-      {/* Document cards */}
-      <div className="space-y-2">
-        {tabDocs.length === 0 ? (
-          <div className="text-center py-8 text-slate-500 text-xs">
-            {activeTab === 'magazines' ? (
-              <BookOpen className="w-8 h-8 mx-auto text-slate-600 mb-2 opacity-50" />
-            ) : (
-              <FileText className="w-8 h-8 mx-auto text-slate-600 mb-2 opacity-50" />
-            )}
-            <p>No {activeTab} uploaded yet.</p>
-            <p className="text-[11px] text-slate-600 mt-1">
-              Click "Upload Document" and select {activeTab === 'magazines' ? 'MAGAZINES' : 'REPORTS'}.
-            </p>
+      {/* Document list */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-2 pb-2">
+        {visible.length === 0 ? (
+          <div className="px-3 py-8 text-center text-xs text-slate-500">
+            {tabDocs.length === 0
+              ? activeTab === 'magazines'
+                ? 'अभी कोई पत्रिका नहीं है।'
+                : 'अभी कोई रिपोर्ट नहीं है।'
+              : 'इस खोज से कोई फ़ाइल नहीं मिली।'}
           </div>
-        ) : visible.length === 0 ? (
-          <p className="text-center py-6 text-slate-500 text-xs">कोई फ़ाइल नहीं मिली / No matching files</p>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[340px] overflow-y-auto pr-1">
-            {visible.map((doc) => {
-              const isSelected = selected.has(doc.id);
-              const isReport = docTypeOf(doc) === 'report';
+          <ul className="space-y-1">
+            {visible.map((d) => {
+              const on = selected.has(d.id);
+              const y = yearOf(d);
               return (
-                <div
-                  key={doc.id}
-                  role="checkbox"
-                  aria-checked={isSelected}
-                  tabIndex={0}
-                  onClick={() => setMany([doc.id], !isSelected)}
-                  onKeyDown={(e) => {
-                    if (e.key === ' ' || e.key === 'Enter') {
-                      e.preventDefault();
-                      setMany([doc.id], !isSelected);
-                    }
-                  }}
-                  className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between space-y-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
-                    isSelected
-                      ? 'bg-indigo-950/40 border-indigo-500/70 shadow-md shadow-indigo-950/40 ring-1 ring-indigo-500/40'
-                      : 'bg-slate-950/70 border-slate-800/80 hover:border-slate-700 hover:bg-slate-900/60'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2 overflow-hidden">
-                      <span
-                        className={`w-4 h-4 rounded-md border flex items-center justify-center shrink-0 transition-colors ${
-                          isSelected ? 'bg-indigo-500 border-indigo-400' : 'border-slate-600 bg-slate-900'
-                        }`}
-                      >
-                        {isSelected && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
-                      </span>
-                      {isReport ? (
-                        <FileText className="w-4 h-4 text-emerald-400 shrink-0" />
-                      ) : (
-                        <BookOpen className="w-4 h-4 text-indigo-400 shrink-0" />
+                <li key={d.id}>
+                  <div
+                    role="checkbox"
+                    aria-checked={on}
+                    tabIndex={0}
+                    onClick={() => toggle(d.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === ' ' || e.key === 'Enter') {
+                        e.preventDefault();
+                        toggle(d.id);
+                      }
+                    }}
+                    className={`group flex items-start gap-2.5 rounded-xl px-2.5 py-2 cursor-pointer border transition-colors outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/60 ${
+                      on
+                        ? 'bg-indigo-500/10 border-indigo-500/40'
+                        : 'border-transparent hover:bg-slate-800/50'
+                    }`}
+                  >
+                    <span
+                      className={`mt-0.5 w-4 h-4 shrink-0 rounded border flex items-center justify-center ${
+                        on ? 'bg-indigo-500 border-indigo-500' : 'border-slate-600'
+                      }`}
+                    >
+                      {on && (
+                        <svg viewBox="0 0 12 12" className="w-3 h-3 text-white" aria-hidden="true">
+                          <path d="M2.5 6.2l2.3 2.3 4.7-4.9" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
                       )}
-                      <span className="font-semibold text-xs text-slate-200 truncate" title={doc.fileName}>
-                        {docLabel(doc)}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[13px] leading-snug text-slate-200 break-words" title={d.fileName}>
+                        {displayName(d)}
                       </span>
-                    </div>
+                      <span className="mt-1 flex items-center gap-2 text-[11px] text-slate-500">
+                        {isReport(d) ? (
+                          <FileText className="w-3 h-3 text-emerald-400" aria-hidden="true" />
+                        ) : (
+                          <BookOpen className="w-3 h-3 text-indigo-400" aria-hidden="true" />
+                        )}
+                        {isReport(d) && d.report_period ? (
+                          <span className="rounded-md bg-slate-800 px-1.5 py-px font-medium text-slate-300">{d.report_period}</span>
+                        ) : y && (
+                          <span className="rounded-md bg-slate-800 px-1.5 py-px font-medium text-slate-300">{y}</span>
+                        )}
+                        {d.totalPages ? <span>{d.totalPages} पृष्ठ</span> : null}
+                      </span>
+                    </span>
                     <button
-                      onClick={(e) => onDelete(doc.id, e)}
-                      title="Remove Document"
-                      className="text-slate-500 hover:text-rose-400 p-1 rounded-lg hover:bg-rose-950/40 transition-colors"
+                      type="button"
+                      onClick={(e) => onDelete(d.id, e)}
+                      className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 -m-0.5 rounded-md text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-opacity cursor-pointer"
+                      title="हटाएँ"
+                      aria-label={`${displayName(d)} हटाएँ`}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
-
-                  <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-800/60">
-                    <span className="inline-flex items-center gap-1 text-emerald-400 font-medium">
-                      <Calendar className="w-3 h-3" />
-                      {isReport
-                        ? doc.report_period || (doc.year ? `Year ${doc.year}` : 'Official Report')
-                        : doc.year
-                        ? `Year ${doc.year}`
-                        : 'Auto-detected'}
-                    </span>
-                    <span>{doc.totalPages || 1} Pages</span>
-                  </div>
-                </div>
+                </li>
               );
             })}
-          </div>
+          </ul>
         )}
       </div>
 
-      {/* Selection summary (replaces the old single-scope dropdown) */}
-      <div className="pt-3 border-t border-slate-800/60 space-y-2">
-        <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-          <div className="flex items-center gap-2 text-slate-400">
-            <Layers className="w-3.5 h-3.5 text-indigo-400" />
-            <span className="font-medium">Query Scope:</span>
+      {/* Scope + upload */}
+      <div className="shrink-0 border-t border-slate-800 p-3 space-y-2.5">
+        <div className="flex items-start gap-2 text-[11px]">
+          <Layers className="w-3.5 h-3.5 mt-px shrink-0 text-indigo-400" />
+          <div className="min-w-0 flex-1">
+            <span className="text-slate-500">खोज का दायरा: </span>
             <span className="text-slate-200">
-              {selectedIds.length === 0
-                ? 'सभी दस्तावेज़ / All documents'
-                : `${selectedIds.length} ${selectedIds.length === 1 ? 'फ़ाइल चुनी गई' : 'फ़ाइलें चुनी गईं'} / selected`}
+              {selectedDocs.length === 0 ? 'सभी दस्तावेज़' : `${selectedDocs.length} फ़ाइलें चुनी गईं`}
             </span>
           </div>
-          {selectedIds.length > 0 && (
+          {selectedDocs.length > 0 && (
             <button
+              type="button"
               onClick={() => onSelectionChange([])}
-              className="text-[11px] text-slate-400 hover:text-rose-300 px-2 py-1 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+              className="shrink-0 text-slate-500 hover:text-slate-200 cursor-pointer"
             >
-              सब साफ़ करें / Clear
+              साफ़ करें
             </button>
           )}
         </div>
-
-        {selectedIds.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
-            {selectedIds.map((id) => {
-              const d = docById.get(id);
-              const isReport = d && docTypeOf(d) === 'report';
-              return (
-                <span
-                  key={id}
-                  className={`inline-flex items-center gap-1 max-w-[260px] pl-2.5 pr-1 py-0.5 rounded-full text-[11px] border ${
-                    isReport
-                      ? 'bg-emerald-950/40 border-emerald-500/30 text-emerald-200'
-                      : 'bg-indigo-950/50 border-indigo-500/30 text-indigo-200'
-                  }`}
-                >
-                  <span className="truncate">{d ? docLabel(d) : id}</span>
-                  <button
-                    onClick={() => setMany([id], false)}
-                    className="p-0.5 rounded-full hover:bg-slate-800/80 cursor-pointer"
-                    aria-label="Remove from selection"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              );
-            })}
-          </div>
-        )}
+        <button
+          type="button"
+          onClick={onUploadClick}
+          className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 px-3 py-2 text-sm font-medium text-white transition-colors cursor-pointer"
+        >
+          <Upload className="w-4 h-4" />
+          दस्तावेज़ अपलोड करें
+        </button>
       </div>
     </div>
   );
