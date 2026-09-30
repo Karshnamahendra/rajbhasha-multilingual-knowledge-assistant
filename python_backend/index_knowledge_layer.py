@@ -7,6 +7,7 @@ import difflib
 import unicodedata
 from typing import List, Dict, Any, Optional, Tuple, Union
 from terminology_memory import DynamicTerminologyMemory
+from doc_scope import in_scope
 
 logger = logging.getLogger("IndexKnowledgeLayer")
 logger.setLevel(logging.INFO)
@@ -641,6 +642,8 @@ class StructuredIndexStore:
         if not document_id or document_id in ["all", "All Uploaded Documents", ""]:
             all_recs = []
             for doc_key, r_list in self._memory_store.items():
+                if not in_scope(doc_key):
+                    continue
                 for record in r_list:
                     self._enrich_article_record(record, doc_key)
                 all_recs.extend(r_list)
@@ -2011,4 +2014,3 @@ class StructuredIndexEngine:
             "matched_records": matched_records,
             "slot_data": slot_data
         }
-

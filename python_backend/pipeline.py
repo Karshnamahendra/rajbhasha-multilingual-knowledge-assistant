@@ -33,6 +33,7 @@ from table_query_engine import StructuredTableEngine
 from structured_store import StructuredRecordStore, build_structured_records, FieldNormalizer
 from hierarchical_model import HierarchicalStore
 from hierarchical_builder import build_document_hierarchy
+from docx_toc import extract_docx_toc_records
 
 
 class RAGPipeline:
@@ -135,6 +136,15 @@ class RAGPipeline:
                 document_id=document_id,
                 filename=filename
             )
+            # DOCX magazines often keep the contents page as a Word table. Reading the
+            # cells directly keeps title / author(s) / page / category apart, which the
+            # text-based parser above merges ("title : : : author", no page).
+            if file_type == "docx":
+                table_toc = extract_docx_toc_records(file_path, document_id, filename, pages=pages)
+                if table_toc and len(table_toc) >= max(5, int(0.8 * len(toc_records))):
+                    print(f"[RAGPipeline] Using DOCX contents table: {len(table_toc)} entries "
+                          f"(text parser found {len(toc_records)}).")
+                    toc_records = table_toc
             self.index_store.save_records(document_id, filename, toc_records)
             print(f"[RAGPipeline] Created {len(toc_records)} structured TOC records in Index Knowledge Layer.")
         except Exception as e:
@@ -1137,4 +1147,3 @@ class RAGPipeline:
         if label and not label.lower().startswith("address continuation"):
             return f"{label}: {value}"
         return value
-

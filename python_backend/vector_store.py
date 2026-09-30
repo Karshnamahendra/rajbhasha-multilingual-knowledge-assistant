@@ -12,6 +12,7 @@ from qdrant_client.http import models
 from sentence_transformers import SentenceTransformer
 
 from config import settings
+from doc_scope import qdrant_scope_condition, in_scope
 
 logger = logging.getLogger("VectorStore")
 logger.setLevel(logging.INFO)
@@ -515,6 +516,8 @@ class VectorStore:
                     )
                 ]
             )
+        elif qdrant_scope_condition(models) is not None:
+            doc_filter = models.Filter(must=[qdrant_scope_condition(models)])
 
         try:
             all_points, _ = self.client.scroll(
@@ -538,7 +541,10 @@ class VectorStore:
                         or (pt.payload or {}).get("file_name") == document_id
                     ]
                 else:
-                    all_points = raw_points
+                    all_points = [
+                        pt for pt in raw_points
+                        if in_scope((pt.payload or {}).get("document_id"))
+                    ]
 
             children: List[Dict[str, Any]] = []
             prefix_list = list(path_prefix)
@@ -608,6 +614,8 @@ class VectorStore:
                     match=models.MatchValue(value=document_id)
                 )
             )
+        elif qdrant_scope_condition(models) is not None:
+            conditions.append(qdrant_scope_condition(models))
         if file_name:
             conditions.append(
                 models.FieldCondition(
@@ -901,6 +909,8 @@ class VectorStore:
                     match=models.MatchValue(value=document_id)
                 )
             )
+        elif qdrant_scope_condition(models) is not None:
+            conditions.append(qdrant_scope_condition(models))
         if document_type:
             conditions.append(
                 models.FieldCondition(
@@ -1071,6 +1081,8 @@ class VectorStore:
                     match=models.MatchValue(value=document_id)
                 )
             )
+        elif qdrant_scope_condition(models) is not None:
+            conditions.append(qdrant_scope_condition(models))
         if document_type:
             conditions.append(
                 models.FieldCondition(

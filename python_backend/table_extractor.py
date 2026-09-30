@@ -7,6 +7,7 @@ from typing import Any, Dict, Iterable, List, Optional
 from xml.etree import ElementTree as ET
 
 from extractor import fix_devanagari_ligatures
+from doc_scope import get_scope, in_scope
 
 logger = logging.getLogger("TableExtractor")
 
@@ -334,7 +335,10 @@ class StructuredTableStore:
             tables: List[Dict[str, Any]] = []
             for name in os.listdir(self.storage_dir):
                 if name.endswith("_tables.json"):
-                    tables.extend(self._read_path(os.path.join(self.storage_dir, name)))
+                    path = os.path.join(self.storage_dir, name)
+                    if get_scope() and not in_scope(self._read_document_id(path)):
+                        continue
+                    tables.extend(self._read_path(path))
             return tables
         return self._read_path(self._path(document_id))
 
@@ -348,6 +352,15 @@ class StructuredTableStore:
             os.remove(path)
 
     @staticmethod
+    def _read_document_id(path: str) -> Optional[str]:
+        import json
+        try:
+            with open(path, "r", encoding="utf-8") as source:
+                return json.load(source).get("document_id")
+        except (OSError, ValueError, TypeError):
+            return None
+
+    @staticmethod
     def _read_path(path: str) -> List[Dict[str, Any]]:
         import json
         try:
@@ -355,4 +368,3 @@ class StructuredTableStore:
                 return json.load(source).get("tables", [])
         except (OSError, ValueError, TypeError):
             return []
-

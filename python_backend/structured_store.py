@@ -7,6 +7,7 @@ from typing import Any, Dict, Iterable, List, Optional, Set
 import numpy as np
 
 from index_knowledge_layer import romanize_generic
+from doc_scope import get_scope, in_scope
 
 
 class FieldNormalizer:
@@ -189,6 +190,8 @@ class StructuredRecordStore:
         for name in os.listdir(self.storage_dir):
             if name.endswith("_records.json"):
                 records.extend(self._read(os.path.join(self.storage_dir, name)))
+        if get_scope():
+            records = [r for r in records if in_scope(r.get("document_id"))]
         return records
 
     def find(self, document_id: Optional[str], field: str) -> Optional[Dict[str, Any]]:

@@ -21,6 +21,9 @@ from pydantic import BaseModel
 from pipeline import RAGPipeline
 from extractor import detect_file_type, extract_document_pages
 from config import settings
+from doc_scope import set_scope, reset_scope
+from report_metrics import ReportMetrics, evidence_to_sources
+from magazine_metrics import MagazineMetrics, toc_evidence_to_sources
 
 app = FastAPI(title="Rajbhasha Knowledge Assistant API")
 
@@ -59,7 +62,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-pipeline = RAGPipeline()
+# `python app.py` runs this file twice: once here as __main__ (the launcher) and
+# again inside uvicorn's reload worker. Building the pipeline in both processes
+# made the embedded Qdrant storage "already accessed by another instance".
+# Only the worker needs it.
+_IS_LAUNCHER = __name__ == "__main__"
+pipeline = None if _IS_LAUNCHER else RAGPipeline()
+# Region totals and report comparisons are computed from saved tables, not by the LLM
+def _doc_type_of(doc_id: str):
+    """Upload category saved with the document ("report" / "magazine"), or None if unknown."""
+    try:
+        return (_load_doc_meta(doc_id) or {}).get("document_type")
+    except Exception:
+        return None
+
+
+report_metrics = None if _IS_LAUNCHER else ReportMetrics(pipeline.table_store, doc_type_of=_doc_type_of)
+# Magazine counts / author stats / edition comparison, computed from the contents (TOC) records
+magazine_metrics = None if _IS_LAUNCHER else MagazineMetrics(pipeline.index_store, doc_type_of=_doc_type_of)
 
 class QueryRequest(BaseModel):
     query: Optional[str] = ""
@@ -67,6 +87,9 @@ class QueryRequest(BaseModel):
     prompt: Optional[str] = ""
     document_id: Optional[str] = None
     doc_id: Optional[str] = None
+    # Multi-select from the frontend. One id behaves exactly like document_id;
+    # several ids restrict "search all" to just those documents.
+    document_ids: Optional[List[str]] = None
     document_type: Optional[str] = None
     year: Optional[int] = None
     mode: Optional[str] = "AUTO"
@@ -81,12 +104,28 @@ _conversation_entities: Dict[str, Dict[str, str]] = {}
 @app.get("/api/ollama/status")
 @app.get("/api/status")
 def health_and_ollama_status():
+    """Backend is up if this answers; Ollama and Qdrant are actually probed."""
+    model = getattr(settings, "GENERATOR_MODEL_NAME", "llama3.2")
+    ollama_ok = False
+    try:
+        import requests
+        r = requests.get(f'{getattr(settings, "OLLAMA_BASE_URL", "http://127.0.0.1:11434")}/api/tags', timeout=1.5)
+        ollama_ok = r.ok
+    except Exception:
+        ollama_ok = False
+    qdrant_mode = "unknown"
+    try:
+        inner = getattr(pipeline.vector_store.client, "_client", None)
+        qdrant_mode = "embedded" if inner is not None and inner.__class__.__name__ == "QdrantLocal" else "server"
+    except Exception:
+        pass
     return {
         "status": "connected",
         "service": "Rajbhasha RAG Backend",
-        "ollama": "connected",
-        "qdrant": "connected",
-        "model": getattr(settings, "GENERATOR_MODEL_NAME", "llama3.2")
+        "available": ollama_ok,
+        "ollama": "connected" if ollama_ok else "unavailable",
+        "qdrant": qdrant_mode,
+        "model": model,
     }
 
 @app.get("/api/vector/embedding/{chunk_id}")
@@ -381,6 +420,56 @@ async def upload_document(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+def _metrics_response(metric: Dict, user_query: str, conversation_id: Optional[str]) -> Dict:
+    evidence = metric.get("evidence", [])
+    is_toc = bool(evidence) and "title_original" in evidence[0]
+    sources = toc_evidence_to_sources(evidence) if is_toc else evidence_to_sources(evidence)
+    return {
+        "success":          True,
+        "answer":           metric["answer"],
+        "answerType":       metric["kind"],            # region_total | comparison | magazine_count | author_count
+        "comparison":       metric.get("comparison"),  # rows: metric, region, values{period}, change, change_pct
+        "chart_data":       metric.get("chart_data"),  # {type, labels, series:[{name, values}], unit}
+        "periods":          metric.get("periods"),
+        "results":          metric.get("results"),
+        "sources":          sources,
+        "confidenceScore":  100 if sources else 0,
+        "grounded":         bool(sources),
+        "originalQuery":    user_query,
+        "detectedIntent":   metric["kind"].upper(),
+        "modelUsed":        "report_metrics (no LLM)",
+        "processingTimeMs": 0,
+        "conversationId":   conversation_id,
+    }
+
+
+class CompareRequest(BaseModel):
+    document_ids: Optional[List[str]] = None
+    query: Optional[str] = ""
+
+
+@app.post("/api/compare")
+def compare_reports(req: CompareRequest):
+    """Compare the same table rows across two or more reports.
+
+    Empty `query` compares every numeric row; a query like "region A letters"
+    narrows it. Numbers come from the saved tables, never from the LLM.
+    """
+    ids = [d for d in (req.document_ids or []) if d]
+    token = set_scope(ids or None)
+    try:
+        result = report_metrics.compare(req.query or "", ids or None)
+        if not result:
+            docs = magazine_metrics.entries(ids or None)
+            result = magazine_metrics.compare(req.query or "", docs)
+    finally:
+        reset_scope(token)
+    if not result:
+        return {"success": False, "error": "तुलना के लिए कम से कम दो रिपोर्ट या दो पत्रिकाएँ चुनें।",
+                "comparison": [], "chart_data": None}
+    return _metrics_response(result, req.query or "", None)
+
+
 @app.post("/api/chat")
 @app.post("/api/query")
 @app.post("/ask")
@@ -393,23 +482,45 @@ def chat_or_ask(req: QueryRequest):
     if doc_id in ["all", "All Uploaded Documents", None, ""]:
         doc_id = None
 
+    selected_ids = list(dict.fromkeys(d for d in (req.document_ids or []) if d and d != "all"))
+    scope_ids: Optional[List[str]] = None
+    if len(selected_ids) == 1:
+        doc_id = selected_ids[0]          # single selection: existing per-document path
+    elif len(selected_ids) > 1:
+        doc_id = None                     # several: search all, restricted to the selection
+        scope_ids = selected_ids
+
     # pipeline.ask() requires a non-None document_id; pass "" to let it query all docs
     safe_doc_id = doc_id if doc_id else ""
     req_mode = req.query_mode or req.mode or "AUTO"
     conversation = _conversation_entities.get(req.conversation_id or "", {})
-    raw = pipeline.ask(
-        user_query,
-        document_id=safe_doc_id,
-        query_mode=req_mode,
-        conversation_article_id=conversation.get("article_id"),
-        document_type=req.document_type,
-        year=req.year,
-    )
+    scope_token = set_scope(scope_ids)
+    try:
+        # Region totals ("तीनों क्षेत्रों को कुल...") and report comparisons ("2024 vs 2025")
+        # are answered from saved tables with code arithmetic. Anything else goes to RAG.
+        docs_for_metrics = [doc_id] if doc_id else None
+        metric = (report_metrics.try_answer(user_query, docs_for_metrics)
+                  or magazine_metrics.try_answer(user_query, docs_for_metrics))
+        if metric:
+            return _metrics_response(metric, user_query, req.conversation_id)
+        raw = pipeline.ask(
+            user_query,
+            document_id=safe_doc_id,
+            query_mode=req_mode,
+            conversation_article_id=conversation.get("article_id"),
+            document_type=req.document_type,
+            year=req.year,
+        )
+    finally:
+        reset_scope(scope_token)
 
     # --- Transform pipeline response to match what the frontend expects ---
     # pipeline returns: { answer, evidence, query_analysis }
     # frontend expects: { success, answer, sources, confidenceScore, ... }
     evidence = raw.get("evidence", [])
+    if scope_ids:
+        allowed = set(scope_ids)
+        evidence = [ev for ev in evidence if not ev.get("document_id") or ev.get("document_id") in allowed]
     query_analysis = raw.get("query_analysis", {})
     resolved_article_id = query_analysis.get("resolved_article_id")
     if req.conversation_id and resolved_article_id:
@@ -467,6 +578,7 @@ def chat_or_ask(req: QueryRequest):
         "modelUsed":        "ollama",
         "processingTimeMs": 0,
         "conversationId": req.conversation_id,
+        "documentScope":  scope_ids or ([doc_id] if doc_id else []),
     }
 
 
