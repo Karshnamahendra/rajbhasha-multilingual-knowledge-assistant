@@ -33,7 +33,16 @@ _NE_RE = re.compile(r"(?<![ऀ-ॿ])ने(?![ऀ-ॿ])|\bne\b", re.I)
 _MOST_RE = re.compile(r"सबसे|ज़्यादा|ज्यादा|अधिक|\bmost\b|\bmaximum\b|\bsabse\b|\bzyada\b|\bjyada\b|\btop\b", re.I)
 _WORK_RE = re.compile(
     r"लेख|रचना|रचनाएं|रचनाएँ|कविता|कविताएं|कविताएँ|कहानी|कहानियां|कहानियाँ|articles?|poems?|poetry|stor(?:y|ies)|"
-    r"\blekh\b|\brachna\w*|\bkavit\w*|\bkahani\w*|entries|लेखक|author|writer|lekhak",
+    r"\blekh\b|\brachna\w*|\bkavit\w*|\bkahani\w*|entries|लेखक|author|writer|lekhak|"
+    r"लिखा|लिखी|लिखे|\blikh[aie]\b|\bwrote\b|\bwritten\b",
+    re.I,
+)
+# "who / whose" words: with a "most" word they ask for the author ranking
+_WHO_RE = re.compile(r"किसने|किसकी|किसके|किसका|\bkisne\b|\bkiski\b|\bkiske\b|\bkiska\b|\bwho\b|\bwhose\b", re.I)
+# Words that ask about every author (a ranking), not the author of one title
+_EACH_AUTHOR_RE = re.compile(
+    r"लेखकों|रचनाकारों|कवियों|हर\s+लेखक|प्रत्येक\s+लेखक|सभी\s+लेखक|\bauthors\b|\bwriters\b|\beach\s+author|"
+    r"\bevery\s+author|\ball\s+authors|\blekhakon\b|\bhar\s+lekhak|\bsabhi\s+lekhak|\bsab\s+lekhak",
     re.I,
 )
 _COMPARE_RE = re.compile(r"compare|comparison|\bvs\.?\b|versus|तुलना|\btulna\b|बनाम|अंतर|\bantar\b|difference|फर्क", re.I)
@@ -295,13 +304,21 @@ class MagazineMetrics:
                 lines.extend(self._line(w) for w in mine)
             return {"kind": "author_count", "answer": "\n".join(lines), "evidence": works,
                     "results": [{"author": canon, "count": len(works)}]}
-        if not _AUTHOR_WORD_RE.search(query):
+        if not (_AUTHOR_WORD_RE.search(query) or _WHO_RE.search(query)):
             return None
-        groups = self._author_counts(all_entries)
+        # "<title> के लेखक का नाम बताओ" asks for one title's author (the index
+        # lookup answers that); only a most / count / every-author question is a ranking.
+        if not (_MOST_RE.search(query) or _COUNT_RE.search(query) or _EACH_AUTHOR_RE.search(query)):
+            return None
+        # "सबसे ज्यादा कविताएं किसने लिखी" ranks poets by poems only
+        pred, cat_label = self._category(query)
+        pool = [e for e in all_entries if pred(e.get("section_original") or "", e.get("type") or "")] if pred else all_entries
+        groups = self._author_counts(pool)
         if not groups:
             return None
         top = groups[:15]
-        lines = [f"कुल **{len(groups)}** लेखक/रचनाकार। सबसे अधिक रचनाएँ:"]
+        noun = f"{cat_label} (रचनाएँ)" if cat_label else "रचनाएँ"
+        lines = [f"कुल **{len(groups)}** लेखक/रचनाकार। सबसे अधिक {noun}:"]
         lines += [f'- {name}: {len(works)}' for name, works in top]
         chart = {"type": "bar", "labels": [n for n, _ in top[:10]],
                  "series": [{"name": "रचनाएँ", "values": [len(w) for _, w in top[:10]]}], "unit": ""}
@@ -384,10 +401,14 @@ class MagazineMetrics:
                 only = OrderedDict((d, e) for d, e in docs.items() if _edition_label(d) in years)
                 docs = only or docs
 
-            if _AUTHOR_WORD_RE.search(q) or _NE_RE.search(q):
+            if _AUTHOR_WORD_RE.search(q) or _NE_RE.search(q) or _WHO_RE.search(q):
                 res = self._authors(q, docs)
                 if res:
                     return res
+                # An author question that is not a count ("<title> के लेखक का नाम
+                # बताओ") is a title lookup: leave it to the index layer.
+                if not (_COUNT_RE.search(q) or _MOST_RE.search(q)):
+                    return None
             return self._count_or_list(q, docs)
         except Exception as exc:  # never break chat because of this layer
             print(f"[MagazineMetrics] skipped: {exc}")

@@ -749,6 +749,37 @@ class StructuredIndexEngine:
         "का", "के", "की", "में", "है", "हैं", "कौन", "क्या", "पृष्ठ", "पेज", "शीर्षक", "पर", "किस", "बताओ"
     )
 
+    # Words that only form the question around a title, never the title itself.
+    # They are removed from the END (and the English lead-in from the START) of
+    # the text, so a title word in the middle ("नाम", "रचना") is never touched.
+    _QUESTION_TAIL = {
+        "किसकी", "किसका", "किसके", "किसने", "किसको", "kiski", "kiska", "kiske", "kisne", "kisko",
+        "लिखा", "लिखी", "लिखे", "रचा", "रची", "likha", "likhi", "likhe", "racha", "rachi", "rachit",
+        "है", "हैं", "था", "थी", "थे", "hai", "hain", "he", "tha", "thi", "the",
+        "कौन", "क्या", "kaun", "kon", "kya", "नाम", "naam", "name", "names", "बताओ", "बताइए", "बताएं", "बताएँ",
+        "batao", "bataiye", "bataye", "बता", "bata", "दो", "do", "please", "plz", "pls",
+        "रचना", "rachna", "रचनाकार", "rachnakar", "लेखक", "लेखिका", "lekhak", "lekhika", "कवि", "कवयित्री",
+        "kavi", "kaviyitri", "kavitri", "रचयिता", "rachayita", "author", "authors", "writer", "writers",
+        "poet", "poets", "कविता", "kavita", "poem", "लेख", "lekh", "article", "कहानी", "kahani", "story",
+        "का", "के", "की", "ka", "ke", "ki", "वाला", "वाली", "वाले", "wala", "wali", "wale", "vala", "vali",
+        "गया", "गई", "गए", "गयी", "gaya", "gayi", "gaye", "ne", "ने", "is", "was", "are", "were", "by",
+    }
+    _QUESTION_LEAD = {
+        "who", "whose", "is", "are", "was", "were", "the", "a", "an", "writer", "writers", "author", "authors",
+        "poet", "poets", "creator", "of", "wrote", "write", "written", "tell", "me", "name", "please",
+        "article", "poem", "story", "titled", "called", "named", "did",
+    }
+
+    @classmethod
+    def _strip_question_edges(cls, text: str) -> str:
+        words = text.split()
+        while words and words[-1].lower().strip(".!") in cls._QUESTION_TAIL:
+            words.pop()
+        if words and words[0].lower() in {"who", "whose", "tell", "please", "name"}:
+            while words and words[0].lower() in cls._QUESTION_LEAD:
+                words.pop(0)
+        return " ".join(words)
+
     def _requested_field(self, query: str) -> Optional[str]:
         q = IndexConceptNormalizer.clean_text(query).lower()
         for field, markers in self._FIELD_MARKERS.items():
@@ -781,8 +812,13 @@ class StructuredIndexEngine:
         text = re.sub(r"[\"'“”‘’?:,।–—\-]", " ", text)
 
         # 6. Entity noise markers remove karein
+        # Strip the question words around the title ("... kiski rachna hai",
+        # "who is the writer of ...") before the global noise pass.
+        text = self._strip_question_edges(text)
+        # Devanagari vowel signs are not \w, so a plain \w boundary let "है"
+        # match inside "हैं" and leave a stray "ं" in the title.
         for marker in self._ENTITY_NOISE:
-            text = re.sub(r"(?<!\w)" + re.escape(marker) + r"(?!\w)", " ", text, flags=re.IGNORECASE)
+            text = re.sub(r"(?<![\w\u0900-\u097F])" + re.escape(marker) + r"(?![\w\u0900-\u097F])", " ", text, flags=re.IGNORECASE)
 
         # 7. Extra spaces clean karein
         cleaned_target = re.sub(r"\s+", " ", text).strip()
@@ -1049,6 +1085,14 @@ class StructuredIndexEngine:
         """Return a compact, generic Roman-Hindi/English sound key."""
         value = value.lower()
         value = re.sub(r"[^a-z0-9]", "", value)
+        # A bare "c" is "k" ("covid" ~ "kovida") or "s" before e/i ("social" ~
+        # "soshala"); "ch" keeps its own sound.  Hindi anusvara before b/p is
+        # romanized "n" ("kunbha") where people type "m" ("kumbh"/"palampur").
+        # English "-tion" is written "-शन" ("migration" ~ "maigreshana").
+        value = re.sub(r"tion(?=s?$)", "shan", value)
+        value = value.replace("ch", "\x00")
+        value = re.sub(r"c(?=[eiy])", "s", value).replace("c", "k").replace("\x00", "ch")
+        value = re.sub(r"n(?=[bp])", "m", value)
         # Normalize spelling variants before removing vowels.  This is a
         # phonetic rule set, not a document or title alias table.
         value = (value.replace("sch", "s").replace("sh", "s")
@@ -1059,6 +1103,30 @@ class StructuredIndexEngine:
                       .replace("q", "k"))
         value = re.sub(r"[aeiouy]+", "", value)
         return re.sub(r"(.)\1+", r"\1", value)
+
+    @staticmethod
+    def _spelled_key(word: str) -> str:
+        """Like the phonetic key, but keeps vowels (and drops the final inherent "a")."""
+        w = re.sub(r"[^a-z0-9]", "", word.lower())
+        w = re.sub(r"tion(?=s?$)", "shan", w)
+        w = w.replace("ch", "\x00")
+        w = re.sub(r"c(?=[eiy])", "s", w).replace("c", "k").replace("\x00", "ch")
+        w = re.sub(r"n(?=[bp])", "m", w)
+        w = (w.replace("sh", "s").replace("ph", "f").replace("bh", "b").replace("dh", "d")
+              .replace("th", "t").replace("kh", "k").replace("v", "w").replace("z", "j")
+              .replace("ee", "i").replace("oo", "u").replace("aa", "a"))
+        w = re.sub(r"(.)\1+", r"\1", w)
+        return w[:-1] if len(w) > 3 and w.endswith("a") else w
+
+    def _spelled_similarity(self, query_tokens: List[str], record: Dict[str, Any]) -> float:
+        roman = (record.get("title_roman") or romanize_generic(record.get("title_original", ""))).lower()
+        cand = [self._spelled_key(t) for t in re.findall(r"[a-z0-9]+", roman)
+                if t not in self._TITLE_STOP_TOKENS and len(t) > 1]
+        if not cand:
+            return 0.0
+        best = [max(difflib.SequenceMatcher(None, self._spelled_key(q), c).ratio() for c in cand)
+                for q in query_tokens]
+        return sum(best) / len(best)
 
     def _title_concept_tokens(self, value: str) -> set:
         """Return title tokens plus document terminology aliases.
@@ -1119,6 +1187,11 @@ class StructuredIndexEngine:
                 return True
             left_key, right_key = self._title_phonetic_key(left), self._title_phonetic_key(right)
             if len(left_key) >= 3 and left_key == right_key:
+                return True
+            # Short words differ only by the inherent final "a" of the Devanagari
+            # romanization ("char" ~ "chara", "log" ~ "loga", "media" ~ "midiya").
+            if (len(left_key) == 2 and left_key == right_key
+                    and min(len(left), len(right)) >= 3 and left[0] == right[0]):
                 return True
             return len(left_key) >= 4 and len(right_key) >= 4 and difflib.SequenceMatcher(None, left_key, right_key).ratio() >= 0.84
 
@@ -1207,7 +1280,32 @@ class StructuredIndexEngine:
             and best_details["token_coverage"] >= 0.28
             and margin >= 0.15
         )
-        if (best_score >= threshold and margin >= required_margin) or strong_phonetic_title or high_confidence_roman_title or strong_cross_script_phonetic_title:
+        # A short or partial title ("Tulsi", "Palampur", "spring boot migration")
+        # names one article when every informative word of the question is
+        # found in that title and none of them occurs in any other title.
+        # (Ranking is by final score, which stays low for a one-word query, so
+        # this looks at every title's word coverage, not only the top one.)
+        informative = [t for t in re.findall(r"[a-z0-9]+", romanize_generic(query_title).lower())
+                       if t not in self._TITLE_STOP_TOKENS and len(t) > 1]
+        full = [item for item in ranked if item[2].get("token_coverage", 0.0) >= 1.0]
+        touched = [item for item in ranked if item[2].get("token_coverage", 0.0) > 0.0]
+        unique_full_token_match = False
+        if informative and (len(informative) >= 2 or len(informative[0]) >= 4) and full:
+            if len(full) == 1 and len(touched) == 1:
+                unique_full_token_match = True
+            else:
+                # Vowel-less keys can collide ("tulsi" ~ "talasha"); compare the
+                # words with their vowels and accept only a clear winner.
+                scored = sorted(((self._spelled_similarity(informative, item[1]), item) for item in touched),
+                                key=lambda x: x[0], reverse=True)
+                top_sim, top_item = scored[0]
+                next_sim = scored[1][0] if len(scored) > 1 else 0.0
+                if top_item in full and top_sim >= 0.80 and top_sim - next_sim >= 0.20:
+                    full = [top_item]
+                    unique_full_token_match = True
+        if unique_full_token_match and not (best_score >= threshold and margin >= required_margin):
+            best_score, best_record, best_details = full[0]
+        if (best_score >= threshold and margin >= required_margin) or strong_phonetic_title or high_confidence_roman_title or strong_cross_script_phonetic_title or unique_full_token_match:
             diagnostics["match_method"] = best_details["match_method"]
             logger.info("[INDEX MATCH] SELECTED=%r CONFIDENCE=%.3f MARGIN=%.3f", best_record.get("title_original"), best_score, margin)
             return best_record, diagnostics
@@ -1418,7 +1516,7 @@ class StructuredIndexEngine:
                     "lekhak", "lekhika", "rachnakar", "rachnakaron", "rachayita", "kavitri", "kiski rachna", "kiski kavita",
                     "लेखक", "लेखकों", "लेखिका", "रचयिता", "रचनाकार", "रचनाकारों", "कवियों", "कवयित्री", "शायर", "किसने लिखा", "किसने रचा", "द्वारा लिखित", "किसका लेख", "written by"
                 ])
-                or bool(re.search(r'\b(?:kavi|कवि)\b', norm_q))
+                or bool(re.search(r'(?<![\w\u0900-\u097F])(?:kavi|कवि|कवियों)(?![\w\u0900-\u097F])', norm_q))
             )
         )
 

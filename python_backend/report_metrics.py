@@ -56,6 +56,8 @@ _STOP = {
     # comparison / display words
     "अंतर", "antar", "difference", "फर्क", "farak", "growth", "वृद्धि", "badlav", "बदलाव", "बनाम", "banaam",
     "versus", "दिखाओ", "dikhao", "show", "graph", "chart", "ग्राफ", "चार्ट", "बीच", "beech",
+    "ग्राफ़", "दो", "two", "reports", "please", "ye", "yeh", "these", "those", "do", "gaye", "gayi", "gaya",
+    "गया", "ग्राफ़", "banao", "बनाओ", "dikhaiye", "दिखाइए", "between", "vich", "रिपोर्टों", "reporton",
 }
 
 # Roman Hindi / English words -> a Devanagari stem found in the report labels
@@ -76,6 +78,16 @@ _ALIASES = {
     "pratishat": "प्रतिशत", "percentage": "प्रतिशत", "percent": "प्रतिशत",
     "baithak": "बैठक", "meeting": "बैठक", "meetings": "बैठक",
     "samiti": "समिति", "committee": "समिति",
+    "patro": "पत्र", "patron": "पत्र", "patra": "पत्र", "bheji": "भेजे", "bhejne": "भेजे",
+    "tippaniyon": "टिप्पणियों", "tippaniyan": "टिप्पणियों", "tippaniya": "टिप्पणियों", "notes": "टिप्पणियों",
+    "likhi": "लिखी", "likhe": "लिखी", "likha": "लिखी", "written": "लिखी",
+    "kagzat": "कागजात", "kagazat": "कागजात", "kagjaat": "कागजात", "kaagjat": "कागजात", "papers": "कागजात",
+    "jari": "जारी", "dhara": "धारा", "section": "धारा",
+    "angreji": "अंग्रेजी", "dvibhashi": "द्विभाषी",
+    "adhikariyon": "अधिकारियों", "karmchari": "कर्मचारियों", "karmchariyon": "कर्मचारियों",
+    "karmachariyon": "कर्मचारियों", "staff": "कर्मचारियों",
+    "uttaron": "उत्तर", "jawab": "उत्तर", "answered": "उत्तर",
+    "karyashalaon": "कार्यशाला", "karyashalayen": "कार्यशाला",
 }
 
 # Direction words: "को / to" = letters sent to a region, "से / from" = received from it
@@ -397,8 +409,16 @@ class ReportMetrics:
         for r in recs:
             key = (r["section_no"], r["region"] or "", r["metric_key"])
             if key not in rows:
-                match = next((k for k in rows if k[0] == key[0] and k[1] == key[1]
-                              and difflib.SequenceMatcher(None, k[2], key[2]).ratio() >= 0.85), None)
+                # Fuzzy join only onto a row that has no value yet for this report.
+                # "...Noting's in Hindi" and "...Noting's in English" are 0.9 alike;
+                # joining them put the English numbers under the Hindi row.
+                best_ratio, match = 0.0, None
+                for k, row in rows.items():
+                    if k[0] != key[0] or k[1] != key[1] or r["period"] in row["values"]:
+                        continue
+                    ratio = difflib.SequenceMatcher(None, k[2], key[2]).ratio()
+                    if ratio >= 0.85 and ratio > best_ratio:
+                        best_ratio, match = ratio, k
                 key = match or key
             row = rows.setdefault(key, {"section_no": r["section_no"], "section": r["section"],
                                         "region": r["region"], "metric": r["metric_short"],

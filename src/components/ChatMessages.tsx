@@ -333,9 +333,21 @@ const ComparisonTable: React.FC<{ data: ComparisonData }> = ({ data }) => {
 
 // ---------------------------------------------------------------------------
 // Bar graph
-// Each metric gets its own row and its own scale, so metrics with very
-// different sizes (e.g. a count and a percentage) stay readable side by side.
+// Vertical grouped bars: one group per metric, one bar per period, all on one
+// shared scale so the metrics can be compared with each other. Count rows and
+// percentage rows are never mixed on one axis (counts are drawn when present).
 // ---------------------------------------------------------------------------
+
+/** A round axis maximum (1, 2, 2.5, 5 × 10^n) at or above `v`. */
+const niceMax = (v: number): number => {
+  if (v <= 0) return 1;
+  const exp = Math.pow(10, Math.floor(Math.log10(v)));
+  const step = [1, 2, 2.5, 5, 10].find((s) => s * exp >= v) ?? 10;
+  return step * exp;
+};
+
+const PLOT_HEIGHT = 220;
+const TICK_COUNT = 4;
 
 const ComparisonBars: React.FC<{ data: ComparisonData }> = ({ data }) => {
   const [hover, setHover] = useState<{ r: number; p: number } | null>(null);
@@ -343,15 +355,19 @@ const ComparisonBars: React.FC<{ data: ComparisonData }> = ({ data }) => {
   const colors = PERIOD_COLORS[idx.length] ?? PERIOD_COLORS[2];
 
   const allDrawable = data.rows.filter((r) => idx.some((i) => r.values[i] !== null));
-  const drawable = allDrawable.slice(0, GRAPH_ROW_LIMIT);
+  const counts = allDrawable.filter((r) => !r.isPercent);
+  const pool = counts.length ? counts : allDrawable;
+  const drawable = pool.slice(0, GRAPH_ROW_LIMIT);
   if (!drawable.length) return null;
+  const isPercent = !counts.length;
 
-  // Several periods: each metric has its own scale (compares years within a metric).
-  // One period (e.g. works per author): one shared scale, so the rows can be compared.
-  const sharedMax =
-    idx.length === 1
-      ? Math.max(...drawable.map((r) => r.values[idx[0]] ?? 0).map((v) => (v > 0 ? v : 0)), 0)
-      : null;
+  const dataMax = Math.max(
+    ...drawable.flatMap((r) => idx.map((i) => r.values[i] ?? 0)).map((v) => (v > 0 ? v : 0)),
+    0,
+  );
+  const axisMax = isPercent ? Math.min(100, niceMax(dataMax)) || 100 : niceMax(dataMax);
+  const ticks = Array.from({ length: TICK_COUNT + 1 }, (_, i) => (axisMax / TICK_COUNT) * i);
+  const hiddenRows = allDrawable.length - drawable.length;
 
   return (
     <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3" role="img" aria-label="Bar graph of the table values">
@@ -366,61 +382,106 @@ const ComparisonBars: React.FC<{ data: ComparisonData }> = ({ data }) => {
         {data.periods.length > 3 && (
           <span className="text-slate-500">(ग्राफ़ में पहला और आख़िरी वर्ष; बाकी तालिका में)</span>
         )}
-        {allDrawable.length > drawable.length && (
+        {hiddenRows > 0 && (
           <span className="text-slate-500">
-            (ग्राफ़ में पहले {drawable.length} मद; सभी {allDrawable.length} तालिका में)
+            (ग्राफ़ में {drawable.length} मद{counts.length && counts.length < allDrawable.length ? ', प्रतिशत वाले मद तालिका में' : ''}; सभी {allDrawable.length} तालिका में)
           </span>
         )}
       </div>
 
-      <div className="space-y-3">
-        {drawable.map((row, ri) => {
-          const vals = idx.map((i) => row.values[i]);
-          const max = sharedMax ?? Math.max(...vals.map((v) => (v !== null && v > 0 ? v : 0)), 0);
-          return (
-            <div key={`${row.metric}-${ri}`}>
-              <div className="text-[11px] text-slate-300 mb-1 truncate" title={row.metric}>
-                {row.metric}
-              </div>
-              <div className="flex flex-col gap-0.5">
-                {vals.map((v, ci) => {
-                  const pct = v !== null && max > 0 ? Math.max((Math.max(v, 0) / max) * 100, v > 0 ? 1 : 0) : 0;
-                  const isHover = hover?.r === ri && hover?.p === ci;
-                  const dimmed = hover !== null && hover.r === ri && !isHover;
-                  return (
-                    <div
-                      key={ci}
-                      className="relative flex items-center gap-2 h-4 cursor-default"
-                      onMouseEnter={() => setHover({ r: ri, p: ci })}
-                      onMouseLeave={() => setHover(null)}
-                    >
-                      <div className="flex-1 h-3">
+      {/* Hovered bar */}
+      <div className="h-4 mb-2 text-[11px] text-slate-300 truncate">
+        {hover ? (
+          <>
+            {drawable[hover.r].metric} · {data.periods[idx[hover.p]]}:{' '}
+            <span className="font-semibold text-slate-100">{fmtVal(drawable[hover.r].values[idx[hover.p]], drawable[hover.r].isPercent)}</span>
+            {data.unit && !drawable[hover.r].isPercent ? ` ${data.unit}` : ''}
+          </>
+        ) : (
+          <span className="text-slate-500">किसी बार पर माउस ले जाएँ</span>
+        )}
+      </div>
+
+      <div className="flex">
+        {/* Y axis */}
+        <div className="relative shrink-0 w-10 mt-3 text-[10px] tabular-nums text-slate-500" style={{ height: PLOT_HEIGHT }}>
+          {ticks.map((t) => (
+            <span key={t} className="absolute right-1.5 translate-y-1/2" style={{ bottom: `${(t / axisMax) * 100}%` }}>
+              {fmt(t, 1)}{isPercent ? '%' : ''}
+            </span>
+          ))}
+        </div>
+
+        {/* Plot + labels (scrolls sideways when there are many metrics) */}
+        <div className="flex-1 min-w-0 overflow-x-auto">
+          <div style={{ minWidth: drawable.length * idx.length * 22 + drawable.length * 16 }}>
+            <div className="relative border-l border-b border-slate-700 mt-3" style={{ height: PLOT_HEIGHT }}>
+              {/* Grid lines */}
+              {ticks.slice(1).map((t) => (
+                <div
+                  key={t}
+                  className="absolute left-0 right-0 border-t border-dashed border-slate-800"
+                  style={{ bottom: `${(t / axisMax) * 100}%` }}
+                />
+              ))}
+
+              {/* Bar groups */}
+              <div className="absolute inset-0 flex items-end">
+                {drawable.map((row, ri) => (
+                  <div key={`${row.metric}-${ri}`} className="flex-1 h-full flex items-end justify-center gap-0.5 px-1.5">
+                    {idx.map((pi, ci) => {
+                      const v = row.values[pi];
+                      const h = v !== null && axisMax > 0 ? Math.min((Math.max(v, 0) / axisMax) * 100, 100) : 0;
+                      const isHover = hover?.r === ri && hover?.p === ci;
+                      const dimmed = hover !== null && !isHover;
+                      return (
                         <div
-                          className="h-full rounded-r transition-[width,opacity] duration-500"
-                          style={{
-                            width: `${pct}%`,
-                            background: colors[ci],
-                            opacity: dimmed ? 0.45 : 1,
-                          }}
-                        />
-                      </div>
-                      <span className="w-20 shrink-0 text-right text-[11px] tabular-nums text-slate-300">
-                        {fmtVal(v, row.isPercent)}
-                      </span>
-                      {isHover && (
-                        <div className="absolute left-0 -top-7 z-10 pointer-events-none whitespace-nowrap rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 shadow-lg">
-                          {row.metric} · {data.periods[idx[ci]]}:{' '}
-                          <span className="font-semibold">{fmtVal(v, row.isPercent)}</span>
-                          {data.unit && !row.isPercent ? ` ${data.unit}` : ''}
+                          key={pi}
+                          className="relative flex-1 max-w-7 h-full flex items-end cursor-default"
+                          onMouseEnter={() => setHover({ r: ri, p: ci })}
+                          onMouseLeave={() => setHover(null)}
+                        >
+                          <div
+                            className="w-full rounded-t transition-[height,opacity] duration-500"
+                            style={{
+                              height: `${v !== null && v > 0 ? Math.max(h, 0.8) : 0}%`,
+                              background: colors[ci],
+                              opacity: dimmed ? 0.4 : 1,
+                            }}
+                          />
+                          {v !== null && (
+                            <span
+                              className="absolute left-1/2 -translate-x-1/2 text-[10px] tabular-nums whitespace-nowrap pointer-events-none"
+                              style={{ bottom: `calc(${h}% + 2px)`, color: isHover ? '#f1f5f9' : '#94a3b8' }}
+                            >
+                              {fmtVal(v, row.isPercent)}
+                            </span>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  );
-                })}
+                      );
+                    })}
+                  </div>
+                ))}
               </div>
             </div>
-          );
-        })}
+
+            {/* Metric labels under each group */}
+            <div className="flex pt-1.5">
+              {drawable.map((row, ri) => {
+                const label = row.metric;
+                return (
+                  <div
+                    key={`${row.metric}-label-${ri}`}
+                    className="flex-1 px-1 text-center text-[10px] leading-tight text-slate-400 line-clamp-3 break-words"
+                    title={label}
+                  >
+                    {label}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
