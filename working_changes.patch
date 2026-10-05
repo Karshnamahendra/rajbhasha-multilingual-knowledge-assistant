@@ -1,0 +1,474 @@
+diff --git a/python_backend/generator.py b/python_backend/generator.py
+index 6da072f..72ff939 100644
+--- a/python_backend/generator.py
++++ b/python_backend/generator.py
+@@ -41,6 +41,10 @@ def extract_factual_span(query: str, text: str, analysis: dict = None) -> str:
+     if len(text.split()) <= 4:
+         return text
+ 
++    # A list answer ("- item" lines) is returned whole, never cut to one sentence.
++    if len(re.findall(r'(?m)^\s*[-•]\s+', text)) >= 2:
++        return text
++
+     q_lower = (query or "").lower()
+     exp_type = ((analysis.get("expected_value_type") if analysis else None) or "").upper()
+ 
+@@ -303,4 +307,4 @@ CONCISE FACTUAL ANSWER:"""
+ 
+ 
+ # Alias for backward compatibility with pipeline.py
+-OllamaGroundedGenerator = Generator
++OllamaGroundedGenerator = Generator
+\ No newline at end of file
+diff --git a/python_backend/hierarchical_builder.py b/python_backend/hierarchical_builder.py
+index 9f91175..726bf07 100644
+--- a/python_backend/hierarchical_builder.py
++++ b/python_backend/hierarchical_builder.py
+@@ -303,6 +303,57 @@ def build_table_hierarchy(table: Dict[str, Any]) -> Optional[HierarchicalNode]:
+ 
+ 
+ 
++# Magazine masthead / credits headings. In editorial pages the role is on one
++# line and the names are on the following lines, with no ":" in between, e.g.
++#   विशेष सहयोग
++#   नवीन चन्द्र
++_MASTHEAD_HEADINGS = {
++    "संरक्षक", "मुख्य संरक्षक", "संपादक", "सम्पादक", "मुख्य संपादक", "प्रधान संपादक",
++    "सह संपादक", "सह-संपादक", "उप संपादक", "संपादक मंडल", "संपादक मण्डल", "संपादकीय मंडल",
++    "कवर डिजाइन", "कवर डिज़ाइन", "आवरण", "आवरण सज्जा", "आवरण डिजाइन", "विशेष सहयोग", "सहयोग",
++    "परामर्श", "परामर्शदाता", "मार्गदर्शन", "मार्गदर्शक", "प्रकाशक", "संयोजक", "संकलन",
++    "संकलनकर्ता", "टंकण", "अध्यक्ष", "सचिव", "सदस्य सचिव", "सदस्य", "प्रबंध संपादक",
++    "patron", "chief patron", "editor", "chief editor", "editor-in-chief", "co-editor",
++    "associate editor", "editorial board", "cover design", "special support", "special thanks",
++    "advisor", "advisors", "publisher", "convener", "compiled by", "chairman", "secretary",
++}
++
++
++def _is_masthead_heading(line: str) -> bool:
++    return clean_key(line).lower() in _MASTHEAD_HEADINGS
++
++
++def _looks_like_name_line(line: str) -> bool:
++    t = clean_text(line)
++    if not t or ":" in t or "：" in t or re.search(r"\d", t):
++        return False
++    return 1 <= len(t.split()) <= 5 and len(t) <= 60
++
++
++def build_masthead_nodes(pages: List[Dict[str, Any]], seen_keys: Set[str]) -> List[HierarchicalNode]:
++    """Heading line + following name lines  ->  HierarchicalNode(key=heading, value='name1, name2')."""
++    nodes: List[HierarchicalNode] = []
++    for page in pages:
++        p_num = page.get("page_number")
++        lines = [ln.strip() for ln in (page.get("text") or "").splitlines() if ln.strip()]
++        i = 0
++        while i < len(lines):
++            if _is_masthead_heading(lines[i]):
++                key = clean_key(lines[i])
++                names = []
++                j = i + 1
++                while j < len(lines) and len(names) < 6 and not _is_masthead_heading(lines[j]) and _looks_like_name_line(lines[j]):
++                    names.append(clean_text(lines[j]))
++                    j += 1
++                if names and key not in seen_keys:
++                    seen_keys.add(key)
++                    nodes.append(HierarchicalNode(key=key, value=", ".join(names), source_page=p_num))
++                i = j if names else i + 1
++            else:
++                i += 1
++    return nodes
++
++
+ def build_prose_content_hierarchy(pages: List[Dict[str, Any]], existing_keys: Set[str]) -> List[HierarchicalNode]:
+     """Extracts standalone Field : Value pairs outside tables into a single consolidated section."""
+     content_nodes: List[HierarchicalNode] = []
+@@ -320,13 +371,35 @@ def build_prose_content_hierarchy(pages: List[Dict[str, Any]], existing_keys: Se
+ 
+         lines = [line.strip() for line in text.splitlines() if line.strip()]
+ 
+-        for line in lines:
++        for idx, line in enumerate(lines):
+             m = kv_pattern.match(line)
+             if m:
+                 k_raw, v_raw = m.groups()
++                # Heading ending with ":" and no value on the same line, followed by
++                # list items (docx bullets lose their "•"), e.g.
++                #   कैसे बचें इन साइबर हमलों से:
++                #   मजबूत पासवर्ड रखें ...
++                #   अनजान ईमेल, लिंक ... न खोलें।
++                if not clean_val(v_raw) and "?" not in k_raw and len(k_raw.split()) <= 12:
++                    items = []
++                    for nxt in lines[idx + 1: idx + 16]:
++                        n_clean = clean_text(nxt)
++                        if not n_clean or n_clean.endswith((":", "：")) or len(n_clean.split()) > 25:
++                            break
++                        items.append(re.sub(r"^[•●▪◦\-*]\s*", "", n_clean))
++                    k_list = clean_key(k_raw)
++                    if len(items) >= 2 and k_list and k_list not in seen_keys:
++                        seen_keys.add(k_list)
++                        all_kv_children.append(HierarchicalNode(
++                            key=k_list, value="\n".join("- " + it for it in items), source_page=p_num))
++                    continue
+                 # Skip if the key is purely a numeric index like '1.', '2.', '3'
+                 if re.fullmatch(r"\d+[.)\s:-]*", k_raw.strip()):
+                     continue
++                # Skip poem / prose lines that only look like "key : value":
++                # a question as key, several colons in one line, or a very long key.
++                if "?" in k_raw or len(re.findall(r"[:：]", line)) > 1 or len(k_raw.split()) > 8:
++                    continue
+                 k_clean = clean_key(k_raw)
+                 v_clean = clean_val(v_raw)
+                 # Skip if value is a known section title already captured in tables
+@@ -337,6 +410,14 @@ def build_prose_content_hierarchy(pages: List[Dict[str, Any]], existing_keys: Se
+                         seen_keys.add(k_clean)
+                         all_kv_children.append(HierarchicalNode(key=k_clean, value=v_clean, source_page=p_num))
+ 
++    masthead_children = build_masthead_nodes(pages, seen_keys)
++    if masthead_children:
++        content_nodes.append(HierarchicalNode(
++            key="संपादक मंडल / Editorial Board",
++            children=masthead_children,
++            source_page=masthead_children[0].source_page
++        ))
++
+     if all_kv_children:
+         content_nodes.append(HierarchicalNode(
+             key="कार्यालय एवं सामान्य विवरण",
+@@ -408,4 +489,4 @@ def build_document_hierarchy(
+         report_period=report_period,
+         total_pages=total_pages,
+         root=root,
+-    )
++    )
+\ No newline at end of file
+diff --git a/python_backend/index_knowledge_layer.py b/python_backend/index_knowledge_layer.py
+index 392f39a..d15f70f 100644
+--- a/python_backend/index_knowledge_layer.py
++++ b/python_backend/index_knowledge_layer.py
+@@ -7,7 +7,6 @@ import difflib
+ import unicodedata
+ from typing import List, Dict, Any, Optional, Tuple, Union
+ from terminology_memory import DynamicTerminologyMemory
+-from doc_scope import in_scope
+ 
+ logger = logging.getLogger("IndexKnowledgeLayer")
+ logger.setLevel(logging.INFO)
+@@ -548,6 +547,9 @@ class TOCExtractor:
+                 if m_pg:
+                     page_target = int(m_pg.group(1))
+                     rest = rest[:m_pg.start()].strip()
++                # DOCX table rows arrive as "title : : : author : page" (the ":" column is a
++                # cell of its own), so drop the separator left behind by the page cell.
++                rest = re.sub(r"[\s:：]+$", "", rest)
+ 
+                 # Separate title and author
+                 title = ""
+@@ -557,10 +559,12 @@ class TOCExtractor:
+                     title = parts[0].strip()
+                     author = parts[1].strip() if len(parts) > 1 else ""
+                 elif ":" in rest or "：" in rest:
+-                    colons = [m.start() for m in re.finditer(r"[:：]", rest)]
+-                    last_colon = colons[-1]
+-                    title = rest[:last_colon].strip()
+-                    author = rest[last_colon + 1:].strip()
++                    segs = [x.strip() for x in re.split(r"[:：]", rest) if x.strip()]
++                    if len(segs) >= 2:
++                        title = ": ".join(segs[:-1])
++                        author = segs[-1]
++                    else:
++                        title = segs[0] if segs else rest.strip()
+                 elif " by " in rest.lower():
+                     idx = rest.lower().rfind(" by ")
+                     title = rest[:idx].strip()
+@@ -642,8 +646,6 @@ class StructuredIndexStore:
+         if not document_id or document_id in ["all", "All Uploaded Documents", ""]:
+             all_recs = []
+             for doc_key, r_list in self._memory_store.items():
+-                if not in_scope(doc_key):
+-                    continue
+                 for record in r_list:
+                     self._enrich_article_record(record, doc_key)
+                 all_recs.extend(r_list)
+@@ -788,6 +790,22 @@ class StructuredIndexEngine:
+         """Extract author name from a TITLE_BY_AUTHOR / ARTICLE_BY_AUTHOR query, preserving proper nouns."""
+         text = query.strip()
+         text = re.sub(r'["\'\?:,।–—]', ' ', text)
++        # "X ne kitne lekh likhe" / "X ने कितने लेख लिखे हैं" -> keep only what is before ne/ने
++        m_ne = re.search(r'(?:^|\s)(?:ne|ने)\s', text, flags=re.IGNORECASE)
++        if m_ne and m_ne.start() > 0:
++            text = text[:m_ne.start()]
++        # "how many articles did X write"
++        m_did = re.search(r'\bhow\s+many\s+\w+\s+(?:did|has|have)\s+(.+?)\s+(?:write|written)\b', text, flags=re.IGNORECASE)
++        if m_did:
++            text = m_did.group(1)
++        # "articles written by X" / "X द्वारा लिखे गए लेख"
++        m_by = re.search(r'\b(?:written|authored)\s+by\s+(.+)$', text, flags=re.IGNORECASE)
++        if m_by:
++            text = m_by.group(1)
++        m_dwara = re.search(r'^(.+?)\s+(?:द्वारा|dwara)\s', text, flags=re.IGNORECASE)
++        if m_dwara:
++            text = m_dwara.group(1)
++        text = re.sub(r'\b(?:how\s+many|total|kul|kitne|kitni)\b|कितने|कितनी|कुल', ' ', text, flags=re.IGNORECASE)
+         
+         # Strip prefixes like "Which article was written by", "What did", "Who wrote"
+         text = re.sub(r'^(?:which\s+(?:article|poem|story|report|work)\s+(?:was|were|is|are)?\s*written\s+by|what\s+did|which\s+(?:article|poem|story|report)\s+did)\s+', ' ', text, flags=re.IGNORECASE)
+@@ -812,6 +830,74 @@ class StructuredIndexEngine:
+         return ' '.join(cleaned_words).strip()
+ 
+ 
++    def _answer_author_works(self, query: str, author_q: str, records: List[Dict[str, Any]]):
++        """Count + list every work of an author from the TOC records.
++
++        "सुनीता ने कितने लेख लिखे?" ->
++            सुनीता अरोड़ा ने कुल 2 रचनाएँ लिखी हैं:
++            1. <title> (पृष्ठ 12)
++            2. <title> (पृष्ठ 40)
++        Different people with the same first name are listed separately.
++        """
++        q_low = query.lower()
++        is_hindi = bool(re.search(r"[\u0900-\u097F]|\b(?:ne|kitne|kitni|likhe|likha|lekh|kavita|hai|hain)\b", q_low))
++        want_poem = any(k in q_low for k in ["poem", "kavita", "कविता", "कविताएं", "कवितायें", "काव्य"])
++        want_story = any(k in q_low for k in ["story", "stories", "kahani", "कहानी", "कहानियां"])
++
++        hits = []
++        for rec in records:
++            a = rec.get("author_original")
++            if not a:
++                continue
++            sc = max(self._score_author_match(author_q, a, rec.get("author_roman")),
++                     self._score_match(author_q, a, rec.get("author_roman")))
++            if sc < 0.65:
++                continue
++            sec = (rec.get("section_original") or "").lower()
++            rtype = (rec.get("type") or "").lower()
++            if want_poem and not ("poem" in rtype or "कविता" in sec):
++                continue
++            if want_story and not ("story" in rtype or "कहानी" in sec):
++                continue
++            hits.append(rec)
++
++        if not hits:
++            return "", []
++
++        # group by (author, document) keeping TOC order, drop duplicate titles
++        groups: Dict[tuple, List[Dict[str, Any]]] = {}
++        seen = set()
++        for rec in hits:
++            key_t = (rec.get("document_id"), rec.get("author_original"), rec.get("title_original"))
++            if key_t in seen:
++                continue
++            seen.add(key_t)
++            groups.setdefault((rec.get("author_original"), rec.get("document_id")), []).append(rec)
++
++        multi_doc = len({d for _, d in groups}) > 1
++        noun_hi_pl = "कविताएँ" if want_poem else ("कहानियाँ" if want_story else "रचनाएँ")
++        noun_hi_sg = "कविता" if want_poem else ("कहानी" if want_story else "रचना")
++        noun_en_pl = "poems" if want_poem else ("stories" if want_story else "works")
++        noun_en_sg = "poem" if want_poem else ("story" if want_story else "work")
++        blocks = []
++        for (author, doc_id), recs in groups.items():
++            doc_label = re.sub(r"\.(?:docx?|pdf)$", "", str(doc_id or ""), flags=re.IGNORECASE)
++            lines = []
++            for i, r in enumerate(recs, 1):
++                pg = r.get("page_number")
++                pg_txt = (f" (पृष्ठ {pg})" if is_hindi else f" (page {pg})") if pg else ""
++                lines.append(f"{i}. {r.get('title_original')}{pg_txt}")
++            n = len(recs)
++            if is_hindi:
++                head = (f"**{author}** ने कुल **{n}** {noun_hi_pl} लिखी हैं" if n > 1
++                        else f"**{author}** ने **1** {noun_hi_sg} लिखी है")
++                head += f" ({doc_label} में):" if multi_doc and doc_label else ":"
++            else:
++                head = f"**{author}** wrote **{n}** {noun_en_pl if n > 1 else noun_en_sg}"
++                head += f" (in {doc_label}):" if multi_doc and doc_label else ":"
++            blocks.append(head + "\n\n" + "\n".join(lines))
++        return "\n\n".join(blocks), hits
++
+     def _extract_topic_keywords(self, query: str) -> str:
+         """Extract the topic/subject from a topic-search query like 'AI se related article kisne likhe' or 'ai related all articles'."""
+         text = re.sub(r'\brelated\s+top\b', 'related to', query.strip(), flags=re.IGNORECASE)
+@@ -1251,6 +1337,19 @@ class StructuredIndexEngine:
+             or bool(re.search(r'\bने\s+(?:कौन\s*(?:सा|सी)|क्या|लिखा|लिखी)', norm_q))
+         )
+ 
++        # 3B. AUTHOR_WORKS: "सुनीता ने कितने लेख लिखे", "sunita ne kitne lekh likhe",
++        # "how many articles did Sunita write", "articles written by Sunita"
++        has_ne_likh = bool(re.search(r'(?:^|\s)(?:ne|ने)\s+.*(?:likh|लिख|rach|रच)', norm_q))
++        is_author_works = (
++            has_ne_likh
++            or bool(re.search(r'\bhow\s+many\s+\w+\s+(?:did|has|have)\s+.+?\s+(?:write|written)\b', norm_q))
++            or bool(re.search(r'\b(?:articles?|poems?|stories|works?)\s+(?:written|authored)\s+by\s+\S+', norm_q))
++            or bool(re.search(r'(?:द्वारा\s+लिखे|द्वारा\s+लिखी|dwara\s+likh)', norm_q))
++        )
++        if is_author_works:
++            is_title_by_author = True
++        wants_author_count = is_author_works and (is_count or is_list or bool(re.search(r'कितनी|कितने|kitni|kitne|how\s+many|कौन[\s-]*कौन|kaun[\s-]*kaun|सभी|सारे|सूची|नाम|\bnaam\b|\blist\b|\ball\b|\bwhich\b', norm_q)))
++
+         # 4. AUTHOR_BY_ARTICLE (AUTHOR_BY_TITLE) Detection
+         has_who_word = (
+             any(k in norm_q for k in [
+@@ -1317,6 +1416,8 @@ class StructuredIndexEngine:
+                 intent = "LAST_ITEM"
+             else:
+                 intent = "NTH_ITEM"
++        elif is_author_works:
++            intent = "TITLE_BY_AUTHOR"
+         elif is_count:
+             intent = "COUNT"
+         elif is_page:
+@@ -1356,6 +1457,7 @@ class StructuredIndexEngine:
+ 
+         return {
+             "intent": intent,
++            "wants_author_count": bool(intent == "TITLE_BY_AUTHOR" and wants_author_count),
+             "ordinal": ordinal,
+             "section": matched_section,
+             "entity_candidate": cleaned_entity if (cleaned_entity and (len(cleaned_entity) >= 1 if intent == "ARTICLE_BY_PAGE" else len(cleaned_entity) >= 2)) else None,
+@@ -1703,6 +1805,9 @@ class StructuredIndexEngine:
+         # =====================================================================
+         # INTENT 4: TITLE_BY_AUTHOR (e.g. "Himani Garg ne kaunsa lekh likha?")
+         # =====================================================================
++        elif intent == "TITLE_BY_AUTHOR" and entity_cand and slot_data.get("wants_author_count"):
++            answer_text, matched_records = self._answer_author_works(query, entity_cand, records)
++
+         elif intent == "TITLE_BY_AUTHOR" and entity_cand:
+             # Detect requested work type if specified in query
+             req_type = None
+diff --git a/python_backend/pipeline.py b/python_backend/pipeline.py
+index 2e41233..be78bb2 100644
+--- a/python_backend/pipeline.py
++++ b/python_backend/pipeline.py
+@@ -33,7 +33,49 @@ from table_query_engine import StructuredTableEngine
+ from structured_store import StructuredRecordStore, build_structured_records, FieldNormalizer
+ from hierarchical_model import HierarchicalStore
+ from hierarchical_builder import build_document_hierarchy
+-from docx_toc import extract_docx_toc_records
++
++
++# ---------------------------------------------------------------------------
++# Role / designation guard for "who is the <role>" questions.
++# If the question names a role (Secretary, Director, ...), an answer is only
++# allowed from evidence that actually contains that role in some language.
++# Prevents returning a random person (e.g. a Project Engineer) for "Secretary".
++# ---------------------------------------------------------------------------
++_ROLE_GROUPS = [
++    ("secretary", "sachiv", "सचिव"),
++    ("director", "nideshak", "निदेशक"),
++    ("chairman", "chairperson", "president", "adhyaksh", "adhyaksha", "अध्यक्ष"),
++    ("editor", "sampadak", "संपादक", "सम्पादक"),
++    ("minister", "mantri", "मंत्री"),
++    ("engineer", "abhiyanta", "अभियंता"),
++    ("officer", "adhikari", "अधिकारी"),
++    ("manager", "prabandhak", "प्रबंधक"),
++    ("convener", "convenor", "sanyojak", "संयोजक"),
++    ("head", "pramukh", "प्रमुख"),
++    ("translator", "anuvadak", "अनुवादक"),
++]
++
++
++def _query_roles(query: str) -> list:
++    """Return the role groups named in the question."""
++    q = (query or "").lower()
++    found = []
++    for group in _ROLE_GROUPS:
++        for term in group:
++            if re.search(r'(?<![A-Za-z\u0900-\u097F])' + re.escape(term), q):
++                found.append(group)
++                break
++    return found
++
++
++def _text_has_roles(text: str, role_groups: list) -> bool:
++    """True when every requested role appears in the text (any language variant)."""
++    t = (text or "").lower()
++    return all(any(term in t for term in group) for group in role_groups)
++
++
++def _cand_text(c: Dict[str, Any]) -> str:
++    return " ".join(str(c.get(k) or "") for k in ("node_value", "node_key", "hierarchy_path_text", "text"))
+ 
+ 
+ class RAGPipeline:
+@@ -136,15 +178,6 @@ class RAGPipeline:
+                 document_id=document_id,
+                 filename=filename
+             )
+-            # DOCX magazines often keep the contents page as a Word table. Reading the
+-            # cells directly keeps title / author(s) / page / category apart, which the
+-            # text-based parser above merges ("title : : : author", no page).
+-            if file_type == "docx":
+-                table_toc = extract_docx_toc_records(file_path, document_id, filename, pages=pages)
+-                if table_toc and len(table_toc) >= max(5, int(0.8 * len(toc_records))):
+-                    print(f"[RAGPipeline] Using DOCX contents table: {len(table_toc)} entries "
+-                          f"(text parser found {len(toc_records)}).")
+-                    toc_records = table_toc
+             self.index_store.save_records(document_id, filename, toc_records)
+             print(f"[RAGPipeline] Created {len(toc_records)} structured TOC records in Index Knowledge Layer.")
+         except Exception as e:
+@@ -389,6 +422,8 @@ class RAGPipeline:
+         # 1. UNDERSTAND USER QUESTION & ROUTE MODE
+         # =====================================================
+         analysis = self.analyzer.analyze(query, requested_mode=query_mode, document_id=document_id)
++        if _query_roles(query) and re.search(r"(?<![A-Za-z\u0900-\u097F])(?:नाम|naam|name)(?![A-Za-z\u0900-\u097F])", str(query).lower()):
++            analysis["expected_value_type"] = "PERSON"
+         resolved_mode = analysis.get("query_mode", "CONTENT_BASED")
+         safe_q = str(query).encode("ascii", errors="replace").decode("ascii")
+         print(f"[RAGPipeline] Query route: document={document_id}, mode={resolved_mode}, "
+@@ -437,6 +472,29 @@ class RAGPipeline:
+                 top_val = top_cand.get("node_value")
+                 top_key = top_cand.get("node_key")
+ 
++                # Reject symbol-only values such as "✓", "-", "—" (table tick marks etc.)
++                if top_cand is not None and not re.search(r"[A-Za-z0-9\u0900-\u097F]", str(top_val or "")):
++                    real_cands = [c for c in hier_best_evidence if re.search(r"[A-Za-z0-9\u0900-\u097F]", str(c.get("node_value") or ""))]
++                    if real_cands:
++                        top_cand = real_cands[0]
++                        top_val = top_cand.get("node_value")
++                        top_key = top_cand.get("node_key")
++                    else:
++                        top_cand = None
++
++                # Role guard (all question types): "कार्यकारी निदेशक का नाम" / "who is the Secretary"
++                # must be answered from a node that actually mentions that role.
++                asked_roles = _query_roles(query)
++                if asked_roles and top_cand is not None:
++                    role_cands = [c for c in hier_best_evidence if _text_has_roles(_cand_text(c), asked_roles)]
++                    if role_cands:
++                        top_cand = role_cands[0]
++                        top_val = top_cand.get("node_value")
++                        top_key = top_cand.get("node_key")
++                    else:
++                        print("[RAGPipeline] Role guard: no hierarchical node mentions the asked role.")
++                        top_cand = None
++
+                 # Value-Type & Content Quality Gating
+                 exp_type = analysis.get("expected_value_type")
+                 if exp_type == "DURATION":
+@@ -456,7 +514,10 @@ class RAGPipeline:
+ 
+                 elif exp_type in {"PERSON", "DESCRIPTION"} or analysis.get("is_content_question"):
+                     val_str = str(top_val or "").strip()
+-                    if top_cand and (re.fullmatch(r"[-+]?\d+(?:[,.]\d+)?%?", val_str) or len(val_str.split()) <= 2):
++                    # A person's name is usually 2-3 words ("नवीन चन्द्र"), so the short-value
++                    # rule applies only to descriptive questions, not to PERSON questions.
++                    too_short = len(val_str.split()) <= 2 and exp_type != "PERSON"
++                    if top_cand and (re.fullmatch(r"[-+]?\d+(?:[,.]\d+)?%?", val_str) or too_short):
+                         desc_cands = [
+                             c for c in hier_best_evidence
+                             if len(str(c.get("node_value") or "").strip().split()) >= 4
+@@ -1044,6 +1105,15 @@ class RAGPipeline:
+                 "query_analysis": analysis
+             }
+ 
++        asked_roles = _query_roles(query)
++        if asked_roles and not any(_text_has_roles(_cand_text(c), asked_roles) for c in best_evidence):
++            print("[RAGPipeline] Role guard: retrieved content does not mention the asked role.")
++            return {
++                "answer": "इस प्रश्न में पूछे गए पद (designation) की जानकारी दिए गए दस्तावेज़ों में उपलब्ध नहीं है।",
++                "evidence": [],
++                "query_analysis": analysis
++            }
++
+         if not self._has_sufficient_content_evidence(query, best_evidence):
+             return {
+                 "answer": "इस प्रश्न का उत्तर दिए गए दस्तावेज़ के प्रमाण में उपलब्ध नहीं है।",

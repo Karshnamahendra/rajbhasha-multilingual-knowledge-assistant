@@ -1,0 +1,4519 @@
+diff --git a/make-backend.cjs b/make-backend.cjs
+new file mode 100644
+index 0000000..e69de29
+diff --git a/package-lock.json b/package-lock.json
+index bb86d12..743d2c4 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -865,9 +865,6 @@
+       "cpu": [
+         "arm64"
+       ],
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -884,9 +881,6 @@
+       "cpu": [
+         "arm64"
+       ],
+-      "libc": [
+-        "musl"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -903,9 +897,6 @@
+       "cpu": [
+         "riscv64"
+       ],
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -922,9 +913,6 @@
+       "cpu": [
+         "x64"
+       ],
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -941,9 +929,6 @@
+       "cpu": [
+         "x64"
+       ],
+-      "libc": [
+-        "musl"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -994,9 +979,6 @@
+       "cpu": [
+         "x64"
+       ],
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -1134,9 +1116,6 @@
+       "cpu": [
+         "arm"
+       ],
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -1150,9 +1129,6 @@
+       "cpu": [
+         "arm"
+       ],
+-      "libc": [
+-        "musl"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -1166,9 +1142,6 @@
+       "cpu": [
+         "arm64"
+       ],
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -1182,9 +1155,6 @@
+       "cpu": [
+         "arm64"
+       ],
+-      "libc": [
+-        "musl"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -1198,9 +1168,6 @@
+       "cpu": [
+         "loong64"
+       ],
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -1214,9 +1181,6 @@
+       "cpu": [
+         "loong64"
+       ],
+-      "libc": [
+-        "musl"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -1230,9 +1194,6 @@
+       "cpu": [
+         "ppc64"
+       ],
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -1246,9 +1207,6 @@
+       "cpu": [
+         "ppc64"
+       ],
+-      "libc": [
+-        "musl"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -1262,9 +1220,6 @@
+       "cpu": [
+         "riscv64"
+       ],
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -1278,9 +1233,6 @@
+       "cpu": [
+         "riscv64"
+       ],
+-      "libc": [
+-        "musl"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -1294,9 +1246,6 @@
+       "cpu": [
+         "s390x"
+       ],
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -1310,9 +1259,6 @@
+       "cpu": [
+         "x64"
+       ],
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -1326,9 +1272,6 @@
+       "cpu": [
+         "x64"
+       ],
+-      "libc": [
+-        "musl"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -1530,9 +1473,6 @@
+       "cpu": [
+         "arm64"
+       ],
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -1549,9 +1489,6 @@
+       "cpu": [
+         "arm64"
+       ],
+-      "libc": [
+-        "musl"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -1568,9 +1505,6 @@
+       "cpu": [
+         "x64"
+       ],
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -1587,9 +1521,6 @@
+       "cpu": [
+         "x64"
+       ],
+-      "libc": [
+-        "musl"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -3078,9 +3009,6 @@
+       "cpu": [
+         "arm64"
+       ],
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MPL-2.0",
+       "optional": true,
+       "os": [
+@@ -3101,9 +3029,6 @@
+       "cpu": [
+         "arm64"
+       ],
+-      "libc": [
+-        "musl"
+-      ],
+       "license": "MPL-2.0",
+       "optional": true,
+       "os": [
+@@ -3124,9 +3049,6 @@
+       "cpu": [
+         "x64"
+       ],
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MPL-2.0",
+       "optional": true,
+       "os": [
+@@ -3147,9 +3069,6 @@
+       "cpu": [
+         "x64"
+       ],
+-      "libc": [
+-        "musl"
+-      ],
+       "license": "MPL-2.0",
+       "optional": true,
+       "os": [
+@@ -4180,9 +4099,6 @@
+       "cpu": [
+         "arm64"
+       ],
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -4203,9 +4119,6 @@
+       "cpu": [
+         "arm64"
+       ],
+-      "libc": [
+-        "musl"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -4226,9 +4139,6 @@
+       "cpu": [
+         "riscv64"
+       ],
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -4249,9 +4159,6 @@
+       "cpu": [
+         "x64"
+       ],
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -4272,9 +4179,6 @@
+       "cpu": [
+         "x64"
+       ],
+-      "libc": [
+-        "musl"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+diff --git a/python_backend/app.py b/python_backend/app.py
+index 6f1ac3b..2b7ae7e 100644
+--- a/python_backend/app.py
++++ b/python_backend/app.py
+@@ -21,6 +21,9 @@ from pydantic import BaseModel
+ from pipeline import RAGPipeline
+ from extractor import detect_file_type, extract_document_pages
+ from config import settings
++from doc_scope import set_scope, reset_scope
++from report_metrics import ReportMetrics, evidence_to_sources
++from magazine_metrics import MagazineMetrics, toc_evidence_to_sources
+ 
+ app = FastAPI(title="Rajbhasha Knowledge Assistant API")
+ 
+@@ -59,7 +62,24 @@ app.add_middleware(
+     allow_headers=["*"],
+ )
+ 
+-pipeline = RAGPipeline()
++# `python app.py` runs this file twice: once here as __main__ (the launcher) and
++# again inside uvicorn's reload worker. Building the pipeline in both processes
++# made the embedded Qdrant storage "already accessed by another instance".
++# Only the worker needs it.
++_IS_LAUNCHER = __name__ == "__main__"
++pipeline = None if _IS_LAUNCHER else RAGPipeline()
++# Region totals and report comparisons are computed from saved tables, not by the LLM
++def _doc_type_of(doc_id: str):
++    """Upload category saved with the document ("report" / "magazine"), or None if unknown."""
++    try:
++        return (_load_doc_meta(doc_id) or {}).get("document_type")
++    except Exception:
++        return None
++
++
++report_metrics = None if _IS_LAUNCHER else ReportMetrics(pipeline.table_store, doc_type_of=_doc_type_of)
++# Magazine counts / author stats / edition comparison, computed from the contents (TOC) records
++magazine_metrics = None if _IS_LAUNCHER else MagazineMetrics(pipeline.index_store, doc_type_of=_doc_type_of)
+ 
+ class QueryRequest(BaseModel):
+     query: Optional[str] = ""
+@@ -67,6 +87,9 @@ class QueryRequest(BaseModel):
+     prompt: Optional[str] = ""
+     document_id: Optional[str] = None
+     doc_id: Optional[str] = None
++    # Multi-select from the frontend. One id behaves exactly like document_id;
++    # several ids restrict "search all" to just those documents.
++    document_ids: Optional[List[str]] = None
+     document_type: Optional[str] = None
+     year: Optional[int] = None
+     mode: Optional[str] = "AUTO"
+@@ -81,12 +104,28 @@ _conversation_entities: Dict[str, Dict[str, str]] = {}
+ @app.get("/api/ollama/status")
+ @app.get("/api/status")
+ def health_and_ollama_status():
++    """Backend is up if this answers; Ollama and Qdrant are actually probed."""
++    model = getattr(settings, "GENERATOR_MODEL_NAME", "llama3.2")
++    ollama_ok = False
++    try:
++        import requests
++        r = requests.get(f'{getattr(settings, "OLLAMA_BASE_URL", "http://127.0.0.1:11434")}/api/tags', timeout=1.5)
++        ollama_ok = r.ok
++    except Exception:
++        ollama_ok = False
++    qdrant_mode = "unknown"
++    try:
++        inner = getattr(pipeline.vector_store.client, "_client", None)
++        qdrant_mode = "embedded" if inner is not None and inner.__class__.__name__ == "QdrantLocal" else "server"
++    except Exception:
++        pass
+     return {
+         "status": "connected",
+         "service": "Rajbhasha RAG Backend",
+-        "ollama": "connected",
+-        "qdrant": "connected",
+-        "model": getattr(settings, "GENERATOR_MODEL_NAME", "llama3.2")
++        "available": ollama_ok,
++        "ollama": "connected" if ollama_ok else "unavailable",
++        "qdrant": qdrant_mode,
++        "model": model,
+     }
+ 
+ @app.get("/api/vector/embedding/{chunk_id}")
+@@ -381,6 +420,56 @@ async def upload_document(
+     except Exception as e:
+         raise HTTPException(status_code=500, detail=str(e))
+ 
++def _metrics_response(metric: Dict, user_query: str, conversation_id: Optional[str]) -> Dict:
++    evidence = metric.get("evidence", [])
++    is_toc = bool(evidence) and "title_original" in evidence[0]
++    sources = toc_evidence_to_sources(evidence) if is_toc else evidence_to_sources(evidence)
++    return {
++        "success":          True,
++        "answer":           metric["answer"],
++        "answerType":       metric["kind"],            # region_total | comparison | magazine_count | author_count
++        "comparison":       metric.get("comparison"),  # rows: metric, region, values{period}, change, change_pct
++        "chart_data":       metric.get("chart_data"),  # {type, labels, series:[{name, values}], unit}
++        "periods":          metric.get("periods"),
++        "results":          metric.get("results"),
++        "sources":          sources,
++        "confidenceScore":  100 if sources else 0,
++        "grounded":         bool(sources),
++        "originalQuery":    user_query,
++        "detectedIntent":   metric["kind"].upper(),
++        "modelUsed":        "report_metrics (no LLM)",
++        "processingTimeMs": 0,
++        "conversationId":   conversation_id,
++    }
++
++
++class CompareRequest(BaseModel):
++    document_ids: Optional[List[str]] = None
++    query: Optional[str] = ""
++
++
++@app.post("/api/compare")
++def compare_reports(req: CompareRequest):
++    """Compare the same table rows across two or more reports.
++
++    Empty `query` compares every numeric row; a query like "region A letters"
++    narrows it. Numbers come from the saved tables, never from the LLM.
++    """
++    ids = [d for d in (req.document_ids or []) if d]
++    token = set_scope(ids or None)
++    try:
++        result = report_metrics.compare(req.query or "", ids or None)
++        if not result:
++            docs = magazine_metrics.entries(ids or None)
++            result = magazine_metrics.compare(req.query or "", docs)
++    finally:
++        reset_scope(token)
++    if not result:
++        return {"success": False, "error": "तुलना के लिए कम से कम दो रिपोर्ट या दो पत्रिकाएँ चुनें।",
++                "comparison": [], "chart_data": None}
++    return _metrics_response(result, req.query or "", None)
++
++
+ @app.post("/api/chat")
+ @app.post("/api/query")
+ @app.post("/ask")
+@@ -393,23 +482,45 @@ def chat_or_ask(req: QueryRequest):
+     if doc_id in ["all", "All Uploaded Documents", None, ""]:
+         doc_id = None
+ 
++    selected_ids = list(dict.fromkeys(d for d in (req.document_ids or []) if d and d != "all"))
++    scope_ids: Optional[List[str]] = None
++    if len(selected_ids) == 1:
++        doc_id = selected_ids[0]          # single selection: existing per-document path
++    elif len(selected_ids) > 1:
++        doc_id = None                     # several: search all, restricted to the selection
++        scope_ids = selected_ids
++
+     # pipeline.ask() requires a non-None document_id; pass "" to let it query all docs
+     safe_doc_id = doc_id if doc_id else ""
+     req_mode = req.query_mode or req.mode or "AUTO"
+     conversation = _conversation_entities.get(req.conversation_id or "", {})
+-    raw = pipeline.ask(
+-        user_query,
+-        document_id=safe_doc_id,
+-        query_mode=req_mode,
+-        conversation_article_id=conversation.get("article_id"),
+-        document_type=req.document_type,
+-        year=req.year,
+-    )
++    scope_token = set_scope(scope_ids)
++    try:
++        # Region totals ("तीनों क्षेत्रों को कुल...") and report comparisons ("2024 vs 2025")
++        # are answered from saved tables with code arithmetic. Anything else goes to RAG.
++        docs_for_metrics = [doc_id] if doc_id else None
++        metric = (report_metrics.try_answer(user_query, docs_for_metrics)
++                  or magazine_metrics.try_answer(user_query, docs_for_metrics))
++        if metric:
++            return _metrics_response(metric, user_query, req.conversation_id)
++        raw = pipeline.ask(
++            user_query,
++            document_id=safe_doc_id,
++            query_mode=req_mode,
++            conversation_article_id=conversation.get("article_id"),
++            document_type=req.document_type,
++            year=req.year,
++        )
++    finally:
++        reset_scope(scope_token)
+ 
+     # --- Transform pipeline response to match what the frontend expects ---
+     # pipeline returns: { answer, evidence, query_analysis }
+     # frontend expects: { success, answer, sources, confidenceScore, ... }
+     evidence = raw.get("evidence", [])
++    if scope_ids:
++        allowed = set(scope_ids)
++        evidence = [ev for ev in evidence if not ev.get("document_id") or ev.get("document_id") in allowed]
+     query_analysis = raw.get("query_analysis", {})
+     resolved_article_id = query_analysis.get("resolved_article_id")
+     if req.conversation_id and resolved_article_id:
+@@ -467,6 +578,7 @@ def chat_or_ask(req: QueryRequest):
+         "modelUsed":        "ollama",
+         "processingTimeMs": 0,
+         "conversationId": req.conversation_id,
++        "documentScope":  scope_ids or ([doc_id] if doc_id else []),
+     }
+ 
+ 
+@@ -511,4 +623,4 @@ if __name__ == "__main__":
+             "data/*",
+             "uploaded_pdfs/*"
+         ]
+-    )
++    )
+\ No newline at end of file
+diff --git a/python_backend/doc_scope.py b/python_backend/doc_scope.py
+new file mode 100644
+index 0000000..eadfc48
+--- /dev/null
++++ b/python_backend/doc_scope.py
+@@ -0,0 +1,47 @@
++"""Request-scoped document selection.
++
++When the user selects several documents in the frontend, the query should only
++see those documents. Most of the pipeline already threads a single
++``document_id`` through retrieval; instead of changing every signature to take
++a list, the selected ids are held in a ContextVar for the duration of one
++request. Every "search all documents" code path (document_id is None) consults
++this scope and restricts itself to the selected ids.
++
++Usage (see app.py):
++    token = set_scope(["a.pdf", "b.docx"])
++    try:
++        pipeline.ask(query, document_id=None, ...)
++    finally:
++        reset_scope(token)
++"""
++from contextvars import ContextVar, Token
++from typing import FrozenSet, Iterable, Optional
++
++_scope: ContextVar[Optional[FrozenSet[str]]] = ContextVar("document_scope", default=None)
++
++
++def set_scope(document_ids: Optional[Iterable[str]]) -> Token:
++    ids = frozenset(str(d) for d in (document_ids or []) if d)
++    return _scope.set(ids or None)
++
++
++def reset_scope(token: Token) -> None:
++    _scope.reset(token)
++
++
++def get_scope() -> Optional[FrozenSet[str]]:
++    """Selected document ids for this request, or None when all documents are allowed."""
++    return _scope.get()
++
++
++def in_scope(document_id: Optional[str]) -> bool:
++    scope = _scope.get()
++    return scope is None or (document_id is not None and str(document_id) in scope)
++
++
++def qdrant_scope_condition(models):
++    """FieldCondition restricting document_id to the scope, or None when unscoped."""
++    scope = _scope.get()
++    if not scope:
++        return None
++    return models.FieldCondition(key="document_id", match=models.MatchAny(any=sorted(scope)))
+\ No newline at end of file
+diff --git a/python_backend/docx_toc.py b/python_backend/docx_toc.py
+new file mode 100644
+index 0000000..5799c27
+--- /dev/null
++++ b/python_backend/docx_toc.py
+@@ -0,0 +1,169 @@
++"""Table-of-contents extraction for DOCX magazines whose contents page is a Word table.
++
++Many Rajbhasha magazines lay out "इस अंक में / विषय सूची" as a table:
++
++    ┌──────────────── तकनीकी लेख (merged row = category) ────────────────┐
++    │ 1 │ साइबर सुरक्षा : सरकारी प्रयास…  │ : │ सुश्री कान्ती सिंह सेंघर │ 9 │
++    │   │                                 │   │ सुश्री रेखा सरस्वत       │   │  ← 2nd author = 2nd paragraph
++    └───┴─────────────────────────────────┴───┴──────────────────────────┴───┘
++
++The generic text-based TOCExtractor flattens these cells, so titles swallow the
++author ("title : : : author"), co-authors get glued together and page numbers
++are lost. Reading the table cells directly keeps every field separate.
++
++Output records use exactly the schema of TOCExtractor, so everything that reads
++the index store (author/title lookups, hierarchy builder) keeps working.
++Nothing here is specific to one magazine.
++"""
++from __future__ import annotations
++
++import re
++import zipfile
++import xml.etree.ElementTree as ET
++from typing import Any, Dict, List, Optional
++
++from index_knowledge_layer import fix_devanagari_ocr, romanize_generic
++
++_NS = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
++_SERIAL_RE = re.compile(r"^\s*(\d{1,3})\s*[.)]?\s*$")
++_PAGE_RE = re.compile(r"^\s*(\d{1,4})\s*$")
++_HONORIFIC_RE = re.compile(r"^\s*(?:श्रीमती|सुश्री|श्री|डॉ\.?|डा\.|Dr\.?|Mr\.?|Mrs\.?|Ms\.?|Shri|Smt\.?)\s*", re.I)
++# Two names typed into one paragraph: split before a second honorific
++_INNER_HONORIFIC_RE = re.compile(r"\s+(?=(?:श्रीमती|सुश्री|श्री|डॉ\.|Dr\.)\s)")
++
++
++def _clean(text: str) -> str:
++    return re.sub(r"\s+", " ", (text or "").replace("\xa0", " ")).strip()
++
++
++def _cell_paragraphs(cell) -> List[str]:
++    paras = []
++    for p in cell.findall(f"{_NS}p"):
++        text = _clean("".join(n.text or "" for n in p.iter(f"{_NS}t")))
++        if text:
++            paras.append(text)
++    return paras
++
++
++def split_authors(paragraphs: List[str]) -> List[str]:
++    """One author per paragraph; also split 'सुश्री A सुश्री B' typed on one line.
++    Returned names have honorifics removed so the same person is counted once."""
++    names: List[str] = []
++    for para in paragraphs:
++        for part in re.split(r"\s*[,;/|]\s*|\s+(?:एवं|और|and)\s+", para):
++            for piece in _INNER_HONORIFIC_RE.split(part):
++                name = _clean(_HONORIFIC_RE.sub("", piece))
++                if name and name not in {"-", ":"} and name not in names:
++                    names.append(name)
++    return names
++
++
++def _entry_type(section: str) -> str:
++    s = (section or "").lower()
++    if any(k in s for k in ["कविता", "poem", "poetry"]):
++        return "poem"
++    if any(k in s for k in ["कहानी", "story", "fiction"]) and "लेख" not in s:
++        return "story"
++    if any(k in s for k in ["श्रद्धांजलि", "tribute", "memoriam"]):
++        return "tribute"
++    if any(k in s for k in ["रिपोर्ट", "कॉर्नर", "report", "corner"]):
++        return "report"
++    return "article"
++
++
++def _parse_row(cells) -> Optional[Dict[str, Any]]:
++    """serial | title | [:] | author(s) | page   (colon column optional)"""
++    paras = [_cell_paragraphs(c) for c in cells]
++    flat = [" ".join(p) for p in paras]
++    if len(flat) < 3 or not _SERIAL_RE.match(flat[0]) or not _PAGE_RE.match(flat[-1]):
++        return None
++    middle = list(zip(flat[1:-1], paras[1:-1]))
++    middle = [(t, p) for t, p in middle if t and t not in {":", "：", "-", "–"}]
++    if not middle:
++        return None
++    title = middle[0][0]
++    author_paras = [x for _, p in middle[1:] for x in p]
++    return {
++        "serial": int(_SERIAL_RE.match(flat[0]).group(1)),
++        "title": title,
++        "author_paras": author_paras,
++        "page": int(_PAGE_RE.match(flat[-1]).group(1)),
++    }
++
++
++def _category_of(cells) -> Optional[str]:
++    texts = [" ".join(_cell_paragraphs(c)) for c in cells]
++    texts = [t for t in texts if t]
++    if not texts or len(set(texts)) != 1:
++        return None
++    t = texts[0]
++    if re.search(r"\d", t) or len(t) > 60:
++        return None
++    return t
++
++
++def _toc_page(pages: Optional[List[Dict[str, Any]]], first_title: str) -> int:
++    if pages and first_title:
++        probe = first_title[:20]
++        for p in pages[:10]:
++            if probe and probe in (p.get("text") or ""):
++                return int(p.get("page_number") or 1)
++    return 1
++
++
++def extract_docx_toc_records(file_path: str, document_id: str, filename: str,
++                             pages: Optional[List[Dict[str, Any]]] = None,
++                             min_entries: int = 5) -> List[Dict[str, Any]]:
++    """Return TOC records from the first DOCX table that looks like a contents table, else []."""
++    try:
++        with zipfile.ZipFile(file_path) as archive:
++            root = ET.fromstring(archive.read("word/document.xml"))
++    except Exception:
++        return []
++
++    for table in root.iter(f"{_NS}tbl"):
++        entries: List[Dict[str, Any]] = []
++        section = "General"
++        for row in table.findall(f"{_NS}tr"):
++            cells = row.findall(f"{_NS}tc")
++            parsed = _parse_row(cells)
++            if parsed:
++                parsed["section"] = section
++                entries.append(parsed)
++                continue
++            cat = _category_of(cells)
++            if cat:
++                section = cat
++        if len(entries) < min_entries:
++            continue
++
++        toc_p = _toc_page(pages, entries[0]["title"])
++        counters: Dict[str, int] = {}
++        records = []
++        for e in entries:
++            title = fix_devanagari_ocr(e["title"])
++            sec = fix_devanagari_ocr(e["section"])
++            counters[sec] = counters.get(sec, 0) + 1
++            authors = split_authors([fix_devanagari_ocr(a) for a in e["author_paras"]])
++            author_text = ", ".join(authors) if authors else None
++            records.append({
++                "document_id": document_id,
++                "source_filename": filename,
++                "toc_page": toc_p,
++                "serial_number": e["serial"],
++                "section_original": sec,
++                "section_normalized": sec,
++                "section_item_index": counters[sec],
++                "title_original": title,
++                "title_normalized": title,
++                "title_roman": romanize_generic(title),
++                "author_original": author_text,
++                "author_normalized": author_text,
++                "author_roman": romanize_generic(author_text) if author_text else None,
++                "author_list": authors,
++                "page_number": e["page"],
++                "type": _entry_type(sec),
++                "extraction_method": "docx_toc_table",
++            })
++        return records
++    return []
+\ No newline at end of file
+diff --git a/python_backend/index_knowledge_layer.py b/python_backend/index_knowledge_layer.py
+index daa437e..392f39a 100644
+--- a/python_backend/index_knowledge_layer.py
++++ b/python_backend/index_knowledge_layer.py
+@@ -7,6 +7,7 @@ import difflib
+ import unicodedata
+ from typing import List, Dict, Any, Optional, Tuple, Union
+ from terminology_memory import DynamicTerminologyMemory
++from doc_scope import in_scope
+ 
+ logger = logging.getLogger("IndexKnowledgeLayer")
+ logger.setLevel(logging.INFO)
+@@ -641,6 +642,8 @@ class StructuredIndexStore:
+         if not document_id or document_id in ["all", "All Uploaded Documents", ""]:
+             all_recs = []
+             for doc_key, r_list in self._memory_store.items():
++                if not in_scope(doc_key):
++                    continue
+                 for record in r_list:
+                     self._enrich_article_record(record, doc_key)
+                 all_recs.extend(r_list)
+@@ -2010,5 +2013,4 @@ class StructuredIndexEngine:
+             "evidence": evidence_chunks,
+             "matched_records": matched_records,
+             "slot_data": slot_data
+-        }
+-
++        }
+\ No newline at end of file
+diff --git a/python_backend/magazine_metrics.py b/python_backend/magazine_metrics.py
+new file mode 100644
+index 0000000..467dd70
+--- /dev/null
++++ b/python_backend/magazine_metrics.py
+@@ -0,0 +1,420 @@
++"""Magazine questions that need counting or comparing, answered from the contents (TOC) records.
++
++Examples it handles (Hindi, Hinglish, English):
++    "AI par kitne lekh hain?"            -> count titles on a topic (with the list)
++    "2025 में कितनी कविताएं हैं?"          -> count by category, edition picked by year
++    "technical articles kaun se hain?"   -> list by category
++    "kis lekhak ne sabse zyada likha?"   -> per-author counts
++    "अनिल कुमार ने कितने लेख लिखे?"        -> count for a named author
++    "2024 vs 2025 magazine"              -> edition comparison + chart data
++
++Counts are computed in code from the TOC records the index store keeps for every
++magazine, so the LLM never does arithmetic. Questions that are not about
++counting / listing / comparing are left to normal RAG (returns None).
++Nothing here is specific to one magazine.
++"""
++from __future__ import annotations
++
++import difflib
++import re
++from collections import Counter, OrderedDict
++from typing import Any, Callable, Dict, List, Optional, Tuple
++
++from doc_scope import in_scope, get_scope
++from index_knowledge_layer import romanize_generic
++
++_TOKEN_RE = re.compile(r"[a-z0-9]+|[ऀ-ॿ]+")
++_YEAR_RE = re.compile(r"(?<!\d)(20\d{2})(?!\d)")
++
++_COUNT_RE = re.compile(r"कितन[ेीा]|कितनों|संख्या|\bkitn[eia]\b|\bhow many\b|\bcount\b|\bnumber of\b|\btotal\b|कुल|\bkul\b", re.I)
++_LIST_RE = re.compile(r"कौन[\s-]?से|कौन[\s-]?सी|कौनसे|सूची|\bkaun ?s[ei]\b|\bwhich\b|\blist\b|\bnames?\b|दिखाओ|बताओ|\bbatao\b|\bdikhao\b", re.I)
++_AUTHOR_WORD_RE = re.compile(r"लेखक|लेखकों|रचनाकार|(?<![ऀ-ॿ])(?:कवि|कवियों)(?![ऀ-ॿ])|\bauthors?\b|\bwriters?\b|\blekhak\w*|\bkavi\b", re.I)
++_NE_RE = re.compile(r"(?<![ऀ-ॿ])ने(?![ऀ-ॿ])|\bne\b", re.I)
++_MOST_RE = re.compile(r"सबसे|ज़्यादा|ज्यादा|अधिक|\bmost\b|\bmaximum\b|\bsabse\b|\bzyada\b|\bjyada\b|\btop\b", re.I)
++_WORK_RE = re.compile(
++    r"लेख|रचना|रचनाएं|रचनाएँ|कविता|कविताएं|कविताएँ|कहानी|कहानियां|कहानियाँ|articles?|poems?|poetry|stor(?:y|ies)|"
++    r"\blekh\b|\brachna\w*|\bkavit\w*|\bkahani\w*|entries|लेखक|author|writer|lekhak",
++    re.I,
++)
++_COMPARE_RE = re.compile(r"compare|comparison|\bvs\.?\b|versus|तुलना|\btulna\b|बनाम|अंतर|\bantar\b|difference|फर्क", re.I)
++
++# Categories as they appear in contents tables; matched against section names, not hard-coded to one issue
++_CATEGORY_QUERY = [
++    # (query pattern, predicate on (section, type), label)
++    (re.compile(r"गैर[\s-]?तकनीकी|non[\s-]?technical|gair[\s-]?takn?iki", re.I),
++     lambda sec, typ: "गैर" in sec or "non" in sec.lower(), "गैर-तकनीकी"),
++    (re.compile(r"तकनीकी|technical|takn?iki", re.I),
++     lambda sec, typ: ("तकनीकी" in sec or "technical" in sec.lower()) and "गैर" not in sec and "non" not in sec.lower(), "तकनीकी"),
++    (re.compile(r"कविता|कविताएं|कविताएँ|poem|poetry|kavit", re.I),
++     lambda sec, typ: typ == "poem" or "कविता" in sec, "कविता"),
++    (re.compile(r"कहानी|कहानियां|कहानियाँ|stor(?:y|ies)|kahani", re.I),
++     lambda sec, typ: "कहानी" in sec or typ == "story", "कहानी"),
++    (re.compile(r"विशेषांक|special", re.I),
++     lambda sec, typ: "विशेषांक" in sec, "विशेषांक"),
++    (re.compile(r"राजभाषा\s*कॉर्नर|corner", re.I),
++     lambda sec, typ: "कॉर्नर" in sec or "corner" in sec.lower(), "राजभाषा कॉर्नर"),
++]
++
++# Topic words -> variants seen in Hindi titles
++_TOPIC_ALIASES = {
++    "ai": ["कृत्रिम बुद्धिमत्ता", "एआई", "आर्टिफिशियल", "artificial intelligence", "ai"],
++    "बुद्धिमत्ता": ["कृत्रिम बुद्धिमत्ता", "एआई", "आर्टिफिशियल", "ai"],
++    "artificial": ["कृत्रिम बुद्धिमत्ता", "एआई", "आर्टिफिशियल", "artificial intelligence", "ai"],
++    "intelligence": ["कृत्रिम बुद्धिमत्ता", "एआई", "आर्टिफिशियल", "artificial intelligence", "ai"],
++    "कृत्रिम": ["कृत्रिम बुद्धिमत्ता", "एआई", "आर्टिफिशियल", "ai"],
++    "एआई": ["कृत्रिम बुद्धिमत्ता", "एआई", "आर्टिफिशियल", "ai"],
++    "cyber": ["साइबर", "साईबर", "cyber"],
++    "saibar": ["साइबर", "साईबर", "cyber"],
++    "साइबर": ["साइबर", "साईबर", "cyber"],
++    "साईबर": ["साइबर", "साईबर", "cyber"],
++    "digital": ["डिजिटल", "डि़जिटाइजेशन", "digital"],
++    "डिजिटल": ["डिजिटल", "डि़जिटाइजेशन", "digital"],
++    "software": ["सॉफ्टवेयर", "सॉफ़्टवेयर", "software"],
++    "सॉफ्टवेयर": ["सॉफ्टवेयर", "सॉफ़्टवेयर", "software"],
++    "security": ["सुरक्षा", "security", "सिक्योरिटी"],
++    "suraksha": ["सुरक्षा", "security", "सिक्योरिटी"],
++    "सुरक्षा": ["सुरक्षा", "security", "सिक्योरिटी"],
++    "yoga": ["योग"], "yog": ["योग"], "योग": ["योग"],
++    "mahakumbh": ["महाकुंभ"], "महाकुंभ": ["महाकुंभ"],
++    "rajbhasha": ["राजभाषा"], "राजभाषा": ["राजभाषा"],
++}
++
++# Words that never name a topic
++_STOP = {
++    "की", "का", "के", "में", "मे", "है", "हैं", "था", "थे", "और", "या", "पर", "से", "को", "ने", "कितने", "कितनी",
++    "कितना", "कौन", "कौनसे", "सी", "कुल", "संख्या", "सूची", "सभी", "सबसे", "ज्यादा", "ज़्यादा", "अधिक", "लिखे",
++    "लिखी", "लिखा", "गए", "गई", "गये", "लेख", "लेखों", "रचना", "रचनाएं", "रचनाएँ", "कविता", "कविताएं", "कविताएँ",
++    "कहानी", "कहानियां", "कहानियाँ", "लेखक", "लेखकों", "पत्रिका", "मैगज़ीन", "मैगजीन", "अंक", "विषय", "बारे",
++    "तकनीकी", "गैर", "किस", "किसने", "किन", "इस", "उस", "यह", "वह", "तुलना", "बताओ", "दिखाओ", "वर्ष", "साल",
++    "par", "pe", "ki", "ka", "ke", "me", "mein", "hai", "hain", "aur", "kitne", "kitni", "kitna", "kaun", "kaunse",
++    "se", "si", "kul", "sabse", "zyada", "jyada", "likhe", "likha", "lekh", "lekhak", "kavita", "kavitayen",
++    "kahani", "magazine", "patrika", "ank", "technical", "takniki", "gair", "kis", "kisne", "batao", "dikhao",
++    "the", "of", "in", "on", "about", "is", "are", "how", "many", "much", "what", "which", "who", "list", "all",
++    "articles", "article", "poems", "poem", "stories", "story", "authors", "author", "writers", "writer", "wrote",
++    "written", "by", "total", "count", "number", "most", "non", "and", "or", "a", "an", "to", "there", "have",
++    "has", "vs", "compare", "comparison", "edition", "issue", "top", "name", "names",
++}
++
++_MAX_LIST = 25
++
++
++def _tokens(text: str) -> List[str]:
++    return _TOKEN_RE.findall((text or "").lower())
++
++
++def _roman_key(name: str) -> str:
++    """Rough phonetic key so 'anil kumar' ~ 'anila kumara' and सरस्वत ~ सारस्वत."""
++    rom = romanize_generic(name) if re.search(r"[ऀ-ॿ]", name or "") else (name or "").lower()
++    out = []
++    for tok in re.findall(r"[a-z]+", rom):
++        tok = re.sub(r"a+$", "", tok)                 # inherent vowel: kumara -> kumar
++        tok = re.sub(r"(.)\1+", r"\1", tok)            # doubled letters
++        tok = tok.replace("aa", "a").replace("w", "v").replace("ee", "i").replace("oo", "u")
++        out.append(tok)
++    return " ".join(out)
++
++
++def _same_person(a: str, b: str) -> bool:
++    if a == b:
++        return True
++    ka, kb = _roman_key(a), _roman_key(b)
++    if len(ka.split()) != len(kb.split()):
++        return False
++    return difflib.SequenceMatcher(None, ka, kb).ratio() >= 0.84
++
++
++def _edition_label(document_id: str) -> str:
++    years = _YEAR_RE.findall(document_id or "")
++    return years[-1] if years else (document_id or "")
++
++
++class MagazineMetrics:
++    def __init__(self, index_store, doc_type_of: Optional[Callable[[str], Optional[str]]] = None):
++        self.index_store = index_store
++        self.doc_type_of = doc_type_of
++
++    # -- data ---------------------------------------------------------------------
++    def entries(self, document_ids: Optional[List[str]] = None) -> Dict[str, List[Dict[str, Any]]]:
++        """document_id -> TOC records, for magazines in the current scope."""
++        records = []
++        if document_ids:
++            for d in document_ids:
++                records.extend(self.index_store.get_records(d))
++        else:
++            records = self.index_store.get_records(None)
++        out: "OrderedDict[str, List[Dict[str, Any]]]" = OrderedDict()
++        for r in records:
++            doc = r.get("document_id")
++            if not doc or not in_scope(doc):
++                continue
++            if self.doc_type_of and (self.doc_type_of(doc) or "magazine") == "report":
++                continue
++            if not (r.get("title_original") or "").strip():
++                continue
++            out.setdefault(doc, []).append(r)
++        # Oldest edition first
++        return OrderedDict(sorted(out.items(), key=lambda kv: _edition_label(kv[0])))
++
++    # -- query understanding ------------------------------------------------------------
++    @staticmethod
++    def _category(query: str):
++        for pattern, pred, label in _CATEGORY_QUERY:
++            if pattern.search(query or ""):
++                return pred, label
++        return None, None
++
++    @staticmethod
++    def _topic_terms(query: str) -> List[List[str]]:
++        """Each topic word in the question -> its variants. [] if the question names no topic."""
++        topics = []
++        for tok in _tokens(query):
++            if tok in _STOP or tok.isdigit() or len(tok) < 2:
++                continue
++            if any(p.search(tok) for p, _, _ in _CATEGORY_QUERY):
++                continue
++            group = _TOPIC_ALIASES.get(tok, [tok])
++            if group not in topics:          # "कृत्रिम बुद्धिमत्ता" = one topic, not two
++                topics.append(group)
++        # "साइबर सुरक्षा / cyber security" is one subject: cyber alone decides
++        cyber = _TOPIC_ALIASES["cyber"]
++        if cyber in topics:
++            topics = [g for g in topics if g is cyber or g == cyber or g != _TOPIC_ALIASES["security"]]
++        return topics
++
++    @staticmethod
++    def _title_matches(title: str, topics: List[List[str]]) -> bool:
++        t = (title or "").lower()
++        t_rom = romanize_generic(title or "")
++        for variants in topics:
++            hit = False
++            for v in variants:
++                v = v.lower()
++                if re.fullmatch(r"[a-z]{1,3}", v):          # short latin like "ai": whole word only
++                    if re.search(rf"(?<![a-z]){v}(?![a-z])", t):
++                        hit = True
++                elif v in t or (re.fullmatch(r"[a-z]+", v) and len(v) >= 4 and v in t_rom):
++                    hit = True
++                elif len(v) >= 4 and any(w.startswith(v) for w in _tokens(t)):
++                    hit = True
++            if not hit:
++                return False
++        return True
++
++    def _author_counts(self, entries: List[Dict[str, Any]]) -> List[Tuple[str, List[Dict[str, Any]]]]:
++        groups: List[Tuple[str, List[Dict[str, Any]]]] = []
++        for e in entries:
++            for name in e.get("author_list") or []:
++                for i, (canon, works) in enumerate(groups):
++                    if _same_person(canon, name):
++                        works.append(e)
++                        break
++                else:
++                    groups.append((name, [e]))
++        groups.sort(key=lambda g: (-len(g[1]), g[0]))
++        return groups
++
++    def _named_author(self, query: str, entries: List[Dict[str, Any]]) -> Optional[Tuple[str, List[Dict[str, Any]]]]:
++        q_dev = set(_tokens(query))
++        q_rom = _roman_key(" ".join(t for t in _tokens(query) if re.fullmatch(r"[a-z]+", t)))
++        best = None
++        for canon, works in self._author_counts(entries):
++            parts = _tokens(canon)
++            if parts and all(p in q_dev for p in parts):
++                return canon, works
++            key = _roman_key(canon)
++            if q_rom and key and len(key) >= 5 and key in q_rom:
++                best = best or (canon, works)
++        return best
++
++    # -- formatting -----------------------------------------------------------------------
++    @staticmethod
++    def _line(e: Dict[str, Any]) -> str:
++        by = f' — {e["author_original"]}' if e.get("author_original") else ""
++        page = f' (पृष्ठ {e["page_number"]})' if e.get("page_number") else ""
++        return f'- {e["title_original"]}{by}{page}'
++
++    @staticmethod
++    def _breakdown(entries: List[Dict[str, Any]]) -> "OrderedDict[str, int]":
++        c: "OrderedDict[str, int]" = OrderedDict()
++        for e in entries:
++            sec = e.get("section_original") or "General"
++            c[sec] = c.get(sec, 0) + 1
++        return c
++
++    # -- answers ------------------------------------------------------------------------------
++    def _count_or_list(self, query: str, docs: "OrderedDict[str, List[Dict[str, Any]]]") -> Optional[Dict[str, Any]]:
++        pred, cat_label = self._category(query)
++        topics = self._topic_terms(query)
++        if topics:
++            # Filler words ("wale", "related", "संबंधित") name no topic: keep only words
++            # that occur in at least one title; if none do, this is not a topic count.
++            all_titles = [e.get("title_original") for es in docs.values() for e in es]
++            topics = [g for g in topics if any(self._title_matches(t, [g]) for t in all_titles)]
++            if not topics:
++                return None
++        wants_list = bool(_LIST_RE.search(query)) and not _COUNT_RE.search(query)
++        parts, evidence, results = [], [], []
++        for doc, entries in docs.items():
++            chosen = entries
++            if pred:
++                chosen = [e for e in chosen if pred(e.get("section_original") or "", e.get("type") or "")]
++            if topics:
++                chosen = [e for e in chosen if self._title_matches(e.get("title_original"), topics)]
++            head = f'📖 **{doc}**' if len(docs) > 1 else ""
++            if not pred and not topics:
++                bd = self._breakdown(entries)
++                text = f"कुल **{len(entries)}** रचनाएँ: " + ", ".join(f"{k} {v}" for k, v in bd.items())
++            else:
++                topic_txt = ("‘" + ", ".join(v[0] for v in topics) + "’ विषय पर ") if topics else ""
++                noun = cat_label or "रचनाएँ"
++                text = f"{topic_txt}{noun}: **{len(chosen)}**"
++                if chosen:
++                    text += "\n" + "\n".join(self._line(e) for e in chosen[:_MAX_LIST])
++                    if len(chosen) > _MAX_LIST:
++                        text += f"\n- … और {len(chosen) - _MAX_LIST}"
++            if wants_list and not pred and not topics:
++                text += "\n" + "\n".join(self._line(e) for e in entries[:_MAX_LIST])
++            parts.append((head + "\n" if head else "") + text)
++            evidence.extend(chosen if (pred or topics) else entries)
++            results.append({"document_id": doc, "count": len(chosen) if (pred or topics) else len(entries),
++                            "category": cat_label, "topic": [v[0] for v in topics]})
++        if topics and all(r["count"] == 0 for r in results):
++            return None  # topic word may be something the TOC simply doesn't name; let RAG try
++        return {"kind": "magazine_count", "answer": "\n\n".join(parts), "results": results, "evidence": evidence}
++
++    def _authors(self, query: str, docs: "OrderedDict[str, List[Dict[str, Any]]]") -> Optional[Dict[str, Any]]:
++        all_entries = [e for es in docs.values() for e in es]
++        named = self._named_author(query, all_entries)
++        if named:
++            canon, works = named
++            lines = [f"**{canon}** की रचनाएँ: **{len(works)}**"]
++            for doc in docs:
++                mine = [w for w in works if w["document_id"] == doc]
++                if mine and len(docs) > 1:
++                    lines.append(f"\n📖 {doc}: {len(mine)}")
++                lines.extend(self._line(w) for w in mine)
++            return {"kind": "author_count", "answer": "\n".join(lines), "evidence": works,
++                    "results": [{"author": canon, "count": len(works)}]}
++        if not _AUTHOR_WORD_RE.search(query):
++            return None
++        groups = self._author_counts(all_entries)
++        if not groups:
++            return None
++        top = groups[:15]
++        lines = [f"कुल **{len(groups)}** लेखक/रचनाकार। सबसे अधिक रचनाएँ:"]
++        lines += [f'- {name}: {len(works)}' for name, works in top]
++        chart = {"type": "bar", "labels": [n for n, _ in top[:10]],
++                 "series": [{"name": "रचनाएँ", "values": [len(w) for _, w in top[:10]]}], "unit": ""}
++        return {"kind": "author_count", "answer": "\n".join(lines), "chart_data": chart,
++                "evidence": [w for _, ws in top for w in ws][:30],
++                "results": [{"author": n, "count": len(w)} for n, w in groups]}
++
++    def compare(self, query: str, docs: "OrderedDict[str, List[Dict[str, Any]]]") -> Optional[Dict[str, Any]]:
++        if len(docs) < 2:
++            return None
++        editions = {doc: _edition_label(doc) for doc in docs}
++        sections = []
++        for entries in docs.values():
++            for sec in self._breakdown(entries):
++                if sec not in sections:
++                    sections.append(sec)
++        rows = []
++        for sec in sections + ["कुल"]:
++            values = {}
++            for doc, entries in docs.items():
++                values[editions[doc]] = len(entries) if sec == "कुल" else self._breakdown(entries).get(sec, 0)
++            rows.append({"metric": sec, "region": None, "section_no": "", "section": "", "is_percent": False,
++                         "values": values})
++        periods = [editions[d] for d in docs]
++        first, last = periods[0], periods[-1]
++        for r in rows:
++            a, b = r["values"].get(first), r["values"].get(last)
++            r["change"] = None if a is None or b is None else b - a
++            r["change_pct"] = round((b - a) / a * 100, 2) if a else None
++
++        authors = {editions[d]: {n for n, _ in self._author_counts(es)} for d, es in docs.items()}
++        a_first, a_last = authors[first], authors[last]
++        common = sum(1 for x in a_last if any(_same_person(x, y) for y in a_first))
++        topic_rows = []
++        for key, label in [("ai", "AI / कृत्रिम बुद्धिमत्ता"), ("cyber", "साइबर")]:
++            vals = {editions[d]: sum(1 for e in es if self._title_matches(e["title_original"], [_TOPIC_ALIASES[key]]))
++                    for d, es in docs.items()}
++            topic_rows.append((label, vals))
++
++        lines = [f"**{first}** और **{last}** अंक की तुलना:", ""]
++        for r in rows:
++            sign = "+" if (r["change"] or 0) > 0 else ""
++            delta = f' ({sign}{r["change"]})' if r["change"] is not None else ""
++            name = f'**{r["metric"]}**' if r["metric"] == "कुल" else r["metric"]
++            lines.append(f'- {name}: {r["values"].get(first, 0)} → {r["values"].get(last, 0)}{delta}')
++        for label, vals in topic_rows:
++            lines.append(f'- {label} विषय पर: {vals.get(first, 0)} → {vals.get(last, 0)}')
++        lines.append(f"- लेखक: {len(a_first)} → {len(a_last)} ({common} लेखक दोनों अंकों में)")
++
++        chart = {"type": "bar", "labels": [r["metric"] for r in rows if r["metric"] != "कुल"],
++                 "series": [{"name": p, "values": [r["values"].get(p, 0) for r in rows if r["metric"] != "कुल"]}
++                            for p in periods], "unit": ""}
++        evidence = [e for es in docs.values() for e in es][:20]
++        return {"kind": "comparison", "answer": "\n".join(lines), "periods": periods,
++                "comparison": rows, "chart_data": chart, "evidence": evidence}
++
++    # -- entry point -----------------------------------------------------------------------------
++    def try_answer(self, query: str, document_ids: Optional[List[str]] = None) -> Optional[Dict[str, Any]]:
++        try:
++            docs = self.entries(document_ids)
++            if not docs:
++                return None
++            q = query or ""
++            years = set(_YEAR_RE.findall(q))
++            scope = get_scope()
++            several = bool((document_ids and len(document_ids) > 1) or (scope and len(scope) > 1))
++
++            # Edition comparison: two years named, or a compare word with several magazines selected
++            if len(docs) >= 2 and (len(years) >= 2 or (several and _COMPARE_RE.search(q))):
++                picked = OrderedDict((d, e) for d, e in docs.items()
++                                     if not years or _edition_label(d) in years) if len(years) >= 2 else docs
++                res = self.compare(q, picked if len(picked) >= 2 else docs)
++                if res:
++                    return res
++
++            if not (_WORK_RE.search(q) and (_COUNT_RE.search(q) or _LIST_RE.search(q) or _MOST_RE.search(q))):
++                return None
++            # One year named: answer for that edition only
++            if len(years) == 1:
++                only = OrderedDict((d, e) for d, e in docs.items() if _edition_label(d) in years)
++                docs = only or docs
++
++            if _AUTHOR_WORD_RE.search(q) or _NE_RE.search(q):
++                res = self._authors(q, docs)
++                if res:
++                    return res
++            return self._count_or_list(q, docs)
++        except Exception as exc:  # never break chat because of this layer
++            print(f"[MagazineMetrics] skipped: {exc}")
++            return None
++
++
++def toc_evidence_to_sources(evidence: List[Dict[str, Any]], limit: int = 12) -> List[Dict[str, Any]]:
++    sources, seen = [], set()
++    for e in evidence:
++        key = (e.get("document_id"), e.get("title_original"))
++        if key in seen:
++            continue
++        seen.add(key)
++        text = f'{e.get("section_original") or ""} › {e.get("title_original")}'
++        if e.get("author_original"):
++            text += f' — {e["author_original"]}'
++        sources.append({
++            "quote": text, "text": text, "highlightText": text,
++            "pageNumber": e.get("page_number") or e.get("toc_page") or 1,
++            "page_number": e.get("page_number") or e.get("toc_page") or 1,
++            "chunkId": f'{e.get("document_id")}:toc:{e.get("serial_number")}',
++            "chunk_id": f'{e.get("document_id")}:toc:{e.get("serial_number")}',
++            "docName": e.get("document_id"), "document_name": e.get("document_id"),
++            "document_id": e.get("document_id"), "document_type": "magazine",
++            "content_type": "toc", "collection_type": "index", "section": e.get("section_original"),
++            "relevanceScore": 100,
++        })
++        if len(sources) >= limit:
++            break
++    return sources
+\ No newline at end of file
+diff --git a/python_backend/pipeline.py b/python_backend/pipeline.py
+index 3b327ea..2e41233 100644
+--- a/python_backend/pipeline.py
++++ b/python_backend/pipeline.py
+@@ -33,6 +33,7 @@ from table_query_engine import StructuredTableEngine
+ from structured_store import StructuredRecordStore, build_structured_records, FieldNormalizer
+ from hierarchical_model import HierarchicalStore
+ from hierarchical_builder import build_document_hierarchy
++from docx_toc import extract_docx_toc_records
+ 
+ 
+ class RAGPipeline:
+@@ -135,6 +136,15 @@ class RAGPipeline:
+                 document_id=document_id,
+                 filename=filename
+             )
++            # DOCX magazines often keep the contents page as a Word table. Reading the
++            # cells directly keeps title / author(s) / page / category apart, which the
++            # text-based parser above merges ("title : : : author", no page).
++            if file_type == "docx":
++                table_toc = extract_docx_toc_records(file_path, document_id, filename, pages=pages)
++                if table_toc and len(table_toc) >= max(5, int(0.8 * len(toc_records))):
++                    print(f"[RAGPipeline] Using DOCX contents table: {len(table_toc)} entries "
++                          f"(text parser found {len(toc_records)}).")
++                    toc_records = table_toc
+             self.index_store.save_records(document_id, filename, toc_records)
+             print(f"[RAGPipeline] Created {len(toc_records)} structured TOC records in Index Knowledge Layer.")
+         except Exception as e:
+@@ -1136,5 +1146,4 @@ class RAGPipeline:
+         # If a valid label exists in the document, present it cleanly with the value
+         if label and not label.lower().startswith("address continuation"):
+             return f"{label}: {value}"
+-        return value
+-
++        return value
+\ No newline at end of file
+diff --git a/python_backend/report_metrics.py b/python_backend/report_metrics.py
+new file mode 100644
+index 0000000..9426e3e
+--- /dev/null
++++ b/python_backend/report_metrics.py
+@@ -0,0 +1,509 @@
++"""Deterministic numbers from report tables: region totals and report-vs-report comparison.
++
++Why this exists
++---------------
++Retrieval + LLM is good at finding *one* value, but it cannot reliably
++  * add values that live in different rows   ("तीनों क्षेत्रों को कुल कितने पत्र" -> 270+86+99)
++  * line up the same metric across two reports ("2024 vs 2025")
++Numbers for these answers must come from the document, and arithmetic must be
++done in code, never by the LLM. This module reads the tables already saved by
++StructuredTableStore at upload time, turns them into flat metric records, and
++answers those two kinds of questions directly.
++
++Record shape (one per value row in a report table):
++    {document_id, filename, period, section_no, section, region, region_header,
++     metric, metric_key, raw_value, value, is_percent}
++
++Nothing here is document-specific: sections are detected from "N." rows,
++regions from ‘क’/‘ख’/‘ग’ (Region A/B/C) rows, values from the last filled cell.
++"""
++from __future__ import annotations
++
++import difflib
++import re
++from typing import Any, Dict, Iterable, List, Optional, Tuple
++
++from doc_scope import in_scope, get_scope
++
++# ─────────────────────────────────────────────────────────────────────────────
++# Text helpers
++# ─────────────────────────────────────────────────────────────────────────────
++
++_REGION_RE = re.compile(r"[‘'\"`]\s*(क|ख|ग)\s*[’'\"`]\s*क्षेत्र")
++_REGION_EN_RE = re.compile(r"region\s*[‘'\"`]?\s*([abc])\b", re.I)
++_REGION_EN_TO_HI = {"a": "क", "b": "ख", "c": "ग"}
++_SECTION_NO_RE = re.compile(r"^\s*(\d{1,2})\s*[.)]?\s*$")
++_NUMBER_RE = re.compile(r"^\s*([0-9][0-9,]*(?:\.[0-9]+)?)\s*(%)?\s*\**\s*$")
++_PERIOD_RE = re.compile(r"(\d{1,2})[._-](\d{1,2})[._-](\d{4})")
++_TOKEN_RE = re.compile(r"[a-z0-9]+|[ऀ-ॿ]+")
++
++# Words that carry no meaning for matching a metric label
++_STOP = {
++    # hindi
++    "की", "का", "के", "में", "मे", "है", "हैं", "था", "थे", "और", "या", "कितने", "कितनी", "कितना",
++    "क्या", "कौन", "इनमें", "इन", "से", "को", "पर", "तक", "गए", "गये", "गई", "दिए", "किये", "किए",
++    "संख्या", "कुल", "तीनों", "सभी", "सब", "दोनों", "क्षेत्र", "क्षेत्रों", "रिपोर्ट", "तुलना", "करें", "करो",
++    "बताओ", "बताइए", "वर्ष", "साल", "तिमाही",
++    # english
++    "the", "of", "in", "to", "from", "a", "an", "and", "or", "is", "are", "was", "were", "how", "many",
++    "much", "what", "which", "no", "number", "total", "all", "three", "both", "region", "regions",
++    "these", "this", "out", "against", "by", "for", "compare", "comparison", "vs", "report", "year",
++    "quarter", "between", "with", "only",
++    # roman hindi
++    "ki", "ka", "ke", "me", "mein", "hai", "hain", "kitne", "kitni", "kitna", "kya", "kaun", "se", "ko",
++    "kul", "teeno", "teenon", "sabhi", "sab", "dono", "kshetra", "kshetron", "tulna", "karo", "batao",
++    "aur", "saal",
++    # comparison / display words
++    "अंतर", "antar", "difference", "फर्क", "farak", "growth", "वृद्धि", "badlav", "बदलाव", "बनाम", "banaam",
++    "versus", "दिखाओ", "dikhao", "show", "graph", "chart", "ग्राफ", "चार्ट", "बीच", "beech",
++}
++
++# Roman Hindi / English words -> a Devanagari stem found in the report labels
++_ALIASES = {
++    "patra": "पत्र", "patr": "पत्र", "patron": "पत्र", "letter": "पत्र", "letters": "पत्र",
++    "bheje": "भेजे", "bheja": "भेजे", "issued": "भेजे", "sent": "भेजे",
++    "prapt": "प्राप्त", "received": "प्राप्त", "aaye": "प्राप्त", "aye": "प्राप्त",
++    "uttar": "उत्तर", "reply": "उत्तर", "replied": "उत्तर",
++    "hindi": "हिंदी", "angrezi": "अंग्रेजी", "english": "अंग्रेजी",
++    "dwibhashi": "द्विभाषी", "bilingual": "द्विभाषी",
++    "tippani": "टिप्पणियों", "noting": "टिप्पणियों", "notings": "टिप्पणियों",
++    "prishth": "पृष्ठों", "pages": "पृष्ठों",
++    "karyashala": "कार्यशाला", "workshop": "कार्यशाला", "workshops": "कार्यशाला",
++    "prashikshit": "प्रशिक्षित", "trained": "प्रशिक्षित",
++    "adhikari": "अधिकारियों", "officers": "अधिकारियों",
++    "karmachari": "कर्मचारियों", "employees": "कर्मचारियों",
++    "kagjat": "कागजात", "kagaz": "कागजात", "documents": "कागजात",
++    "pratishat": "प्रतिशत", "percentage": "प्रतिशत", "percent": "प्रतिशत",
++    "baithak": "बैठक", "meeting": "बैठक", "meetings": "बैठक",
++    "samiti": "समिति", "committee": "समिति",
++}
++
++# Direction words: "को / to" = letters sent to a region, "से / from" = received from it
++_DIRECTION_TO = {"को", "ko", "to", "bheje", "भेजे", "issued", "sent"}
++_DIRECTION_FROM = {"से", "se", "from", "प्राप्त", "prapt", "received"}
++
++_COMPARE_RE = re.compile(
++    r"(?<![\wऀ-ॿ])(compare|comparison|vs\.?|versus|तुलना|tulna|बनाम|banaam|अंतर|antar|difference|फर्क|farak|growth|वृद्धि|badlav|बदलाव)(?![\wऀ-ॿ])",
++    re.I,
++)
++_ALL_REGIONS_RE = re.compile(
++    r"(?<![\wऀ-ॿ])(तीनों|तीनो|सभी|सब|दोनों|all|three|both|teeno|teenon|sabhi|sab|dono)(?![\wऀ-ॿ])",
++    re.I,
++)
++_REGION_WORD_RE = re.compile(r"क्षेत्र|kshetr|kshetra|region", re.I)
++_TOTAL_WORDS = {"कुल", "total", "kul", "टोटल"}
++_PERCENT_WORDS = {"प्रतिशत", "percent", "percentage", "pratishat", "%"}
++# "region A", "क क्षेत्र", "‘क’ क्षेत्र", "ka kshetra"
++_NAMED_REGION_RE = re.compile(
++    r"region\s*[‘'\"`]?\s*([abc])\b|(?<![ऀ-ॿ])[‘'\"`]?\s*(क|ख|ग)\s*[’'\"`]?\s*क्षेत्र|\b(ka|kha|ga)\s+kshetr",
++    re.I,
++)
++_ROMAN_REGION = {"ka": "क", "kha": "ख", "ga": "ग"}
++
++
++def _tokens(text: str) -> List[str]:
++    return _TOKEN_RE.findall((text or "").lower())
++
++
++def _content_tokens(text: str) -> List[str]:
++    out = []
++    for tok in _tokens(text):
++        if tok in _STOP or len(tok) < 2 or tok.isdigit():
++            continue
++        out.append(_ALIASES.get(tok, tok))
++    return out
++
++
++def _stem_match(a: str, b: str) -> bool:
++    """Loose Hindi-aware match: पत्र ~ पत्रों, कार्यशाला ~ कार्यशालाओं."""
++    if a == b:
++        return True
++    short, long_ = (a, b) if len(a) <= len(b) else (b, a)
++    return len(short) >= 3 and long_.startswith(short)
++
++
++def _overlap(query_toks: Iterable[str], label_toks: Iterable[str]) -> int:
++    label_toks = list(label_toks)
++    return sum(1 for q in set(query_toks) if any(_stem_match(q, l) for l in label_toks))
++
++
++def _short_label(label: str) -> str:
++    """Hindi part of a bilingual label: 'भेजे गए पत्रों की कुल संख्या (Total no...)' -> 'भेजे गए पत्रों की कुल संख्या'."""
++    head = re.split(r"\s*\(", label, maxsplit=1)[0].strip(" :-/")
++    return head or label.strip()
++
++
++def _metric_key(label: str) -> str:
++    """Stable key for matching the same row across two reports."""
++    english = re.findall(r"\(([^()]*[A-Za-z][^()]*)\)", label)
++    base = english[-1] if english else _short_label(label)
++    return re.sub(r"[^a-z0-9ऀ-ॿ]+", " ", base.lower()).strip()
++
++
++def _parse_value(raw: str) -> Tuple[Optional[float], bool]:
++    m = _NUMBER_RE.match(raw or "")
++    if not m:
++        return None, False
++    return float(m.group(1).replace(",", "")), bool(m.group(2))
++
++
++def _fmt(v: Optional[float], is_percent: bool = False) -> str:
++    if v is None:
++        return "—"
++    s = f"{v:.2f}".rstrip("0").rstrip(".") if v != int(v) else str(int(v))
++    return f"{s}%" if is_percent else s
++
++
++def _period_of(document_id: str, filename: str, tables: List[Dict[str, Any]]) -> str:
++    for text in (filename or "", document_id or ""):
++        m = _PERIOD_RE.search(text)
++        if m:
++            return f"{int(m.group(1)):02d}.{int(m.group(2)):02d}.{m.group(3)}"
++    for t in tables:
++        m = _PERIOD_RE.search(t.get("original_table_text") or "")
++        if m:
++            return f"{int(m.group(1)):02d}.{int(m.group(2)):02d}.{m.group(3)}"
++    years = re.findall(r"20\d{2}", filename or document_id or "")
++    return years[0] if years else (filename or document_id)
++
++
++def _period_sort_key(period: str) -> Tuple[int, int, int]:
++    m = _PERIOD_RE.search(period or "")
++    if m:
++        return int(m.group(3)), int(m.group(2)), int(m.group(1))
++    y = re.search(r"20\d{2}", period or "")
++    return (int(y.group(0)) if y else 0, 0, 0)
++
++
++# ─────────────────────────────────────────────────────────────────────────────
++# Table -> records
++# ─────────────────────────────────────────────────────────────────────────────
++
++def _matrix(table: Dict[str, Any]) -> List[List[str]]:
++    headers = list(table.get("headers") or [])
++    rows = [[str(r.get(h, "") or "") for h in headers] for r in table.get("rows") or []]
++    # Generated names like "Column 3" are placeholders for empty header cells
++    head = ["" if re.fullmatch(r"Column \d+", h or "") else h for h in headers]
++    return [head] + rows
++
++
++def records_from_table(table: Dict[str, Any], period: str) -> List[Dict[str, Any]]:
++    if table.get("extraction_method") not in {"docx_xml", "pdfplumber"}:
++        return []  # form/period fallbacks duplicate the same numbers
++    matrix = _matrix(table)
++    # A contents/list table ("1 | title | : | author | 7") looks like a run of numbered
++    # rows that each end in a number. Report tables have headed sections instead.
++    numbered = [r for r in matrix if r and _SECTION_NO_RE.match(r[0].strip() or "x")]
++    numbered_with_value = [r for r in numbered if _NUMBER_RE.match((r[-1] or "").strip() or "x")]
++    if len(numbered) >= 5 and len(numbered_with_value) >= 0.6 * len(numbered):
++        return []
++    out: List[Dict[str, Any]] = []
++    section_no, section, region, region_header = "", "", None, ""
++    for cells in matrix:
++        cells = [c.strip() for c in cells]
++        filled = [c for c in cells if c and c not in {":", "："}]
++        if not filled:
++            continue
++        # Section row: "3." + heading
++        if len(cells) > 1 and _SECTION_NO_RE.match(cells[0]):
++            section_no = _SECTION_NO_RE.match(cells[0]).group(1)
++            section = next((c for c in cells[1:] if c and c != ":"), "")
++            region, region_header = None, ""
++            # A section row can itself carry a value (e.g. "7. meeting date : 23.09.2024")
++            rest = [c for c in cells[1:] if c and c != ":"]
++            if len(rest) >= 2 and rest[-1] != rest[0]:
++                raw = rest[-1]
++                val, pct = _parse_value(raw)
++                out.append(_record(table, period, section_no, section, None, "", rest[0], raw, val, pct))
++            continue
++        label = max(filled, key=len)
++        # Region row: "‘क’ क्षेत्र से / From Region ‘A’"
++        m = _REGION_RE.search(label)
++        m_en = _REGION_EN_RE.search(label)
++        if (m or m_en) and len(filled) == 1:
++            region = m.group(1) if m else _REGION_EN_TO_HI[m_en.group(1).lower()]
++            region_header = label
++            continue
++        if len(filled) < 2:
++            continue
++        raw = filled[-1]
++        if raw == label:
++            continue
++        val, pct = _parse_value(raw)
++        out.append(_record(table, period, section_no, section, region, region_header, label, raw, val, pct))
++    return out
++
++
++def _record(table, period, section_no, section, region, region_header, label, raw, val, pct):
++    return {
++        "document_id": table.get("document_id"),
++        "filename": table.get("filename"),
++        "table_id": table.get("table_id"),
++        "page_number": table.get("page_number"),
++        "period": period,
++        "section_no": section_no,
++        "section": section,
++        "region": region,
++        "region_header": region_header,
++        "metric": label,
++        "metric_short": _short_label(label),
++        "metric_key": _metric_key(label),
++        "raw_value": raw,
++        "value": val,
++        "is_percent": pct,
++    }
++
++
++# ─────────────────────────────────────────────────────────────────────────────
++# Engine
++# ─────────────────────────────────────────────────────────────────────────────
++
++class ReportMetrics:
++    def __init__(self, table_store, doc_type_of=None):
++        self.table_store = table_store
++        # Optional: document_id -> "report" | "magazine" (upload category). Magazines are skipped.
++        self.doc_type_of = doc_type_of
++
++    # -- loading ----------------------------------------------------------------
++    def records(self, document_ids: Optional[List[str]] = None) -> List[Dict[str, Any]]:
++        tables = self.table_store.get_tables(None)
++        by_doc: Dict[str, List[Dict[str, Any]]] = {}
++        for t in tables:
++            doc = t.get("document_id")
++            if document_ids and doc not in document_ids:
++                continue
++            if not in_scope(doc):
++                continue
++            if self.doc_type_of and self.doc_type_of(doc) == "magazine":
++                continue
++            by_doc.setdefault(doc, []).append(t)
++        out: List[Dict[str, Any]] = []
++        for doc, doc_tables in by_doc.items():
++            period = _period_of(doc, doc_tables[0].get("filename", ""), doc_tables)
++            for t in doc_tables:
++                out.extend(records_from_table(t, period))
++        return out
++
++    # -- scoring ----------------------------------------------------------------
++    @staticmethod
++    def _score(query: str, rec: Dict[str, Any]) -> float:
++        q = _content_tokens(query)
++        if not q:
++            return 0.0
++        label = _content_tokens(rec["metric"])
++        context = _content_tokens(f'{rec["section"]} {rec["region_header"]}')
++        score = 2.0 * _overlap(q, label) + 0.5 * _overlap(q, context)
++        # Direction: "को/to" means sent to the region, "से/from" means received from it
++        raw_q = set(_tokens(query))
++        ctx = set(_tokens(f'{rec["section"]} {rec["region_header"]}'))
++        label_raw = set(_tokens(rec["metric"]))
++        if raw_q & _TOTAL_WORDS and label_raw & _TOTAL_WORDS:
++            score += 1.5
++        wants_pct = bool(raw_q & _PERCENT_WORDS) or "%" in (query or "")
++        if rec.get("is_percent"):
++            score += 1.5 if wants_pct else -1.5
++        if raw_q & _DIRECTION_TO and ctx & _DIRECTION_TO:
++            score += 1.0
++        if raw_q & _DIRECTION_FROM and ctx & _DIRECTION_FROM:
++            score += 1.0
++        return score
++
++    @staticmethod
++    def named_regions(query: str) -> set:
++        found = set()
++        for m in _NAMED_REGION_RE.finditer(query or ""):
++            if m.group(1):
++                found.add(_REGION_EN_TO_HI[m.group(1).lower()])
++            elif m.group(2):
++                found.add(m.group(2))
++            elif m.group(3):
++                found.add(_ROMAN_REGION[m.group(3).lower()])
++        return found
++
++    # -- intents ------------------------------------------------------------------
++    @staticmethod
++    def is_comparison(query: str, several_selected: bool = False) -> bool:
++        """Two periods named ("2024 vs 2025"), or a compare word while the user has
++        explicitly selected several documents. A bare "अंतर" with nothing selected
++        is usually a normal question ("हिंदी और अंग्रेजी में अंतर"), not a report comparison."""
++        periods = set(re.findall(r"20\d{2}", query or ""))
++        if len(periods) >= 2:
++            return True
++        return several_selected and bool(_COMPARE_RE.search(query or ""))
++
++    @staticmethod
++    def is_region_total(query: str) -> bool:
++        q = query or ""
++        return bool(_ALL_REGIONS_RE.search(q) and _REGION_WORD_RE.search(q)) or "क्षेत्रों" in q and "कुल" in q
++
++    # -- region total -------------------------------------------------------------
++    def region_total(self, query: str, document_ids: Optional[List[str]] = None) -> Optional[Dict[str, Any]]:
++        recs = [r for r in self.records(document_ids) if r["region"] and r["value"] is not None]
++        if not recs:
++            return None
++        # Pick the metric (section + label) that best matches the question
++        groups: Dict[Tuple[str, str, str], List[Dict[str, Any]]] = {}
++        for r in recs:
++            groups.setdefault((r["document_id"], r["section_no"], r["metric_key"]), []).append(r)
++        scored = []
++        for key, rows in groups.items():
++            regions = {r["region"] for r in rows}
++            if len(regions) < 2:
++                continue
++            scored.append((max(self._score(query, r) for r in rows), key, rows))
++        if not scored:
++            return None
++        scored.sort(key=lambda s: s[0], reverse=True)
++        best_score, _, rows = scored[0]
++        if best_score < 2.0:
++            return None  # nothing clearly matches; let normal RAG answer
++        # Same metric in several selected documents: answer for each of them
++        best_key = scored[0][1][2]
++        best = [s for s in scored if s[0] == best_score and s[1][2] == best_key]
++        parts, evidence, results = [], [], []
++        for _, (doc, sec, _k), grp in best:
++            grp = sorted(grp, key=lambda r: "कखग".find(r["region"]))
++            is_pct = any(r["is_percent"] for r in grp)
++            if is_pct:
++                breakdown = ", ".join(f'{r["region"]}: {_fmt(r["value"], True)}' for r in grp)
++                text = (f'**{grp[0]["metric_short"]}** — {breakdown}. '
++                        f"प्रतिशत को जोड़ा नहीं जाता, इसलिए क्षेत्रवार मान दिए गए हैं।")
++                total = None
++            else:
++                total = sum(r["value"] for r in grp)
++                breakdown = " + ".join(f'{r["region"]}: {_fmt(r["value"])}' for r in grp)
++                regions = ", ".join(r["region"] for r in grp)
++                text = (f'**{grp[0]["metric_short"]}** ({regions} क्षेत्र): **{_fmt(total)}**\n\n'
++                        f"गणना: {breakdown} = {_fmt(total)}")
++            if len(best) > 1:
++                text = f'📄 {grp[0]["filename"]} ({grp[0]["period"]}):\n{text}'
++            parts.append(text)
++            evidence.extend(grp)
++            results.append({"document_id": doc, "section_no": sec, "metric": grp[0]["metric_short"],
++                            "total": total, "values": {r["region"]: r["value"] for r in grp}})
++        return {"kind": "region_total", "answer": "\n\n".join(parts), "results": results, "evidence": evidence}
++
++    # -- comparison ---------------------------------------------------------------
++    def compare(self, query: str, document_ids: Optional[List[str]] = None,
++                max_rows: int = 40) -> Optional[Dict[str, Any]]:
++        recs = [r for r in self.records(document_ids) if r["value"] is not None]
++        periods = sorted({r["period"] for r in recs}, key=_period_sort_key)
++        if len(periods) < 2:
++            return None
++        docs_by_period = {r["period"]: r["document_id"] for r in recs}
++
++        # Join the same metric across reports: (section, region, metric key); fuzzy fallback on the key
++        rows: Dict[Tuple[str, str, str], Dict[str, Any]] = {}
++        for r in recs:
++            key = (r["section_no"], r["region"] or "", r["metric_key"])
++            if key not in rows:
++                match = next((k for k in rows if k[0] == key[0] and k[1] == key[1]
++                              and difflib.SequenceMatcher(None, k[2], key[2]).ratio() >= 0.85), None)
++                key = match or key
++            row = rows.setdefault(key, {"section_no": r["section_no"], "section": r["section"],
++                                        "region": r["region"], "metric": r["metric_short"],
++                                        "is_percent": r["is_percent"], "values": {}, "evidence": []})
++            row["values"][r["period"]] = r["value"]
++            row["evidence"].append(r)
++
++        table = [row for row in rows.values() if sum(p in row["values"] for p in periods) >= 2]
++        if not table:
++            return None
++
++        wanted_regions = self.named_regions(query)
++        if wanted_regions:
++            narrowed = [row for row in table if row["region"] in wanted_regions]
++            table = narrowed or table
++
++        # Narrow to what the question asks about, if it names something specific
++        q_tokens = _content_tokens(re.sub(r"20\d{2}|\d{1,2}[._-]\d{1,2}[._-]\d{4}", " ", query or ""))
++        if q_tokens:
++            scored = [(max(self._score(query, e) for e in row["evidence"]), row) for row in table]
++            top = max(s for s, _ in scored)
++            if top < 2.0:
++                # The question names something that is not a row in these tables
++                # (e.g. "हिंदी और अंग्रेजी में अंतर"): leave it to normal RAG.
++                return None
++            table = [row for s, row in scored if s >= max(2.0, top - 1.0)]
++
++        first, last = periods[0], periods[-1]
++        out_rows = []
++        for row in table[:max_rows]:
++            a, b = row["values"].get(first), row["values"].get(last)
++            change = None if a is None or b is None else b - a
++            pct = None
++            if change is not None and a not in (None, 0) and not row["is_percent"]:
++                pct = round(change / a * 100, 2)
++            out_rows.append({
++                "section_no": row["section_no"], "section": row["section"], "region": row["region"],
++                "metric": row["metric"], "is_percent": row["is_percent"],
++                "values": {p: row["values"].get(p) for p in periods},
++                "change": change, "change_pct": pct,
++            })
++
++        # Chart: one series per report, one bar group per metric (percent rows kept separate)
++        chart_rows = [r for r in out_rows if not r["is_percent"]][:12] or out_rows[:12]
++        chart = {
++            "type": "bar",
++            "labels": [(f'{r["region"]} क्षेत्र – ' if r["region"] else "") + r["metric"] for r in chart_rows],
++            "series": [{"name": p, "values": [r["values"].get(p) for r in chart_rows]} for p in periods],
++            "unit": "%" if chart_rows and chart_rows[0]["is_percent"] else "",
++        }
++
++        lines = [f"**{first}** और **{last}** की रिपोर्ट की तुलना ({len(out_rows)} मद):", ""]
++        for r in out_rows[:15]:
++            name = (f'{r["region"]} क्षेत्र – ' if r["region"] else "") + r["metric"]
++            a, b = r["values"].get(first), r["values"].get(last)
++            delta = ""
++            if r["change"] is not None:
++                sign = "+" if r["change"] > 0 else ""
++                delta = f' ({sign}{_fmt(r["change"], r["is_percent"])}'
++                delta += f', {sign}{_fmt(r["change_pct"])}%)' if r["change_pct"] is not None else ")"
++            lines.append(f'- {name}: {_fmt(a, r["is_percent"])} → {_fmt(b, r["is_percent"])}{delta}')
++        if len(out_rows) > 15:
++            lines.append(f"- … और {len(out_rows) - 15} मद (पूरी तालिका नीचे)")
++
++        evidence = [e for row in table[:max_rows] for e in row["evidence"]]
++        return {"kind": "comparison", "answer": "\n".join(lines), "periods": periods,
++                "documents": {p: docs_by_period.get(p) for p in periods},
++                "comparison": out_rows, "chart_data": chart, "evidence": evidence}
++
++    # -- entry point used by the chat route ------------------------------------------
++    def try_answer(self, query: str, document_ids: Optional[List[str]] = None) -> Optional[Dict[str, Any]]:
++        try:
++            scope = get_scope()
++            several = bool((document_ids and len(document_ids) > 1) or (scope and len(scope) > 1))
++            if self.is_comparison(query, several):
++                res = self.compare(query, document_ids)
++                if res:
++                    return res
++            if self.is_region_total(query):
++                return self.region_total(query, document_ids)
++        except Exception as exc:  # never break chat because of this layer
++            print(f"[ReportMetrics] skipped: {exc}")
++        return None
++
++
++def evidence_to_sources(evidence: List[Dict[str, Any]], limit: int = 12) -> List[Dict[str, Any]]:
++    """Map records to the source format the frontend already renders."""
++    sources, seen = [], set()
++    for e in evidence:
++        key = (e["document_id"], e["section_no"], e["region"], e["metric_key"])
++        if key in seen:
++            continue
++        seen.add(key)
++        where = " › ".join(x for x in [f'धारा/मद {e["section_no"]}' if e["section_no"] else "",
++                                       f'{e["region"]} क्षेत्र' if e["region"] else "",
++                                       e["metric_short"]] if x)
++        text = f'{where}: {e["raw_value"]}'
++        sources.append({
++            "quote": text, "text": text, "highlightText": text,
++            "pageNumber": e.get("page_number") or 1, "page_number": e.get("page_number") or 1,
++            "chunkId": e.get("table_id", ""), "chunk_id": e.get("table_id", ""),
++            "docName": e["document_id"], "document_name": e["document_id"], "document_id": e["document_id"],
++            "document_type": "report", "content_type": "table", "collection_type": "table",
++            "section": e["section"], "table_id": e.get("table_id"), "relevanceScore": 100,
++        })
++        if len(sources) >= limit:
++            break
++    return sources
+\ No newline at end of file
+diff --git a/python_backend/structured_store.py b/python_backend/structured_store.py
+index d55f2fd..1cc5c32 100644
+--- a/python_backend/structured_store.py
++++ b/python_backend/structured_store.py
+@@ -7,6 +7,7 @@ from typing import Any, Dict, Iterable, List, Optional, Set
+ import numpy as np
+ 
+ from index_knowledge_layer import romanize_generic
++from doc_scope import get_scope, in_scope
+ 
+ 
+ class FieldNormalizer:
+@@ -189,6 +190,8 @@ class StructuredRecordStore:
+         for name in os.listdir(self.storage_dir):
+             if name.endswith("_records.json"):
+                 records.extend(self._read(os.path.join(self.storage_dir, name)))
++        if get_scope():
++            records = [r for r in records if in_scope(r.get("document_id"))]
+         return records
+ 
+     def find(self, document_id: Optional[str], field: str) -> Optional[Dict[str, Any]]:
+@@ -301,4 +304,4 @@ def build_structured_records(document_id: str, pages: Iterable[Dict[str, Any]],
+                     continue
+                 label = " | ".join([section, header] + context_by_column.get(header, [])[-2:])
+                 add("form" if len(headers) <= 4 else "table", page, section, label, value, table_id)
+-    return records
++    return records
+\ No newline at end of file
+diff --git a/python_backend/table_extractor.py b/python_backend/table_extractor.py
+index 906f170..3a92257 100644
+--- a/python_backend/table_extractor.py
++++ b/python_backend/table_extractor.py
+@@ -7,6 +7,7 @@ from typing import Any, Dict, Iterable, List, Optional
+ from xml.etree import ElementTree as ET
+ 
+ from extractor import fix_devanagari_ligatures
++from doc_scope import get_scope, in_scope
+ 
+ logger = logging.getLogger("TableExtractor")
+ 
+@@ -334,7 +335,10 @@ class StructuredTableStore:
+             tables: List[Dict[str, Any]] = []
+             for name in os.listdir(self.storage_dir):
+                 if name.endswith("_tables.json"):
+-                    tables.extend(self._read_path(os.path.join(self.storage_dir, name)))
++                    path = os.path.join(self.storage_dir, name)
++                    if get_scope() and not in_scope(self._read_document_id(path)):
++                        continue
++                    tables.extend(self._read_path(path))
+             return tables
+         return self._read_path(self._path(document_id))
+ 
+@@ -347,6 +351,15 @@ class StructuredTableStore:
+         if os.path.exists(path):
+             os.remove(path)
+ 
++    @staticmethod
++    def _read_document_id(path: str) -> Optional[str]:
++        import json
++        try:
++            with open(path, "r", encoding="utf-8") as source:
++                return json.load(source).get("document_id")
++        except (OSError, ValueError, TypeError):
++            return None
++
+     @staticmethod
+     def _read_path(path: str) -> List[Dict[str, Any]]:
+         import json
+@@ -354,5 +367,4 @@ class StructuredTableStore:
+             with open(path, "r", encoding="utf-8") as source:
+                 return json.load(source).get("tables", [])
+         except (OSError, ValueError, TypeError):
+-            return []
+-
++            return []
+\ No newline at end of file
+diff --git a/python_backend/vector_store.py b/python_backend/vector_store.py
+index cd96e24..31a03fe 100644
+--- a/python_backend/vector_store.py
++++ b/python_backend/vector_store.py
+@@ -12,6 +12,7 @@ from qdrant_client.http import models
+ from sentence_transformers import SentenceTransformer
+ 
+ from config import settings
++from doc_scope import qdrant_scope_condition, in_scope
+ 
+ logger = logging.getLogger("VectorStore")
+ logger.setLevel(logging.INFO)
+@@ -515,6 +516,8 @@ class VectorStore:
+                     )
+                 ]
+             )
++        elif qdrant_scope_condition(models) is not None:
++            doc_filter = models.Filter(must=[qdrant_scope_condition(models)])
+ 
+         try:
+             all_points, _ = self.client.scroll(
+@@ -538,7 +541,10 @@ class VectorStore:
+                         or (pt.payload or {}).get("file_name") == document_id
+                     ]
+                 else:
+-                    all_points = raw_points
++                    all_points = [
++                        pt for pt in raw_points
++                        if in_scope((pt.payload or {}).get("document_id"))
++                    ]
+ 
+             children: List[Dict[str, Any]] = []
+             prefix_list = list(path_prefix)
+@@ -608,6 +614,8 @@ class VectorStore:
+                     match=models.MatchValue(value=document_id)
+                 )
+             )
++        elif qdrant_scope_condition(models) is not None:
++            conditions.append(qdrant_scope_condition(models))
+         if file_name:
+             conditions.append(
+                 models.FieldCondition(
+@@ -901,6 +909,8 @@ class VectorStore:
+                     match=models.MatchValue(value=document_id)
+                 )
+             )
++        elif qdrant_scope_condition(models) is not None:
++            conditions.append(qdrant_scope_condition(models))
+         if document_type:
+             conditions.append(
+                 models.FieldCondition(
+@@ -1071,6 +1081,8 @@ class VectorStore:
+                     match=models.MatchValue(value=document_id)
+                 )
+             )
++        elif qdrant_scope_condition(models) is not None:
++            conditions.append(qdrant_scope_condition(models))
+         if document_type:
+             conditions.append(
+                 models.FieldCondition(
+@@ -1541,4 +1553,4 @@ class VectorStore:
+             "content": self.get_collection_stats(self.content_collection_name),
+             "table": self.get_collection_stats(self.table_collection_name),
+             "hierarchical": self.get_collection_stats(self.hierarchical_collection_name)
+-        }
++        }
+\ No newline at end of file
+diff --git a/src/App.tsx b/src/App.tsx
+index 2ccba6f..98ea4e0 100644
+--- a/src/App.tsx
++++ b/src/App.tsx
+@@ -3,14 +3,9 @@ import { MainChatbot } from './components/MainChatbot';
+ 
+ export default function App() {
+   return (
+-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
+-      <main className="flex-1 w-full">
+-        <MainChatbot />
+-      </main>
+-      
+-      <footer className="py-3 text-center text-[11px] text-slate-500 border-t border-slate-900">
+-        Rajbhasha Vibhag Knowledge Assistant • Grounded PDF RAG Pipeline
+-      </footer>
++    // Exactly one screen tall on every device; the chat and the file list scroll inside
++    <div className="h-dvh overflow-hidden bg-slate-950 text-slate-100 font-sans selection:bg-indigo-500 selection:text-white">
++      <MainChatbot />
+     </div>
+   );
+-}
++}
+\ No newline at end of file
+diff --git a/src/components/ChatInput.tsx b/src/components/ChatInput.tsx
+new file mode 100644
+index 0000000..1377598
+--- /dev/null
++++ b/src/components/ChatInput.tsx
+@@ -0,0 +1,72 @@
++import React, { useEffect, useRef } from 'react';
++import { ArrowUp, RefreshCw } from 'lucide-react';
++
++interface ChatInputProps {
++  value: string;
++  onChange: (value: string) => void;
++  onSubmit: (e: React.FormEvent) => void;
++  isQuerying: boolean;
++  /** What the next question will search, e.g. "सभी दस्तावेज़" or "2 फ़ाइलें" (shown under the box). */
++  scopeLabel?: string;
++}
++
++/** One-row composer: Enter sends, Shift+Enter adds a new line, grows up to ~6 lines. */
++export const ChatInput: React.FC<ChatInputProps> = ({ value, onChange, onSubmit, isQuerying, scopeLabel }) => {
++  const formRef = useRef<HTMLFormElement>(null);
++  const boxRef = useRef<HTMLTextAreaElement>(null);
++
++  // Grow with the text
++  useEffect(() => {
++    const el = boxRef.current;
++    if (!el) return;
++    el.style.height = 'auto';
++    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
++  }, [value]);
++
++  // Back to the box after an answer arrives
++  useEffect(() => {
++    if (!isQuerying) boxRef.current?.focus();
++  }, [isQuerying]);
++
++  const canSend = !isQuerying && value.trim().length > 0;
++
++  return (
++    <div className="shrink-0 px-3 md:px-6 pb-3 md:pb-4 pt-2">
++      <form
++        ref={formRef}
++        onSubmit={onSubmit}
++        className="mx-auto max-w-4xl flex items-end gap-2 rounded-2xl border border-slate-700/80 bg-slate-900 focus-within:border-indigo-500/70 px-3 py-2 shadow-lg shadow-black/20 transition-colors"
++      >
++        <textarea
++          ref={boxRef}
++          rows={1}
++          value={value}
++          onChange={(e) => onChange(e.target.value)}
++          onKeyDown={(e) => {
++            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
++              e.preventDefault();
++              if (canSend) formRef.current?.requestSubmit();
++            }
++          }}
++          placeholder="अपना सवाल लिखें… (हिंदी, English या Hinglish)"
++          className="flex-1 resize-none bg-transparent py-1.5 text-sm leading-6 text-slate-100 placeholder:text-slate-500 outline-none max-h-40"
++          disabled={isQuerying}
++          aria-label="आपका सवाल"
++        />
++        <button
++          type="submit"
++          disabled={!canSend}
++          className="shrink-0 w-9 h-9 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-500 text-white flex items-center justify-center transition-colors cursor-pointer disabled:cursor-not-allowed"
++          aria-label="पूछें"
++          title="पूछें (Enter)"
++        >
++          {isQuerying ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ArrowUp className="w-4 h-4" />}
++        </button>
++      </form>
++      <p className="mx-auto max-w-4xl mt-1.5 px-1 text-[10px] text-slate-600">
++        {scopeLabel ? <>खोज: {scopeLabel} · </> : null}
++        जवाब केवल अपलोड किए गए दस्तावेज़ों से · Enter से भेजें, Shift+Enter से नई पंक्ति
++      </p>
++    </div>
++  );
++};
+\ No newline at end of file
+diff --git a/src/components/ChatMessages.tsx b/src/components/ChatMessages.tsx
+new file mode 100644
+index 0000000..8dbd384
+--- /dev/null
++++ b/src/components/ChatMessages.tsx
+@@ -0,0 +1,776 @@
++import React, { useEffect, useMemo, useRef, useState } from 'react';
++import {
++  BookOpen,
++  FileText,
++  ExternalLink,
++  Copy,
++  Check,
++  RefreshCw,
++  TrendingUp,
++  TrendingDown,
++  Minus,
++  BarChart3,
++  Table2,
++  Sparkles,
++  Layers,
++} from 'lucide-react';
++import ReactMarkdown from 'react-markdown';
++import {
++  ChatMessage,
++  SourceItem,
++  RawChartData,
++  ComparisonData,
++  ComparisonRow,
++  BackendComparisonRow,
++} from './chatTypes';
++
++interface ChatMessagesProps {
++  messages: ChatMessage[];
++  isQuerying: boolean;
++  copiedId: string | null;
++  onCopy: (text: string, id: string) => void;
++  onSourceClick: (source: SourceItem) => void;
++  /** Ask a suggested question from the welcome screen. */
++  onSuggestion?: (question: string) => void;
++  /** What the next question will search, shown on the welcome screen. */
++  scopeLabel?: string;
++}
++
++// ---------------------------------------------------------------------------
++// chart_data normalisation
++// ---------------------------------------------------------------------------
++
++/** Turn "1,234.5", "45%", " 12 " etc. into a number; anything else becomes null. */
++const toNumber = (v: unknown): number | null => {
++  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
++  if (typeof v === 'string') {
++    const cleaned = v.replace(/[,%\s₹]/g, '');
++    if (cleaned === '') return null;
++    const n = Number(cleaned);
++    return Number.isFinite(n) ? n : null;
++  }
++  return null;
++};
++
++const NAME_KEYS = ['metric', 'name', 'label', 'parameter', 'category', 'item', 'title', 'मद', 'विवरण'];
++const SKIP_KEYS = ['change', 'change_pct', 'changepct', 'badlav', 'diff', 'difference', 'percent_change', 'pct_change', 'unit'];
++
++const buildRow = (metric: string, values: (number | null)[]): ComparisonRow => {
++  const first = values[0];
++  const last = values[values.length - 1];
++  const change = first !== null && last !== null && values.length > 1 ? last - first : null;
++  const changePct = change !== null && first !== null && first !== 0 ? (change / Math.abs(first)) * 100 : null;
++  return { metric, values, change, changePct };
++};
++
++/** Rows like [{ metric: "X", "2024": 10, "2025": 12 }]. Period columns are any other numeric keys. */
++const fromRows = (rows: Record<string, unknown>[]): ComparisonData | null => {
++  if (!rows.length) return null;
++  const nameKey =
++    Object.keys(rows[0]).find((k) => NAME_KEYS.includes(k.toLowerCase())) ??
++    Object.keys(rows[0]).find((k) => typeof rows[0][k] === 'string' && toNumber(rows[0][k]) === null);
++  if (!nameKey) return null;
++
++  // Collect period columns in first-seen order; sort year-like keys ascending.
++  // A column counts if it looks like a year, or holds a number in at least one row
++  // (so a year with missing values still gets its own column showing "—").
++  const periodSet: string[] = [];
++  rows.forEach((r) =>
++    Object.keys(r).forEach((k) => {
++      if (k === nameKey || SKIP_KEYS.includes(k.toLowerCase()) || periodSet.includes(k)) return;
++      const looksLikeYear = /^\d{4}(-\d{2,4})?$/.test(k);
++      const hasNumber = rows.some((row) => toNumber(row[k]) !== null);
++      if (looksLikeYear || hasNumber) periodSet.push(k);
++    }),
++  );
++  const allYears = periodSet.every((p) => /^\d{4}(-\d{2,4})?$/.test(p));
++  const periods = allYears ? [...periodSet].sort() : periodSet;
++  if (!periods.length) return null;
++
++  return {
++    periods,
++    rows: rows.map((r) => buildRow(String(r[nameKey] ?? ''), periods.map((p) => toNumber(r[p])))),
++  };
++};
++
++export const normalizeChartData = (raw: RawChartData | null | undefined): ComparisonData | null => {
++  if (raw === null || raw === undefined) return null;
++
++  let data: unknown = raw;
++  if (typeof data === 'string') {
++    try {
++      data = JSON.parse(data);
++    } catch {
++      return null;
++    }
++  }
++
++  if (Array.isArray(data)) return fromRows(data as Record<string, unknown>[]);
++  if (typeof data !== 'object' || data === null) return null;
++
++  const obj = data as Exclude<RawChartData, string | Record<string, unknown>[]>;
++  const meta = {
++    title: typeof obj.title === 'string' ? obj.title : undefined,
++    unit: typeof obj.unit === 'string' ? obj.unit : undefined,
++  };
++
++  // 1. Backend format: labels = metrics, one `series` entry per period
++  if (Array.isArray(obj.labels) && Array.isArray(obj.series) && obj.series.length) {
++    const periods = obj.series.map((s, i) => String(s.name ?? `Series ${i + 1}`));
++    const rows = obj.labels.map((label, li) =>
++      buildRow(
++        String(label),
++        obj.series!.map((s) => toNumber(s.values?.[li])),
++      ),
++    );
++    return { ...meta, periods, rows };
++  }
++
++  // 1b. Chart.js style: labels = metrics, one dataset per period
++  if (Array.isArray(obj.labels) && Array.isArray(obj.datasets) && obj.datasets.length) {
++    const periods = obj.datasets.map((d, i) => String(d.label ?? `Series ${i + 1}`));
++    const rows = obj.labels.map((label, li) =>
++      buildRow(
++        String(label),
++        obj.datasets!.map((d) => toNumber(d.data?.[li])),
++      ),
++    );
++    return { ...meta, periods, rows };
++  }
++
++  // 3. { years: [...], metrics: [{ name, values: [...] }] }
++  if (Array.isArray(obj.years) && Array.isArray(obj.metrics)) {
++    const periods = obj.years.map(String);
++    const rows = obj.metrics.map((m) =>
++      buildRow(String(m.name ?? m.metric ?? m.label ?? ''), periods.map((_, i) => toNumber(m.values?.[i]))),
++    );
++    return { ...meta, periods, rows };
++  }
++
++  // 2. Rows nested under a key
++  const nested = obj.rows ?? obj.data ?? obj.items;
++  if (Array.isArray(nested)) {
++    const result = fromRows(nested);
++    return result ? { ...meta, ...result } : null;
++  }
++
++  return null;
++};
++
++/**
++ * The backend's `comparison` rows (report_metrics / magazine_metrics). Preferred over
++ * `chart_data` for the table: it keeps the region, percent flag and backend-computed change.
++ */
++export const fromBackendComparison = (
++  rows: BackendComparisonRow[] | null | undefined,
++  periods: string[] | null | undefined,
++  unit?: string,
++): ComparisonData | null => {
++  if (!Array.isArray(rows) || !rows.length) return null;
++  const cols =
++    Array.isArray(periods) && periods.length
++      ? periods.map(String)
++      : Array.from(new Set(rows.flatMap((r) => Object.keys(r.values || {})))).sort();
++  if (!cols.length) return null;
++
++  const out: ComparisonRow[] = rows.map((r) => {
++    const values = cols.map((p) => toNumber(r.values?.[p]));
++    const base = buildRow((r.region ? `${r.region} क्षेत्र – ` : '') + (r.metric || ''), values);
++    return {
++      ...base,
++      isPercent: !!r.is_percent,
++      // Use the backend's numbers when present; they were computed from the source tables
++      change: r.change !== undefined ? toNumber(r.change) : base.change,
++      changePct: r.is_percent ? null : r.change_pct !== undefined ? toNumber(r.change_pct) : base.changePct,
++    };
++  });
++  return { periods: cols, rows: out, unit };
++};
++
++// ---------------------------------------------------------------------------
++// Fallback: read the comparison straight from the answer text
++// Handles lines like "तकनीकी लेख: 7 → 15 (+8)" or "- **Kavita**: ८ -> १५".
++// Used only when the backend sent no chart_data.
++// ---------------------------------------------------------------------------
++
++/** Devanagari digits (०-९) → ASCII so they can be parsed as numbers. */
++const asciiDigits = (s: string): string => s.replace(/[०-९]/g, (d) => String('०१२३४५६७८९'.indexOf(d)));
++
++const ARROW_LINE =
++  /^\s*(?:[-*•]|\d+[.)])?\s*(.+?)\s*[:：]\s*([+-]?[\d.,]+)\s*%?\s*(?:→|->|=>|⟶|➝)\s*([+-]?[\d.,]+)/;
++
++export const parseComparisonFromText = (text: string): ComparisonData | null => {
++  if (!text) return null;
++  const lines = asciiDigits(text).split(/\r?\n/);
++
++  const rows: ComparisonRow[] = [];
++  for (const line of lines) {
++    const m = line.match(ARROW_LINE);
++    if (!m) continue;
++    const metric = m[1].replace(/[*_`#]/g, '').trim();
++    const a = toNumber(m[2]);
++    const b = toNumber(m[3]);
++    if (!metric || a === null || b === null) continue;
++    rows.push(buildRow(metric, [a, b]));
++  }
++  // A single arrow line is probably not a comparison table
++  if (rows.length < 2) return null;
++
++  // Period names: the first two distinct years mentioned in the text, else generic labels
++  const years = Array.from(new Set(asciiDigits(text).match(/\b(?:19|20)\d{2}\b/g) ?? []));
++  const periods = years.length >= 2 ? [years[0], years[1]] : ['Pehle', 'Baad'];
++
++  return { periods, rows };
++};
++
++// ---------------------------------------------------------------------------
++// Formatting + colours
++// ---------------------------------------------------------------------------
++
++const fmt = (n: number | null, digits = 2): string =>
++  n === null ? '—' : n.toLocaleString('en-IN', { maximumFractionDigits: digits });
++
++/** A table/graph value: adds "%" for percentage rows. */
++const fmtVal = (n: number | null, isPercent?: boolean): string => (n === null ? '—' : `${fmt(n)}${isPercent ? '%' : ''}`);
++
++/**
++ * Period colours, fixed by position (first period → amber, last → indigo).
++ * Validated for colour-blind separation and 3:1 contrast on the dark slate-950 surface.
++ */
++const PERIOD_COLORS: Record<number, string[]> = {
++  1: ['#6366f1'],
++  2: ['#d97706', '#6366f1'],
++  3: ['#d97706', '#db2777', '#6366f1'],
++};
++/** The graph draws at most 3 periods; with more, it shows first vs last (the table keeps all). */
++const graphPeriodIndexes = (count: number): number[] =>
++  count <= 3 ? Array.from({ length: count }, (_, i) => i) : [0, count - 1];
++
++/** The graph shows at most this many metrics; the table always has every row. */
++const GRAPH_ROW_LIMIT = 12;
++
++// ---------------------------------------------------------------------------
++// Change cell (Badlav)
++// ---------------------------------------------------------------------------
++
++const ChangeCell: React.FC<{ row: ComparisonRow }> = ({ row }) => {
++  if (row.change === null) return <span className="text-slate-500">—</span>;
++  const up = row.change > 0;
++  const flat = row.change === 0;
++  const Icon = flat ? Minus : up ? TrendingUp : TrendingDown;
++  const color = flat ? 'text-slate-400' : up ? 'text-emerald-400' : 'text-rose-400';
++  const sign = up ? '+' : '';
++  return (
++    <span className={`inline-flex items-center gap-1 font-medium ${color}`}>
++      <Icon className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
++      {row.isPercent ? (
++        // Percent rows: the change is in percentage points, not a % of a %
++        <span title="percentage points">
++          {sign}
++          {fmt(row.change)} pp
++        </span>
++      ) : (
++        <span>
++          {sign}
++          {fmt(row.change)}
++          {row.changePct !== null && (
++            <span className="text-[11px] opacity-80">
++              {' '}
++              ({sign}
++              {fmt(row.changePct, 1)}%)
++            </span>
++          )}
++        </span>
++      )}
++    </span>
++  );
++};
++
++// ---------------------------------------------------------------------------
++// Comparison table
++// ---------------------------------------------------------------------------
++
++const ComparisonTable: React.FC<{ data: ComparisonData }> = ({ data }) => {
++  // "Badlav" only means something when there are at least two periods
++  const showChange = data.periods.length >= 2;
++  return (
++    <div className="overflow-x-auto rounded-xl border border-slate-800">
++      <table className="w-full text-xs border-collapse">
++        <thead>
++          <tr className="bg-slate-900/80 text-slate-300">
++            <th scope="col" className="text-left font-semibold px-3 py-2">मद</th>
++            {data.periods.map((p) => (
++              <th key={p} scope="col" className="text-right font-semibold px-3 py-2 whitespace-nowrap">
++                {p}
++              </th>
++            ))}
++            {showChange && <th scope="col" className="text-right font-semibold px-3 py-2">बदलाव</th>}
++          </tr>
++        </thead>
++        <tbody>
++          {data.rows.map((row, ri) => (
++            <tr key={`${row.metric}-${ri}`} className="border-t border-slate-800/80 hover:bg-slate-900/50">
++              <th scope="row" className="text-left font-normal text-slate-200 px-3 py-2">
++                {row.metric}
++              </th>
++              {row.values.map((v, vi) => (
++                <td key={vi} className="text-right tabular-nums text-slate-200 px-3 py-2 whitespace-nowrap">
++                  {fmtVal(v, row.isPercent)}
++                </td>
++              ))}
++              {showChange && (
++                <td className="text-right tabular-nums px-3 py-2 whitespace-nowrap">
++                  <ChangeCell row={row} />
++                </td>
++              )}
++            </tr>
++          ))}
++        </tbody>
++      </table>
++    </div>
++  );
++};
++
++// ---------------------------------------------------------------------------
++// Bar graph
++// Each metric gets its own row and its own scale, so metrics with very
++// different sizes (e.g. a count and a percentage) stay readable side by side.
++// ---------------------------------------------------------------------------
++
++const ComparisonBars: React.FC<{ data: ComparisonData }> = ({ data }) => {
++  const [hover, setHover] = useState<{ r: number; p: number } | null>(null);
++  const idx = graphPeriodIndexes(data.periods.length);
++  const colors = PERIOD_COLORS[idx.length] ?? PERIOD_COLORS[2];
++
++  const allDrawable = data.rows.filter((r) => idx.some((i) => r.values[i] !== null));
++  const drawable = allDrawable.slice(0, GRAPH_ROW_LIMIT);
++  if (!drawable.length) return null;
++
++  // Several periods: each metric has its own scale (compares years within a metric).
++  // One period (e.g. works per author): one shared scale, so the rows can be compared.
++  const sharedMax =
++    idx.length === 1
++      ? Math.max(...drawable.map((r) => r.values[idx[0]] ?? 0).map((v) => (v > 0 ? v : 0)), 0)
++      : null;
++
++  return (
++    <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3" role="img" aria-label="Bar graph of the table values">
++      {/* Legend */}
++      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-3 text-[11px] text-slate-300">
++        {idx.map((pi, ci) => (
++          <span key={pi} className="inline-flex items-center gap-1.5">
++            <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: colors[ci] }} />
++            {data.periods[pi]}
++          </span>
++        ))}
++        {data.periods.length > 3 && (
++          <span className="text-slate-500">(ग्राफ़ में पहला और आख़िरी वर्ष; बाकी तालिका में)</span>
++        )}
++        {allDrawable.length > drawable.length && (
++          <span className="text-slate-500">
++            (ग्राफ़ में पहले {drawable.length} मद; सभी {allDrawable.length} तालिका में)
++          </span>
++        )}
++      </div>
++
++      <div className="space-y-3">
++        {drawable.map((row, ri) => {
++          const vals = idx.map((i) => row.values[i]);
++          const max = sharedMax ?? Math.max(...vals.map((v) => (v !== null && v > 0 ? v : 0)), 0);
++          return (
++            <div key={`${row.metric}-${ri}`}>
++              <div className="text-[11px] text-slate-300 mb-1 truncate" title={row.metric}>
++                {row.metric}
++              </div>
++              <div className="flex flex-col gap-0.5">
++                {vals.map((v, ci) => {
++                  const pct = v !== null && max > 0 ? Math.max((Math.max(v, 0) / max) * 100, v > 0 ? 1 : 0) : 0;
++                  const isHover = hover?.r === ri && hover?.p === ci;
++                  const dimmed = hover !== null && hover.r === ri && !isHover;
++                  return (
++                    <div
++                      key={ci}
++                      className="relative flex items-center gap-2 h-4 cursor-default"
++                      onMouseEnter={() => setHover({ r: ri, p: ci })}
++                      onMouseLeave={() => setHover(null)}
++                    >
++                      <div className="flex-1 h-3">
++                        <div
++                          className="h-full rounded-r transition-[width,opacity] duration-500"
++                          style={{
++                            width: `${pct}%`,
++                            background: colors[ci],
++                            opacity: dimmed ? 0.45 : 1,
++                          }}
++                        />
++                      </div>
++                      <span className="w-20 shrink-0 text-right text-[11px] tabular-nums text-slate-300">
++                        {fmtVal(v, row.isPercent)}
++                      </span>
++                      {isHover && (
++                        <div className="absolute left-0 -top-7 z-10 pointer-events-none whitespace-nowrap rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 shadow-lg">
++                          {row.metric} · {data.periods[idx[ci]]}:{' '}
++                          <span className="font-semibold">{fmtVal(v, row.isPercent)}</span>
++                          {data.unit && !row.isPercent ? ` ${data.unit}` : ''}
++                        </div>
++                      )}
++                    </div>
++                  );
++                })}
++              </div>
++            </div>
++          );
++        })}
++      </div>
++    </div>
++  );
++};
++
++// ---------------------------------------------------------------------------
++// Block shown under an answer: title + table + graph
++// Data source, best first: backend `comparison` rows → backend `chart_data` → the answer text.
++// ---------------------------------------------------------------------------
++
++const ComparisonBlock: React.FC<{
++  raw: RawChartData | null | undefined;
++  comparison?: BackendComparisonRow[] | null;
++  periods?: string[] | null;
++  text: string;
++}> = ({ raw, comparison, periods, text }) => {
++  const [view, setView] = useState<'table' | 'graph'>('table');
++  const data = useMemo(() => {
++    const chart = normalizeChartData(raw);
++    return fromBackendComparison(comparison, periods, chart?.unit) ?? chart ?? parseComparisonFromText(text);
++  }, [raw, comparison, periods, text]);
++  if (!data || !data.rows.length) return null;
++
++  const heading = data.title || (data.periods.length >= 2 ? 'तुलना' : 'आँकड़े');
++  const tabClass = (on: boolean) =>
++    `inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors cursor-pointer ${
++      on ? 'bg-slate-700 text-slate-100' : 'text-slate-400 hover:text-slate-200'
++    }`;
++  return (
++    <div className="mt-4 pt-3 border-t border-slate-800/80 space-y-2.5">
++      <div className="flex items-center gap-2">
++        <span className="text-[11px] font-semibold text-slate-300 flex items-center gap-1.5">
++          <BarChart3 className="w-3.5 h-3.5 text-indigo-400" />
++          {heading}
++          {data.unit && <span className="font-normal text-slate-500">· {data.unit}</span>}
++        </span>
++        {/* One view at a time keeps long answers short */}
++        <div className="ml-auto inline-flex rounded-lg bg-slate-900 border border-slate-800 p-0.5" role="tablist">
++          <button type="button" role="tab" aria-selected={view === 'table'} onClick={() => setView('table')} className={tabClass(view === 'table')}>
++            <Table2 className="w-3.5 h-3.5" /> तालिका
++          </button>
++          <button type="button" role="tab" aria-selected={view === 'graph'} onClick={() => setView('graph')} className={tabClass(view === 'graph')}>
++            <BarChart3 className="w-3.5 h-3.5" /> ग्राफ़
++          </button>
++        </div>
++      </div>
++      {view === 'table' ? <ComparisonTable data={data} /> : <ComparisonBars data={data} />}
++    </div>
++  );
++};
++
++// ---------------------------------------------------------------------------
++// Referenced sources, grouped by document
++// One card per document (name + year shown once), with its pages as small chips.
++// ---------------------------------------------------------------------------
++
++/** How many page chips a document shows before "+N और". */
++const PAGE_CHIP_LIMIT = 6;
++
++const docKey = (s: SourceItem): string => s.document_id || s.document_name || s.docName || 'unknown';
++const docName = (s: SourceItem): string =>
++  (s.document_name || s.docName || s.document_id || 'Document').replace(/\.(pdf|docx?)$/i, '').replace(/_/g, ' ');
++const docYear = (s: SourceItem): string | null => {
++  if (s.year) return String(s.year);
++  // Not \b: names like "Edition_2025" have "_" (a word char) right before the year
++  const m = (s.document_name || s.docName || '').match(/(?:^|\D)((?:19|20)\d{2})(?!\d)/);
++  return m ? m[1] : null;
++};
++const pageOf = (s: SourceItem): number | undefined => s.page_number ?? s.pageNumber;
++const kindOf = (s: SourceItem): string => s.content_type || s.collection_type || 'content';
++
++interface SourceGroup {
++  key: string;
++  name: string;
++  year: string | null;
++  isReport: boolean;
++  items: SourceItem[];
++}
++
++const groupSources = (sources: SourceItem[]): SourceGroup[] => {
++  const groups = new Map<string, SourceGroup>();
++  for (const s of sources) {
++    const key = docKey(s);
++    let g = groups.get(key);
++    if (!g) {
++      g = { key, name: docName(s), year: docYear(s), isReport: s.document_type === 'report', items: [] };
++      groups.set(key, g);
++    }
++    g.year = g.year ?? docYear(s);
++    // Drop exact duplicates (same page + same kind)
++    if (!g.items.some((x) => pageOf(x) === pageOf(s) && kindOf(x) === kindOf(s))) g.items.push(s);
++  }
++  // Pages in reading order inside each document; documents by year
++  const list = [...groups.values()];
++  list.forEach((g) => g.items.sort((a, b) => (pageOf(a) ?? 0) - (pageOf(b) ?? 0)));
++  return list.sort((a, b) => (a.year ?? '').localeCompare(b.year ?? ''));
++};
++
++const DocumentSources: React.FC<{ group: SourceGroup; onSourceClick: (s: SourceItem) => void }> = ({
++  group,
++  onSourceClick,
++}) => {
++  const [expanded, setExpanded] = useState(false);
++  const shown = expanded ? group.items : group.items.slice(0, PAGE_CHIP_LIMIT);
++  const hidden = group.items.length - shown.length;
++
++  return (
++    <div className="rounded-xl border border-slate-800 bg-slate-900/50 px-3 py-2">
++      <div className="flex items-center gap-2 min-w-0 mb-1.5">
++        {group.isReport ? (
++          <FileText className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
++        ) : (
++          <BookOpen className="w-3.5 h-3.5 shrink-0 text-indigo-400" />
++        )}
++        <span className="text-[12px] text-slate-200 truncate" title={group.name}>
++          {group.name}
++        </span>
++        {group.year && (
++          <span className="shrink-0 rounded-md bg-indigo-500/15 border border-indigo-500/30 px-1.5 py-px text-[10px] font-semibold text-indigo-200">
++            {group.year}
++          </span>
++        )}
++        <span className="shrink-0 ml-auto text-[10px] text-slate-500">
++          {group.items.length} पृष्ठ
++        </span>
++      </div>
++
++      <div className="flex flex-wrap gap-1.5">
++        {shown.map((src, i) => {
++          const kind = kindOf(src);
++          return (
++            <button
++              key={`${pageOf(src)}-${kind}-${i}`}
++              type="button"
++              onClick={() => onSourceClick(src)}
++              title={`${group.name}${group.year ? ` (${group.year})` : ''} — पृष्ठ ${pageOf(src) ?? '?'} (${kind}). क्लिक करके सबूत देखें।`}
++              className="inline-flex items-center gap-1 text-[11px] bg-slate-950 hover:bg-indigo-950/70 border border-slate-800 hover:border-indigo-500/50 px-2 py-0.5 rounded-md text-indigo-300 hover:text-indigo-200 transition-colors cursor-pointer group"
++            >
++              {kind === 'table' && <FileText className="w-3 h-3 text-emerald-400" />}
++              <span>पृष्ठ {pageOf(src) ?? '?'}</span>
++              {kind !== 'content' && kind !== 'text' && <span className="text-slate-500">· {kind}</span>}
++              <ExternalLink className="w-2.5 h-2.5 opacity-50 group-hover:opacity-100" />
++            </button>
++          );
++        })}
++        {hidden > 0 && (
++          <button
++            type="button"
++            onClick={() => setExpanded(true)}
++            className="text-[11px] px-2 py-0.5 rounded-md text-slate-400 hover:text-slate-200 border border-dashed border-slate-700 hover:border-slate-500 cursor-pointer transition-colors"
++          >
++            +{hidden} और
++          </button>
++        )}
++        {expanded && group.items.length > PAGE_CHIP_LIMIT && (
++          <button
++            type="button"
++            onClick={() => setExpanded(false)}
++            className="text-[11px] px-2 py-0.5 rounded-md text-slate-500 hover:text-slate-300 cursor-pointer"
++          >
++            कम दिखाएँ
++          </button>
++        )}
++      </div>
++    </div>
++  );
++};
++
++const SourceGroups: React.FC<{ sources: SourceItem[]; onSourceClick: (s: SourceItem) => void }> = ({
++  sources,
++  onSourceClick,
++}) => {
++  const groups = useMemo(() => groupSources(sources), [sources]);
++  return (
++    <div className="mt-3.5 pt-3 border-t border-slate-800/80 space-y-2">
++      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
++        स्रोत · पृष्ठ पर क्लिक करके सबूत देखें
++      </span>
++      <div className="space-y-2">
++        {groups.map((g) => (
++          <DocumentSources key={g.key} group={g} onSourceClick={onSourceClick} />
++        ))}
++      </div>
++    </div>
++  );
++};
++
++// ---------------------------------------------------------------------------
++// Welcome screen (before the first question)
++// ---------------------------------------------------------------------------
++
++const SUGGESTIONS: { text: string; hint: string }[] = [
++  { text: '2024 और 2025 अंक में लेखों की तुलना कीजिए', hint: 'पत्रिका · तुलना + ग्राफ़' },
++  { text: 'किस लेखक ने सबसे ज़्यादा लिखा?', hint: 'पत्रिका · लेखक' },
++  { text: 'AI पर कितने लेख हैं?', hint: 'पत्रिका · विषय' },
++  { text: '2024 और 2025 की रिपोर्ट की तुलना कीजिए', hint: 'रिपोर्ट · तुलना + ग्राफ़' },
++  { text: 'तीनों क्षेत्रों को कुल कितने पत्र भेजे गए?', hint: 'रिपोर्ट · गणना' },
++  { text: 'पत्रिका की कविताएँ कौन-सी हैं?', hint: 'पत्रिका · सूची' },
++];
++
++const Welcome: React.FC<{ onSuggestion?: (q: string) => void; scopeLabel?: string }> = ({ onSuggestion, scopeLabel }) => (
++  <div className="h-full flex flex-col items-center justify-center text-center px-4 py-10">
++    <div className="w-12 h-12 rounded-2xl bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center mb-4">
++      <Sparkles className="w-6 h-6 text-indigo-300" />
++    </div>
++    <h2 className="text-xl md:text-2xl font-semibold text-slate-100">नमस्ते! क्या जानना चाहेंगे?</h2>
++    <p className="mt-2 max-w-lg text-sm text-slate-400 leading-relaxed">
++      राजभाषा पत्रिकाओं और रिपोर्टों से पूछिए — हिंदी, English या Hinglish में। हर जवाब के साथ स्रोत पृष्ठ मिलेंगे,
++      और तुलना वाले सवालों पर तालिका व ग्राफ़।
++    </p>
++    {scopeLabel && (
++      <p className="mt-2 text-[11px] text-slate-500">
++        अभी खोज: <span className="text-slate-300">{scopeLabel}</span> · दस्तावेज़ सूची से फ़ाइलें चुनें
++      </p>
++    )}
++    {onSuggestion && (
++      <div className="mt-6 w-full max-w-2xl grid grid-cols-1 sm:grid-cols-2 gap-2 text-left">
++        {SUGGESTIONS.map((s) => (
++          <button
++            key={s.text}
++            type="button"
++            onClick={() => onSuggestion(s.text)}
++            className="group text-left rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-900 hover:border-indigo-500/50 px-3.5 py-2.5 transition-colors cursor-pointer"
++          >
++            <span className="block text-[13px] text-slate-200 group-hover:text-white">{s.text}</span>
++            <span className="block mt-0.5 text-[10px] text-slate-500">{s.hint}</span>
++          </button>
++        ))}
++      </div>
++    )}
++  </div>
++);
++
++// ---------------------------------------------------------------------------
++// Message list
++// ---------------------------------------------------------------------------
++
++export const ChatMessages: React.FC<ChatMessagesProps> = ({
++  messages,
++  isQuerying,
++  copiedId,
++  onCopy,
++  onSourceClick,
++  onSuggestion,
++  scopeLabel,
++}) => {
++  const chatEndRef = useRef<HTMLDivElement>(null);
++  const lastMsgRef = useRef<HTMLDivElement>(null);
++
++  // The welcome text is shown as the welcome screen, never as a bubble
++  const shown = messages.filter((m) => m.id !== 'welcome');
++
++  // Keep the newest message in view. Long answers (table + graph) are scrolled
++  // to their start, so the reader sees the answer first.
++  useEffect(() => {
++    const last = shown[shown.length - 1];
++    if (!isQuerying && last?.sender === 'assistant' && lastMsgRef.current) {
++      lastMsgRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
++    } else {
++      chatEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
++    }
++  }, [messages, isQuerying]); // eslint-disable-line react-hooks/exhaustive-deps
++
++  if (shown.length === 0 && !isQuerying) {
++    return (
++      <div className="flex-1 min-h-0 overflow-y-auto">
++        <Welcome onSuggestion={onSuggestion} scopeLabel={scopeLabel} />
++      </div>
++    );
++  }
++
++  return (
++    <div className="flex-1 min-h-0 overflow-y-auto">
++      <div className="mx-auto max-w-4xl px-3 md:px-6 py-6 space-y-6">
++        {shown.map((msg, i) =>
++          msg.sender === 'user' ? (
++            <div key={msg.id} ref={i === shown.length - 1 ? lastMsgRef : undefined} className="flex flex-col items-end scroll-mt-4">
++              <div className="max-w-[85%] rounded-2xl rounded-br-md bg-indigo-600 px-4 py-2.5 text-sm leading-relaxed text-white whitespace-pre-wrap">
++                {msg.text}
++              </div>
++              <div className="mt-1 px-1 flex items-center gap-1.5 text-[10px] text-slate-500">
++                <span>{msg.timestamp}</span>
++                <span>·</span>
++                <span className="inline-flex items-center gap-1">
++                  <Layers className="w-3 h-3" /> {msg.scopeLabel || 'सभी दस्तावेज़'}
++                </span>
++              </div>
++            </div>
++          ) : (
++            <div key={msg.id} ref={i === shown.length - 1 ? lastMsgRef : undefined} className="flex gap-3 scroll-mt-4">
++              <div className="w-7 h-7 shrink-0 rounded-lg bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center mt-0.5">
++                <Sparkles className="w-3.5 h-3.5 text-indigo-300" />
++              </div>
++              <div className="min-w-0 flex-1">
++                <div className="prose prose-invert prose-sm max-w-none text-slate-200 leading-relaxed">
++                  <ReactMarkdown>{msg.text}</ReactMarkdown>
++                </div>
++
++                {/* Comparison table / bar graph (backend data, else read from the answer text) */}
++                <ComparisonBlock
++                  raw={msg.chartData ?? msg.chart_data}
++                  comparison={msg.comparison}
++                  periods={msg.periods}
++                  text={msg.text}
++                />
++
++                {/* Referenced sources, grouped by document */}
++                {msg.sources && msg.sources.length > 0 && (
++                  <SourceGroups sources={msg.sources} onSourceClick={onSourceClick} />
++                )}
++
++                <div className="mt-2 flex items-center gap-3 text-[10px] text-slate-500">
++                  <span>{msg.timestamp}</span>
++                  <button
++                    type="button"
++                    onClick={() => onCopy(msg.text, msg.id)}
++                    className="inline-flex items-center gap-1 hover:text-slate-300 cursor-pointer transition-colors"
++                  >
++                    {copiedId === msg.id ? (
++                      <>
++                        <Check className="w-3 h-3 text-emerald-400" />
++                        <span className="text-emerald-400">कॉपी हो गया</span>
++                      </>
++                    ) : (
++                      <>
++                        <Copy className="w-3 h-3" />
++                        <span>कॉपी करें</span>
++                      </>
++                    )}
++                  </button>
++                </div>
++              </div>
++            </div>
++          ),
++        )}
++
++        {isQuerying && (
++          <div className="flex gap-3" aria-live="polite">
++            <div className="w-7 h-7 shrink-0 rounded-lg bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center">
++              <RefreshCw className="w-3.5 h-3.5 text-indigo-300 animate-spin" />
++            </div>
++            <div className="flex-1 pt-1 space-y-2">
++              <p className="text-xs text-slate-400">दस्तावेज़ों में खोज रहा हूँ…</p>
++              <div className="h-2.5 w-3/4 rounded bg-slate-800 animate-pulse" />
++              <div className="h-2.5 w-1/2 rounded bg-slate-800 animate-pulse" />
++            </div>
++          </div>
++        )}
++        <div ref={chatEndRef} />
++      </div>
++    </div>
++  );
++};
+\ No newline at end of file
+diff --git a/src/components/DocumentSelector.tsx b/src/components/DocumentSelector.tsx
+new file mode 100644
+index 0000000..02b1354
+--- /dev/null
++++ b/src/components/DocumentSelector.tsx
+@@ -0,0 +1,298 @@
++import React, { useMemo, useState } from 'react';
++import { BookOpen, BarChart3, FileText, Search, Trash2, Upload, CheckSquare, MinusSquare, Square, X, Layers } from 'lucide-react';
++import { UploadedDocument } from '../types';
++
++type Tab = 'magazines' | 'reports';
++
++interface DocumentSelectorProps {
++  documents: UploadedDocument[];
++  selectedIds: string[];
++  onSelectionChange: (ids: string[]) => void;
++  activeTab: Tab;
++  onTabChange: (tab: Tab) => void;
++  onUploadClick: () => void;
++  onDelete: (docId: string, e: React.MouseEvent) => void;
++  /** Small screens: the sidebar is a drawer; this closes it. */
++  onClose?: () => void;
++}
++
++const isReport = (d: UploadedDocument) => d.document_type === 'report';
++
++/** "Abhivyakti_Sixeen edition 2024.docx" -> "Abhivyakti Sixeen edition 2024" */
++const displayName = (d: UploadedDocument) =>
++  (d.document_name || d.fileName || d.id).replace(/\.(pdf|docx?)$/i, '').replace(/_/g, ' ');
++
++const yearOf = (d: UploadedDocument): string | null => {
++  if (d.year) return String(d.year);
++  const m = (d.fileName || '').match(/(?:^|\D)((?:19|20)\d{2})(?!\d)/);
++  return m ? m[1] : null;
++};
++
++/**
++ * Left sidebar (replaces the old wide document picker): pick which documents the next question searches.
++ * Nothing selected = search every document.
++ */
++export const DocumentSelector: React.FC<DocumentSelectorProps> = ({
++  documents,
++  selectedIds,
++  onSelectionChange,
++  activeTab,
++  onTabChange,
++  onUploadClick,
++  onDelete,
++  onClose,
++}) => {
++  const [search, setSearch] = useState('');
++  const [year, setYear] = useState<string>('all');
++
++  const magazines = documents.filter((d) => !isReport(d));
++  const reports = documents.filter(isReport);
++  const tabDocs = activeTab === 'magazines' ? magazines : reports;
++
++  const years = useMemo(
++    () => Array.from(new Set(tabDocs.map(yearOf).filter((y): y is string => !!y))).sort().reverse(),
++    [tabDocs],
++  );
++
++  const visible = tabDocs
++    .filter((d) => year === 'all' || yearOf(d) === year)
++    .filter((d) => !search.trim() || `${displayName(d)} ${d.report_period ?? ''}`.toLowerCase().includes(search.trim().toLowerCase()))
++    .sort((a, b) => (yearOf(a) ?? '').localeCompare(yearOf(b) ?? '') || displayName(a).localeCompare(displayName(b)));
++
++  const selected = new Set(selectedIds);
++  const selectedInTab = (list: UploadedDocument[]) => list.filter((d) => selected.has(d.id)).length;
++  const visibleSelected = visible.filter((d) => selected.has(d.id)).length;
++  const allVisibleSelected = visible.length > 0 && visibleSelected === visible.length;
++
++  const toggle = (id: string) =>
++    onSelectionChange(selected.has(id) ? selectedIds.filter((x) => x !== id) : [...selectedIds, id]);
++
++  const toggleAllVisible = () => {
++    const ids = visible.map((d) => d.id);
++    onSelectionChange(
++      allVisibleSelected
++        ? selectedIds.filter((id) => !ids.includes(id))
++        : Array.from(new Set([...selectedIds, ...ids])),
++    );
++  };
++
++  const selectedDocs = documents.filter((d) => selected.has(d.id));
++
++  const TabButton: React.FC<{ tab: Tab; label: string; icon: React.ReactNode; list: UploadedDocument[] }> = ({
++    tab,
++    label,
++    icon,
++    list,
++  }) => {
++    const active = activeTab === tab;
++    const n = selectedInTab(list);
++    return (
++      <button
++        type="button"
++        onClick={() => onTabChange(tab)}
++        className={`flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
++          active ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
++        }`}
++      >
++        {icon}
++        {label}
++        <span
++          className={`rounded-full px-1.5 text-[10px] tabular-nums ${
++            active ? 'bg-white/20' : 'bg-slate-800 text-slate-400'
++          }`}
++        >
++          {n > 0 ? `${n}/${list.length}` : list.length}
++        </span>
++      </button>
++    );
++  };
++
++  return (
++    <div className="h-full flex flex-col">
++      {/* Title */}
++      <div className="shrink-0 flex items-center justify-between px-4 pt-4 pb-3">
++        <div>
++          <h2 className="text-sm font-semibold text-slate-100">दस्तावेज़</h2>
++          <p className="text-[11px] text-slate-500">जिनमें खोजना है, उन्हें चुनें</p>
++        </div>
++        {onClose && (
++          <button
++            type="button"
++            onClick={onClose}
++            className="md:hidden p-1.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800 cursor-pointer"
++            aria-label="बंद करें"
++          >
++            <X className="w-4 h-4" />
++          </button>
++        )}
++      </div>
++
++      {/* Tabs */}
++      <div className="shrink-0 px-3">
++        <div className="flex gap-1 rounded-xl bg-slate-950/70 border border-slate-800 p-1">
++          <TabButton tab="magazines" label="पत्रिकाएँ" icon={<BookOpen className="w-3.5 h-3.5" />} list={magazines} />
++          <TabButton tab="reports" label="रिपोर्ट" icon={<BarChart3 className="w-3.5 h-3.5" />} list={reports} />
++        </div>
++      </div>
++
++      {/* Search + year */}
++      <div className="shrink-0 px-3 pt-3 flex gap-2">
++        <label className="flex-1 flex items-center gap-2 rounded-lg bg-slate-950/70 border border-slate-800 focus-within:border-indigo-500/60 px-2.5">
++          <Search className="w-3.5 h-3.5 text-slate-500 shrink-0" />
++          <input
++            value={search}
++            onChange={(e) => setSearch(e.target.value)}
++            placeholder="फ़ाइल खोजें"
++            className="w-full bg-transparent py-1.5 text-xs text-slate-200 placeholder:text-slate-600 outline-none"
++          />
++        </label>
++        {years.length > 1 && (
++          <select
++            value={year}
++            onChange={(e) => setYear(e.target.value)}
++            className="rounded-lg bg-slate-950/70 border border-slate-800 px-2 text-xs text-slate-300 outline-none cursor-pointer"
++            aria-label="वर्ष"
++          >
++            <option value="all">सभी वर्ष</option>
++            {years.map((y) => (
++              <option key={y} value={y}>
++                {y}
++              </option>
++            ))}
++          </select>
++        )}
++      </div>
++
++      {/* Select all in view */}
++      {visible.length > 0 && (
++        <div className="shrink-0 px-4 pt-3 pb-1 flex items-center justify-between text-[11px]">
++          <button
++            type="button"
++            onClick={toggleAllVisible}
++            className="inline-flex items-center gap-1.5 text-slate-400 hover:text-slate-200 cursor-pointer"
++          >
++            {allVisibleSelected ? (
++              <CheckSquare className="w-3.5 h-3.5 text-indigo-400" />
++            ) : visibleSelected > 0 ? (
++              <MinusSquare className="w-3.5 h-3.5 text-indigo-400" />
++            ) : (
++              <Square className="w-3.5 h-3.5" />
++            )}
++            {allVisibleSelected ? 'सभी हटाएँ' : 'सभी चुनें'}
++          </button>
++          <span className="text-slate-600">{visible.length} फ़ाइलें</span>
++        </div>
++      )}
++
++      {/* Document list */}
++      <div className="flex-1 min-h-0 overflow-y-auto px-2 pb-2">
++        {visible.length === 0 ? (
++          <div className="px-3 py-8 text-center text-xs text-slate-500">
++            {tabDocs.length === 0
++              ? activeTab === 'magazines'
++                ? 'अभी कोई पत्रिका नहीं है।'
++                : 'अभी कोई रिपोर्ट नहीं है।'
++              : 'इस खोज से कोई फ़ाइल नहीं मिली।'}
++          </div>
++        ) : (
++          <ul className="space-y-1">
++            {visible.map((d) => {
++              const on = selected.has(d.id);
++              const y = yearOf(d);
++              return (
++                <li key={d.id}>
++                  <div
++                    role="checkbox"
++                    aria-checked={on}
++                    tabIndex={0}
++                    onClick={() => toggle(d.id)}
++                    onKeyDown={(e) => {
++                      if (e.key === ' ' || e.key === 'Enter') {
++                        e.preventDefault();
++                        toggle(d.id);
++                      }
++                    }}
++                    className={`group flex items-start gap-2.5 rounded-xl px-2.5 py-2 cursor-pointer border transition-colors outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/60 ${
++                      on
++                        ? 'bg-indigo-500/10 border-indigo-500/40'
++                        : 'border-transparent hover:bg-slate-800/50'
++                    }`}
++                  >
++                    <span
++                      className={`mt-0.5 w-4 h-4 shrink-0 rounded border flex items-center justify-center ${
++                        on ? 'bg-indigo-500 border-indigo-500' : 'border-slate-600'
++                      }`}
++                    >
++                      {on && (
++                        <svg viewBox="0 0 12 12" className="w-3 h-3 text-white" aria-hidden="true">
++                          <path d="M2.5 6.2l2.3 2.3 4.7-4.9" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
++                        </svg>
++                      )}
++                    </span>
++                    <span className="min-w-0 flex-1">
++                      <span className="block text-[13px] leading-snug text-slate-200 break-words" title={d.fileName}>
++                        {displayName(d)}
++                      </span>
++                      <span className="mt-1 flex items-center gap-2 text-[11px] text-slate-500">
++                        {isReport(d) ? (
++                          <FileText className="w-3 h-3 text-emerald-400" aria-hidden="true" />
++                        ) : (
++                          <BookOpen className="w-3 h-3 text-indigo-400" aria-hidden="true" />
++                        )}
++                        {isReport(d) && d.report_period ? (
++                          <span className="rounded-md bg-slate-800 px-1.5 py-px font-medium text-slate-300">{d.report_period}</span>
++                        ) : y && (
++                          <span className="rounded-md bg-slate-800 px-1.5 py-px font-medium text-slate-300">{y}</span>
++                        )}
++                        {d.totalPages ? <span>{d.totalPages} पृष्ठ</span> : null}
++                      </span>
++                    </span>
++                    <button
++                      type="button"
++                      onClick={(e) => onDelete(d.id, e)}
++                      className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 -m-0.5 rounded-md text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-opacity cursor-pointer"
++                      title="हटाएँ"
++                      aria-label={`${displayName(d)} हटाएँ`}
++                    >
++                      <Trash2 className="w-3.5 h-3.5" />
++                    </button>
++                  </div>
++                </li>
++              );
++            })}
++          </ul>
++        )}
++      </div>
++
++      {/* Scope + upload */}
++      <div className="shrink-0 border-t border-slate-800 p-3 space-y-2.5">
++        <div className="flex items-start gap-2 text-[11px]">
++          <Layers className="w-3.5 h-3.5 mt-px shrink-0 text-indigo-400" />
++          <div className="min-w-0 flex-1">
++            <span className="text-slate-500">खोज का दायरा: </span>
++            <span className="text-slate-200">
++              {selectedDocs.length === 0 ? 'सभी दस्तावेज़' : `${selectedDocs.length} फ़ाइलें चुनी गईं`}
++            </span>
++          </div>
++          {selectedDocs.length > 0 && (
++            <button
++              type="button"
++              onClick={() => onSelectionChange([])}
++              className="shrink-0 text-slate-500 hover:text-slate-200 cursor-pointer"
++            >
++              साफ़ करें
++            </button>
++          )}
++        </div>
++        <button
++          type="button"
++          onClick={onUploadClick}
++          className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 px-3 py-2 text-sm font-medium text-white transition-colors cursor-pointer"
++        >
++          <Upload className="w-4 h-4" />
++          दस्तावेज़ अपलोड करें
++        </button>
++      </div>
++    </div>
++  );
++};
+\ No newline at end of file
+diff --git a/src/components/Header.tsx b/src/components/Header.tsx
+new file mode 100644
+index 0000000..7f09f53
+--- /dev/null
++++ b/src/components/Header.tsx
+@@ -0,0 +1,49 @@
++import React from 'react';
++import { Sparkles, Database, PanelLeft } from 'lucide-react';
++import { OllamaStatusInfo } from './chatTypes';
++
++interface HeaderProps {
++  ollamaStatus: OllamaStatusInfo;
++  /** Small screens: opens the document drawer. */
++  onMenuClick?: () => void;
++}
++
++/** Slim app bar: name on the left, service status on the right. */
++export const Header: React.FC<HeaderProps> = ({ ollamaStatus, onMenuClick }) => (
++  <header className="shrink-0 h-14 flex items-center gap-3 px-3 md:px-5 border-b border-slate-800 bg-slate-950/80 backdrop-blur">
++    {onMenuClick && (
++      <button
++        type="button"
++        onClick={onMenuClick}
++        className="md:hidden p-2 -ml-1 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800 cursor-pointer"
++        aria-label="दस्तावेज़ दिखाएँ"
++      >
++        <PanelLeft className="w-5 h-5" />
++      </button>
++    )}
++
++    <div className="w-8 h-8 shrink-0 rounded-lg bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center">
++      <Sparkles className="w-4 h-4 text-indigo-300" />
++    </div>
++    <div className="min-w-0 leading-tight">
++      <h1 className="text-[15px] font-semibold text-slate-100 truncate">राजभाषा ज्ञान सहायक</h1>
++      <p className="text-[11px] text-slate-500 truncate">Rajbhasha Knowledge Assistant · पत्रिकाएँ और रिपोर्ट</p>
++    </div>
++
++    <div className="ml-auto flex items-center gap-2 text-[11px]">
++      <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-slate-800 px-2.5 py-1 text-slate-400">
++        <Database className="w-3.5 h-3.5" /> Qdrant
++      </span>
++      <span
++        className="inline-flex items-center gap-1.5 rounded-full border border-slate-800 px-2.5 py-1 text-slate-400"
++        title={ollamaStatus.available ? 'भाषा मॉडल चल रहा है' : 'भाषा मॉडल (Ollama) से संपर्क नहीं हो पा रहा'}
++      >
++        <span
++          className={`w-2 h-2 rounded-full ${ollamaStatus.available ? 'bg-emerald-400' : 'bg-rose-500'}`}
++          aria-hidden="true"
++        />
++        {ollamaStatus.available ? ollamaStatus.model : 'Ollama बंद'}
++      </span>
++    </div>
++  </header>
++);
+\ No newline at end of file
+diff --git a/src/components/MainChatbot.tsx b/src/components/MainChatbot.tsx
+index 816ed15..8559f90 100644
+--- a/src/components/MainChatbot.tsx
++++ b/src/components/MainChatbot.tsx
+@@ -1,65 +1,26 @@
+ import React, { useState, useEffect, useRef } from 'react';
+-import {
+-  UploadCloud,
+-  Send,
+-  Sparkles,
+-  FileText,
+-  Bot,
+-  User,
+-  AlertCircle,
+-  RefreshCw,
+-  ChevronDown,
+-  Database,
+-  Trash2,
+-  BookOpen,
+-  Copy,
+-  Check,
+-  X,
+-  ExternalLink,
+-  Calendar,
+-  FileCheck2,
+-  FolderOpen
+-} from 'lucide-react';
+-import ReactMarkdown from 'react-markdown';
+ import { UploadedDocument } from '../types';
+-import { HighlightText } from './HighlightText';
+-
+-interface SourceItem {
+-  chunk_id?: string;
+-  chunkId?: string;
+-  document_id?: string;
+-  docName?: string;
+-  document_name?: string;
+-  document_type?: 'magazine' | 'report';
+-  year?: number | null;
+-  content_type?: string;
+-  page_number?: number;
+-  pageNumber?: number;
+-  collection_type?: string;
+-  table_id?: string;
+-  extractionConfidence?: number;
+-  text?: string;
+-  quote?: string;
+-  highlightText?: string;
+-  section?: string;
+-  relevanceScore?: number;
+-}
+-
+-interface ChatMessage {
+-  id: string;
+-  sender: 'user' | 'assistant';
+-  text: string;
+-  timestamp: string;
+-  sources?: SourceItem[];
+-  detectedScript?: string;
+-}
+-
++import { ChatMessage, SourceItem, OllamaStatusInfo, UploadSummary } from './chatTypes';
++import { Header } from './Header';
++import { DocumentSelector } from './DocumentSelector';
++import { ChatMessages } from './ChatMessages';
++import { ChatInput } from './ChatInput';
++import { UploadModal } from './UploadModal';
++import { SourceInspector } from './SourceInspector';
++
++/**
++ * Page container: owns all state and API calls, and composes the UI pieces.
++ * Visual changes belong in the child components, not here.
++ */
+ export const MainChatbot: React.FC = () => {
+   const conversationIdRef = useRef(`conversation-${crypto.randomUUID()}`);
+   const [documents, setDocuments] = useState<UploadedDocument[]>([]);
+   
+-  // Active filter: 'all' | 'all_magazines' | 'all_reports' | specific doc id
+-  const [activeScope, setActiveScope] = useState<string>('all');
++  // Selected documents for the query. Empty = search all documents.
++  const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
++
++  // Small screens: the document sidebar opens as a drawer
++  const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
+   
+   // Document category tab: 'magazines' | 'reports'
+   const [activeCategoryTab, setActiveCategoryTab] = useState<'magazines' | 'reports'>('magazines');
+@@ -71,14 +32,13 @@ export const MainChatbot: React.FC = () => {
+   const [uploadProgressStep, setUploadProgressStep] = useState<number>(0);
+   const [uploadStatusText, setUploadStatusText] = useState<string>('');
+   const [uploadError, setUploadError] = useState<string | null>(null);
+-  const [uploadSuccessSummary, setUploadSuccessSummary] = useState<any>(null);
++  const [uploadSuccessSummary, setUploadSuccessSummary] = useState<UploadSummary | null>(null);
+   const fileInputRef = useRef<HTMLInputElement>(null);
+ 
+   // Chat Query state
+   const [inputQuery, setInputQuery] = useState<string>('');
+   const [isQuerying, setIsQuerying] = useState<boolean>(false);
+   const [copiedId, setCopiedId] = useState<string | null>(null);
+-  const chatEndRef = useRef<HTMLDivElement>(null);
+ 
+   // Active Source Chunk Modal Inspection State
+   const [selectedChunk, setSelectedChunk] = useState<SourceItem | null>(null);
+@@ -87,13 +47,14 @@ export const MainChatbot: React.FC = () => {
+     {
+       id: 'welcome',
+       sender: 'assistant',
+-      text: 'नमस्ते! Hello! I am your Rajbhasha Multilingual Knowledge Assistant.\n\nI dynamically search across your **Magazines** and **Reports** stored in the Qdrant Vector Database. Ask me anything in **Hindi, English, or Hinglish** — about articles, authors, poetry, quarterly reports, tables, or proformas.',
++      // Shown as the welcome screen with suggested questions (ChatMessages), not as a chat bubble
++      text: 'नमस्ते! मैं राजभाषा पत्रिकाओं और रिपोर्टों से आपके सवालों के जवाब देता हूँ।',
+       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+     }
+   ]);
+ 
+   // Ollama status
+-  const [ollamaStatus, setOllamaStatus] = useState<{ available: boolean; model: string }>({
++  const [ollamaStatus, setOllamaStatus] = useState<OllamaStatusInfo>({
+     available: false,
+     model: 'llama3.2'
+   });
+@@ -106,10 +67,6 @@ export const MainChatbot: React.FC = () => {
+     return () => clearTimeout(timer);
+   }, []);
+ 
+-  useEffect(() => {
+-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+-  }, [messages, isQuerying]);
+-
+   const checkOllama = async () => {
+     try {
+       const res = await fetch('/api/ollama/status');
+@@ -144,9 +101,7 @@ export const MainChatbot: React.FC = () => {
+       if (res.ok) {
+         const rem = documents.filter((d) => d.id !== docId);
+         setDocuments(rem);
+-        if (activeScope === docId) {
+-          setActiveScope('all');
+-        }
++        setSelectedDocIds((prev) => prev.filter((id) => id !== docId));
+       }
+     } catch (err) {
+       console.error('Failed to delete document:', err);
+@@ -259,38 +214,38 @@ export const MainChatbot: React.FC = () => {
+     }
+   };
+ 
+-  const handleSendMessage = async (e: React.FormEvent) => {
++  const handleSendMessage = (e: React.FormEvent) => {
+     e.preventDefault();
+-    if (!inputQuery.trim() || isQuerying) return;
+-
+-    const userQueryText = inputQuery.trim();
+-
+-    // Determine target document or category filter
+-    let docIdFilter: string | undefined = undefined;
+-    let docTypeFilter: string | undefined = undefined;
+-
+-    if (activeScope === 'all') {
+-      docIdFilter = undefined;
+-      docTypeFilter = undefined;
+-    } else if (activeScope === 'all_magazines') {
+-      docIdFilter = undefined;
+-      docTypeFilter = 'magazine';
+-    } else if (activeScope === 'all_reports') {
+-      docIdFilter = undefined;
+-      docTypeFilter = 'report';
+-    } else {
+-      docIdFilter = activeScope;
+-      const targetDoc = documents.find((d) => d.id === activeScope);
+-      if (targetDoc?.document_type) {
+-        docTypeFilter = targetDoc.document_type;
+-      }
+-    }
++    sendQuery(inputQuery);
++  };
++
++  /** Ask a question: from the input box, or from a suggested-question chip. */
++  const sendQuery = async (text: string) => {
++    if (!text.trim() || isQuerying) return;
++
++    const userQueryText = text.trim();
++    setSidebarOpen(false);
++
++    // Selected documents → backend scope. Drop ids of documents that no longer exist.
++    const scopeIds = selectedDocIds.filter((id) => documents.some((d) => d.id === id));
++    const scopeTypes = new Set(
++      scopeIds.map((id) => documents.find((d) => d.id === id)?.document_type || 'magazine')
++    );
++    // Only narrow by type when every selected file has the same type
++    const docTypeFilter = scopeTypes.size === 1 ? [...scopeTypes][0] : undefined;
++    const scopeLabel =
++      scopeIds.length === 0
++        ? undefined
++        : scopeIds.length === 1
++        ? documents.find((d) => d.id === scopeIds[0])?.fileName || scopeIds[0]
++        : `${scopeIds.length} files`;
+ 
+     const userMsg: ChatMessage = {
+       id: Date.now().toString(),
+       sender: 'user',
+       text: userQueryText,
+-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
++      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
++      scopeLabel
+     };
+ 
+     setMessages((prev) => [...prev, userMsg]);
+@@ -303,7 +258,8 @@ export const MainChatbot: React.FC = () => {
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({
+           query: userQueryText,
+-          document_id: docIdFilter || '',
++          document_ids: scopeIds,
++          document_id: scopeIds.length === 1 ? scopeIds[0] : '',
+           document_type: docTypeFilter,
+           query_mode: 'AUTO',
+           conversation_id: conversationIdRef.current
+@@ -322,7 +278,11 @@ export const MainChatbot: React.FC = () => {
+         text: data.answer || 'No relevant information found in the documents.',
+         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+         sources: data.sources || [],
+-        detectedScript: data.detected_script
++        detectedScript: data.detected_script,
++        // Comparison table + bar graph data (rendered by ChatMessages)
++        chartData: data.chart_data ?? data.chartData ?? null,
++        comparison: Array.isArray(data.comparison) ? data.comparison : null,
++        periods: Array.isArray(data.periods) ? data.periods : null
+       };
+ 
+       setMessages((prev) => [...prev, assistantMsg]);
+@@ -330,7 +290,7 @@ export const MainChatbot: React.FC = () => {
+       const errorMsg: ChatMessage = {
+         id: (Date.now() + 1).toString(),
+         sender: 'assistant',
+-        text: 'Error processing your request. Please ensure the backend and Ollama are running.',
++        text: 'जवाब नहीं मिल सका। कृपया जाँचें कि Python backend (port 8000) और Ollama चल रहे हैं, फिर दोबारा पूछें।',
+         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+       };
+       setMessages((prev) => [...prev, errorMsg]);
+@@ -345,608 +305,107 @@ export const MainChatbot: React.FC = () => {
+     setTimeout(() => setCopiedId(null), 2000);
+   };
+ 
+-  const magazines = documents.filter((d) => (d.document_type || 'magazine') === 'magazine');
+-  const reports = documents.filter((d) => d.document_type === 'report');
++  // "सभी दस्तावेज़" or "2 फ़ाइलें", shown under the input box
++  const liveSelected = selectedDocIds.filter((id) => documents.some((d) => d.id === id));
++  const scopeText =
++    liveSelected.length === 0
++      ? 'सभी दस्तावेज़'
++      : liveSelected.length === 1
++      ? (documents.find((d) => d.id === liveSelected[0])?.fileName || '1 फ़ाइल').replace(/\.(pdf|docx?)$/i, '')
++      : `${liveSelected.length} फ़ाइलें`;
++
++  const sidebar = (
++    <DocumentSelector
++      documents={documents}
++      selectedIds={selectedDocIds}
++      onSelectionChange={setSelectedDocIds}
++      activeTab={activeCategoryTab}
++      onTabChange={setActiveCategoryTab}
++      onUploadClick={() => {
++        setIsUploadModalOpen(true);
++        setUploadError(null);
++        setUploadSuccessSummary(null);
++      }}
++      onDelete={handleDeleteDocument}
++      onClose={() => setSidebarOpen(false)}
++    />
++  );
+ 
+   return (
+-    <div className="w-full max-w-5xl mx-auto flex flex-col space-y-4 py-4 px-3 md:px-4">
+-
+-      {/* ───────────────────────────────────────────────────────────── */}
+-      {/* Header & Branding */}
+-      {/* ───────────────────────────────────────────────────────────── */}
+-      <header className="bg-slate-900/90 border border-slate-800 rounded-3xl p-4 md:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl backdrop-blur-md">
+-        <div className="flex items-center gap-3 text-center sm:text-left">
+-          <div className="w-11 h-11 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shrink-0 shadow-inner">
+-            <Sparkles className="w-5 h-5" />
+-          </div>
+-          <div>
+-            <h1 className="text-xl md:text-2xl font-extrabold text-white tracking-tight">
+-              DocuMind • Rajbhasha Multilingual Assistant
+-            </h1>
+-            <p className="text-xs text-slate-400">
+-              Autonomous Document Intelligence • Qdrant Vector DB &amp; Llama 3.2
+-            </p>
+-          </div>
+-        </div>
+-
+-        <div className="flex items-center gap-2.5">
+-          <div className="flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded-full border border-slate-800 text-xs">
+-            <Database className="w-3.5 h-3.5 text-indigo-400" />
+-            <span className="text-slate-300 font-medium">Qdrant Active</span>
+-          </div>
+-
+-          <div className="flex items-center gap-2 bg-slate-950 px-3.5 py-1.5 rounded-full border border-slate-800 text-xs">
+-            <span className={`w-2 h-2 rounded-full ${ollamaStatus.available ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+-            <span className="text-slate-300 font-medium">
+-              {ollamaStatus.available ? `Ollama (${ollamaStatus.model})` : 'Ollama Standby'}
+-            </span>
+-          </div>
+-        </div>
+-      </header>
+-
+-      {/* ───────────────────────────────────────────────────────────── */}
+-      {/* Document Management Section: Magazines & Reports */}
+-      {/* ───────────────────────────────────────────────────────────── */}
+-      <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-4 md:p-5 space-y-4 shadow-lg">
+-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
+-          {/* Category Tabs */}
+-          <div className="flex items-center gap-2">
+-            <button
+-              onClick={() => setActiveCategoryTab('magazines')}
+-              className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-semibold transition-all cursor-pointer ${
+-                activeCategoryTab === 'magazines'
+-                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30 ring-1 ring-indigo-400/40'
+-                  : 'bg-slate-950 text-slate-400 hover:text-slate-200 hover:bg-slate-900 border border-slate-800'
+-              }`}
+-            >
+-              <BookOpen className="w-4 h-4" />
+-              <span>📖 MAGAZINES</span>
+-              <span className="bg-indigo-950/80 text-indigo-300 px-1.5 py-0.5 rounded-full text-[10px] ml-0.5">
+-                {magazines.length}
+-              </span>
+-            </button>
+-
++    // One screen tall: top bar, then sidebar | chat. Only the chat and the file list scroll.
++    <div className="h-full flex flex-col">
++      <Header ollamaStatus={ollamaStatus} onMenuClick={() => setSidebarOpen(true)} />
++
++      <div className="flex-1 min-h-0 flex">
++        {/* Sidebar: always visible on md+ */}
++        <aside className="hidden md:flex w-72 lg:w-80 shrink-0 flex-col border-r border-slate-800 bg-slate-900/40">
++          {sidebar}
++        </aside>
++
++        {/* Sidebar: drawer on small screens */}
++        {sidebarOpen && (
++          <div className="md:hidden fixed inset-0 z-40 flex">
++            <div className="w-[85%] max-w-sm h-full bg-slate-900 border-r border-slate-800 shadow-2xl">{sidebar}</div>
+             <button
+-              onClick={() => setActiveCategoryTab('reports')}
+-              className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-semibold transition-all cursor-pointer ${
+-                activeCategoryTab === 'reports'
+-                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30 ring-1 ring-indigo-400/40'
+-                  : 'bg-slate-950 text-slate-400 hover:text-slate-200 hover:bg-slate-900 border border-slate-800'
+-              }`}
+-            >
+-              <FileText className="w-4 h-4" />
+-              <span>📊 REPORTS</span>
+-              <span className="bg-indigo-950/80 text-indigo-300 px-1.5 py-0.5 rounded-full text-[10px] ml-0.5">
+-                {reports.length}
+-              </span>
+-            </button>
+-          </div>
+-
+-          {/* Upload Button */}
+-          <button
+-            onClick={() => {
+-              setIsUploadModalOpen(true);
+-              setUploadError(null);
+-              setUploadSuccessSummary(null);
+-            }}
+-            className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs px-5 py-2.5 rounded-2xl transition-all shadow-md shadow-indigo-600/30 active:scale-95 cursor-pointer"
+-          >
+-            <UploadCloud className="w-4 h-4" />
+-            <span>Upload Document</span>
+-          </button>
+-        </div>
+-
+-        {/* Document List under Active Category */}
+-        <div className="space-y-2">
+-          {activeCategoryTab === 'magazines' ? (
+-            magazines.length === 0 ? (
+-              <div className="text-center py-8 text-slate-500 text-xs">
+-                <BookOpen className="w-8 h-8 mx-auto text-slate-600 mb-2 opacity-50" />
+-                <p>No magazines uploaded yet.</p>
+-                <p className="text-[11px] text-slate-600 mt-1">Click "Upload Document" and select MAGAZINES to add an edition.</p>
+-              </div>
+-            ) : (
+-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+-                {magazines.map((doc) => {
+-                  const isSelected = activeScope === doc.id;
+-                  return (
+-                    <div
+-                      key={doc.id}
+-                      onClick={() => setActiveScope(isSelected ? 'all' : doc.id)}
+-                      className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between space-y-2 ${
+-                        isSelected
+-                          ? 'bg-indigo-950/40 border-indigo-500/70 shadow-md shadow-indigo-950/40 ring-1 ring-indigo-500/40'
+-                          : 'bg-slate-950/70 border-slate-800/80 hover:border-slate-700 hover:bg-slate-900/60'
+-                      }`}
+-                    >
+-                      <div className="flex items-start justify-between gap-2">
+-                        <div className="flex items-center gap-2 overflow-hidden">
+-                          <BookOpen className="w-4 h-4 text-indigo-400 shrink-0" />
+-                          <span className="font-semibold text-xs text-slate-200 truncate" title={doc.fileName}>
+-                            {doc.fileName}
+-                          </span>
+-                        </div>
+-                        <button
+-                          onClick={(e) => handleDeleteDocument(doc.id, e)}
+-                          title="Remove Document"
+-                          className="text-slate-500 hover:text-rose-400 p-1 rounded-lg hover:bg-rose-950/40 transition-colors"
+-                        >
+-                          <Trash2 className="w-3.5 h-3.5" />
+-                        </button>
+-                      </div>
+-
+-                      <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-800/60">
+-                        <span className="inline-flex items-center gap-1 text-emerald-400 font-medium">
+-                          <Calendar className="w-3 h-3" />
+-                          {doc.year ? `Year ${doc.year}` : 'Auto-detected'}
+-                        </span>
+-                        <span>{doc.totalPages || 1} Pages</span>
+-                        <span className="bg-slate-800 text-slate-300 text-[10px] px-1.5 py-0.5 rounded-md">
+-                          Ready
+-                        </span>
+-                      </div>
+-                    </div>
+-                  );
+-                })}
+-              </div>
+-            )
+-          ) : (
+-            reports.length === 0 ? (
+-              <div className="text-center py-8 text-slate-500 text-xs">
+-                <FileText className="w-8 h-8 mx-auto text-slate-600 mb-2 opacity-50" />
+-                <p>No reports uploaded yet.</p>
+-                <p className="text-[11px] text-slate-600 mt-1">Click "Upload Document" and select REPORTS to add official proformas.</p>
+-              </div>
+-            ) : (
+-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+-                {reports.map((doc) => {
+-                  const isSelected = activeScope === doc.id;
+-                  return (
+-                    <div
+-                      key={doc.id}
+-                      onClick={() => setActiveScope(isSelected ? 'all' : doc.id)}
+-                      className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between space-y-2 ${
+-                        isSelected
+-                          ? 'bg-indigo-950/40 border-indigo-500/70 shadow-md shadow-indigo-950/40 ring-1 ring-indigo-500/40'
+-                          : 'bg-slate-950/70 border-slate-800/80 hover:border-slate-700 hover:bg-slate-900/60'
+-                      }`}
+-                    >
+-                      <div className="flex items-start justify-between gap-2">
+-                        <div className="flex items-center gap-2 overflow-hidden">
+-                          <FileText className="w-4 h-4 text-emerald-400 shrink-0" />
+-                          <span className="font-semibold text-xs text-slate-200 truncate" title={doc.fileName}>
+-                            {doc.fileName}
+-                          </span>
+-                        </div>
+-                        <button
+-                          onClick={(e) => handleDeleteDocument(doc.id, e)}
+-                          title="Remove Document"
+-                          className="text-slate-500 hover:text-rose-400 p-1 rounded-lg hover:bg-rose-950/40 transition-colors"
+-                        >
+-                          <Trash2 className="w-3.5 h-3.5" />
+-                        </button>
+-                      </div>
+-
+-                      <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-800/60">
+-                        <span className="inline-flex items-center gap-1 text-emerald-400 font-medium">
+-                          <Calendar className="w-3 h-3" />
+-                          {doc.report_period || (doc.year ? `Year ${doc.year}` : 'Official Report')}
+-                        </span>
+-                        <span>{doc.totalPages || 1} Pages</span>
+-                        <span className="bg-slate-800 text-slate-300 text-[10px] px-1.5 py-0.5 rounded-md">
+-                          Ready
+-                        </span>
+-                      </div>
+-                    </div>
+-                  );
+-                })}
+-              </div>
+-            )
+-          )}
+-        </div>
+-
+-        {/* Scope Filter Dropdown */}
+-        <div className="flex items-center justify-between pt-2 border-t border-slate-800/60 text-xs">
+-          <div className="flex items-center gap-2">
+-            <span className="text-slate-400 font-medium">Active Query Scope:</span>
+-            <div className="relative">
+-              <select
+-                value={activeScope}
+-                onChange={(e) => setActiveScope(e.target.value)}
+-                className="bg-slate-950 border border-slate-800 text-white rounded-xl px-3 py-1.5 appearance-none focus:outline-none focus:border-indigo-500 cursor-pointer pr-7 text-xs"
+-              >
+-                <option value="all">📚 All Documents (Magazines &amp; Reports)</option>
+-                <option value="all_magazines">📖 All Magazines Only</option>
+-                <option value="all_reports">📊 All Reports Only</option>
+-                {documents.map((d) => (
+-                  <option key={d.id} value={d.id}>
+-                    {d.document_type === 'report' ? '📊 ' : '📖 '} {d.fileName}
+-                  </option>
+-                ))}
+-              </select>
+-              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2 top-2 pointer-events-none" />
+-            </div>
++              type="button"
++              className="flex-1 bg-black/50"
++              aria-label="बंद करें"
++              onClick={() => setSidebarOpen(false)}
++            />
+           </div>
+-
+-          <span className="text-[11px] text-slate-500">
+-            {activeScope === 'all'
+-              ? 'Querying entire knowledge base'
+-              : activeScope === 'all_magazines'
+-              ? 'Filtering to magazines'
+-              : activeScope === 'all_reports'
+-              ? 'Filtering to reports'
+-              : 'Focused on 1 document'}
+-          </span>
+-        </div>
+-      </div>
+-
+-      {/* ───────────────────────────────────────────────────────────── */}
+-      {/* Unified Chat History & Input */}
+-      {/* ───────────────────────────────────────────────────────────── */}
+-      <div className="bg-[#0f172a]/80 border border-slate-800 rounded-3xl shadow-2xl flex flex-col overflow-hidden">
+-
+-        {/* Messages Stream */}
+-        <div className="p-4 md:p-6 min-h-[300px] max-h-[480px] overflow-y-auto space-y-4">
+-          {messages.map((msg) => (
+-            <div
+-              key={msg.id}
+-              className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
+-            >
+-              {/* Sender Label */}
+-              <div className="flex items-center gap-2 text-[11px] text-slate-400 mb-1 px-1">
+-                {msg.sender === 'assistant' ? (
+-                  <span className="text-indigo-400 font-semibold flex items-center gap-1">
+-                    <Bot className="w-3.5 h-3.5" /> Assistant
+-                  </span>
+-                ) : (
+-                  <span className="text-slate-300 font-semibold flex items-center gap-1">
+-                    <User className="w-3.5 h-3.5" /> You
+-                  </span>
+-                )}
+-                <span>• {msg.timestamp}</span>
+-              </div>
+-
+-              {/* Message Bubble */}
+-              <div
+-                className={`max-w-[88%] rounded-2xl p-4 text-sm leading-relaxed ${
+-                  msg.sender === 'user'
+-                    ? 'bg-indigo-600 text-white rounded-tr-sm shadow-md'
+-                    : 'bg-slate-950/90 border border-slate-800 text-slate-200 rounded-tl-sm'
+-                }`}
+-              >
+-                <div className="prose prose-invert prose-sm max-w-none">
+-                  <ReactMarkdown>{msg.text}</ReactMarkdown>
+-                </div>
+-
+-                {/* Referenced Sources Pills */}
+-                {msg.sources && msg.sources.length > 0 && (
+-                  <div className="mt-3.5 pt-3 border-t border-slate-800/80 space-y-2">
+-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+-                      Referenced Sources (Click to inspect evidence chunk):
+-                    </span>
+-                    <div className="flex flex-wrap gap-2">
+-                      {msg.sources.map((src, idx) => (
+-                        <button
+-                          key={idx}
+-                          type="button"
+-                          onClick={() => setSelectedChunk(src)}
+-                          className="inline-flex items-center gap-1.5 text-[11px] bg-slate-900 hover:bg-indigo-950/70 border border-slate-800 hover:border-indigo-500/50 px-2.5 py-1 rounded-lg text-indigo-300 hover:text-indigo-200 transition-all cursor-pointer shadow-sm group"
+-                        >
+-                          {src.content_type === 'table' ? (
+-                            <FileText className="w-3.5 h-3.5 text-emerald-400 group-hover:scale-110 transition-transform" />
+-                          ) : (
+-                            <BookOpen className="w-3.5 h-3.5 text-indigo-400 group-hover:scale-110 transition-transform" />
+-                          )}
+-                          <span>
+-                            {src.document_name ? `${src.document_name.slice(0, 18)}... ` : ''}Page {src.page_number} ({src.content_type || src.collection_type || 'content'})
+-                          </span>
+-                          <ExternalLink className="w-3 h-3 opacity-60 group-hover:opacity-100" />
+-                        </button>
+-                      ))}
+-                    </div>
+-                  </div>
+-                )}
+-
+-                {/* Copy button */}
+-                {msg.sender === 'assistant' && (
+-                  <div className="mt-2 flex justify-end">
+-                    <button
+-                      onClick={() => copyToClipboard(msg.text, msg.id)}
+-                      className="text-slate-500 hover:text-slate-300 text-[11px] flex items-center gap-1 cursor-pointer transition-colors"
+-                    >
+-                      {copiedId === msg.id ? (
+-                        <>
+-                          <Check className="w-3 h-3 text-emerald-400" />
+-                          <span className="text-emerald-400">Copied</span>
+-                        </>
+-                      ) : (
+-                        <>
+-                          <Copy className="w-3 h-3" />
+-                          <span>Copy</span>
+-                        </>
+-                      )}
+-                    </button>
+-                  </div>
+-                )}
+-              </div>
+-            </div>
+-          ))}
+-
+-          {isQuerying && (
+-            <div className="flex items-center gap-2 text-xs text-indigo-400 animate-pulse p-2">
+-              <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-400" />
+-              <span>Searching Qdrant Vector Store &amp; Synthesizing Grounded Answer...</span>
+-            </div>
+-          )}
+-          <div ref={chatEndRef} />
+-        </div>
+-
+-        {/* Input Footer (No manual query mode selector buttons) */}
+-        <div className="bg-slate-950/70 border-t border-slate-800/80 p-4 md:p-5">
+-          <form onSubmit={handleSendMessage} className="space-y-3">
+-            <div className="relative">
+-              <input
+-                type="text"
+-                value={inputQuery}
+-                onChange={(e) => setInputQuery(e.target.value)}
+-                placeholder="Ask in Hindi, English, or Hinglish (e.g. 2024 पत्रिका के मुख्य लेख, कविताएं, रिपोर्ट के आंकड़े)..."
+-                className="w-full bg-slate-900/90 border border-slate-800 rounded-2xl px-4 py-3 text-xs md:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all"
+-                disabled={isQuerying}
+-              />
+-            </div>
+-
+-            <div className="flex justify-center">
+-              <button
+-                type="submit"
+-                disabled={isQuerying || !inputQuery.trim()}
+-                className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs md:text-sm font-semibold px-8 py-2 rounded-2xl flex items-center gap-2 shadow-lg shadow-indigo-600/25 active:scale-95 transition-all cursor-pointer"
+-              >
+-                {isQuerying ? (
+-                  <RefreshCw className="w-4 h-4 animate-spin" />
+-                ) : (
+-                  <Send className="w-4 h-4" />
+-                )}
+-                <span>Ask Assistant</span>
+-              </button>
+-            </div>
+-          </form>
+-        </div>
++        )}
++
++        {/* Chat */}
++        <section className="flex-1 min-w-0 flex flex-col">
++          <ChatMessages
++            messages={messages}
++            isQuerying={isQuerying}
++            copiedId={copiedId}
++            onCopy={copyToClipboard}
++            onSourceClick={setSelectedChunk}
++            onSuggestion={sendQuery}
++            scopeLabel={scopeText}
++          />
++          <ChatInput
++            value={inputQuery}
++            onChange={setInputQuery}
++            onSubmit={handleSendMessage}
++            isQuerying={isQuerying}
++            scopeLabel={scopeText}
++          />
++        </section>
+       </div>
+ 
+-      {/* ───────────────────────────────────────────────────────────── */}
+-      {/* Upload Modal (Category Selection & File Upload) */}
+-      {/* ───────────────────────────────────────────────────────────── */}
+-      {isUploadModalOpen && (
+-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+-          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full p-5 md:p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
+-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+-              <div className="flex items-center gap-2">
+-                <UploadCloud className="w-5 h-5 text-indigo-400" />
+-                <h3 className="text-base font-bold text-slate-100">Upload Document</h3>
+-              </div>
+-              <button
+-                onClick={() => {
+-                  if (!isUploading) {
+-                    setIsUploadModalOpen(false);
+-                    setUploadError(null);
+-                    setUploadSuccessSummary(null);
+-                  }
+-                }}
+-                disabled={isUploading}
+-                className="p-1.5 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-xl transition-colors cursor-pointer disabled:opacity-30"
+-              >
+-                <X className="w-5 h-5" />
+-              </button>
+-            </div>
+-
+-            {/* Hidden file input */}
+-            <input
+-              ref={fileInputRef}
+-              type="file"
+-              accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+-              className="hidden"
+-              onChange={(e) => handleFileUpload(e.target.files)}
+-            />
+-
+-            {!isUploading && !uploadSuccessSummary && (
+-              <div className="space-y-4">
+-                <p className="text-xs text-slate-300">
+-                  Which type of document are you uploading?
+-                </p>
+-
+-                <div className="grid grid-cols-2 gap-3">
+-                  <button
+-                    type="button"
+-                    onClick={() => handleStartUpload('magazine')}
+-                    className="p-4 rounded-2xl border border-slate-800 bg-slate-950 hover:bg-slate-800/80 hover:border-indigo-500/60 transition-all flex flex-col items-center text-center space-y-2 group cursor-pointer"
+-                  >
+-                    <div className="w-12 h-12 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 group-hover:scale-110 transition-transform">
+-                      <BookOpen className="w-6 h-6" />
+-                    </div>
+-                    <span className="font-bold text-xs text-slate-100">📖 MAGAZINES</span>
+-                    <span className="text-[10px] text-slate-400">
+-                      Annual/periodical editions, literary articles, poems, TOC
+-                    </span>
+-                  </button>
+-
+-                  <button
+-                    type="button"
+-                    onClick={() => handleStartUpload('report')}
+-                    className="p-4 rounded-2xl border border-slate-800 bg-slate-950 hover:bg-slate-800/80 hover:border-emerald-500/60 transition-all flex flex-col items-center text-center space-y-2 group cursor-pointer"
+-                  >
+-                    <div className="w-12 h-12 rounded-2xl bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform">
+-                      <FileText className="w-6 h-6" />
+-                    </div>
+-                    <span className="font-bold text-xs text-slate-100">📊 REPORTS</span>
+-                    <span className="text-[10px] text-slate-400">
+-                      Quarterly proformas, official metrics, data tables
+-                    </span>
+-                  </button>
+-                </div>
+-
+-                <div className="text-[11px] text-slate-500 text-center">
+-                  Supports PDF (.pdf) and Microsoft Word (.docx, .doc).
+-                </div>
+-              </div>
+-            )}
+-
+-            {/* Ingestion Progress Display */}
+-            {isUploading && (
+-              <div className="space-y-4 py-4">
+-                <div className="text-center space-y-1">
+-                  <RefreshCw className="w-8 h-8 animate-spin text-indigo-400 mx-auto mb-2" />
+-                  <h4 className="text-sm font-semibold text-slate-200">
+-                    Processing {uploadCategory === 'magazine' ? 'Magazine' : 'Report'}
+-                  </h4>
+-                  <p className="text-xs text-indigo-300 font-medium">{uploadStatusText}</p>
+-                </div>
+-
+-                {/* 5-Step Pipeline Progress Indicator */}
+-                <div className="space-y-2 pt-2">
+-                  {[
+-                    { step: 1, label: 'Uploading document file' },
+-                    { step: 2, label: 'Extracting text and tables' },
+-                    { step: 3, label: 'Detecting structure (Index / Content / Tables)' },
+-                    { step: 4, label: 'Generating multilingual embeddings (384-D)' },
+-                    { step: 5, label: 'Stored in Qdrant Vector DB' }
+-                  ].map((s) => {
+-                    const isDone = uploadProgressStep > s.step;
+-                    const isCurrent = uploadProgressStep === s.step;
+-                    return (
+-                      <div
+-                        key={s.step}
+-                        className={`flex items-center gap-2.5 text-xs p-2 rounded-xl transition-colors ${
+-                          isDone
+-                            ? 'bg-emerald-950/30 text-emerald-300 border border-emerald-500/20'
+-                            : isCurrent
+-                            ? 'bg-indigo-950/40 text-indigo-200 border border-indigo-500/30 font-semibold'
+-                            : 'text-slate-600'
+-                        }`}
+-                      >
+-                        {isDone ? (
+-                          <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+-                        ) : isCurrent ? (
+-                          <RefreshCw className="w-4 h-4 animate-spin text-indigo-400 shrink-0" />
+-                        ) : (
+-                          <div className="w-4 h-4 rounded-full border border-slate-700 flex items-center justify-center text-[10px] shrink-0">
+-                            {s.step}
+-                          </div>
+-                        )}
+-                        <span>{s.label}</span>
+-                      </div>
+-                    );
+-                  })}
+-                </div>
+-              </div>
+-            )}
+-
+-            {/* Upload Success Summary */}
+-            {uploadSuccessSummary && (
+-              <div className="space-y-4 py-2">
+-                <div className="bg-emerald-950/40 border border-emerald-500/30 rounded-2xl p-4 space-y-2">
+-                  <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs">
+-                    <FileCheck2 className="w-4 h-4" />
+-                    <span>Successfully Ingested into Qdrant!</span>
+-                  </div>
+-                  <p className="text-xs text-slate-200 font-medium">{uploadSuccessSummary.name}</p>
+-                  <div className="grid grid-cols-3 gap-2 text-[11px] text-slate-400 pt-2 border-t border-emerald-500/20">
+-                    <div>Category: <span className="text-white font-medium capitalize">{uploadSuccessSummary.type}</span></div>
+-                    <div>Year: <span className="text-emerald-300 font-bold">{uploadSuccessSummary.year || 'Auto'}</span></div>
+-                    <div>Pages: <span className="text-white font-medium">{uploadSuccessSummary.pages}</span></div>
+-                  </div>
+-                </div>
+-
+-                <div className="flex justify-end">
+-                  <button
+-                    onClick={() => {
+-                      setIsUploadModalOpen(false);
+-                      setUploadSuccessSummary(null);
+-                    }}
+-                    className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+-                  >
+-                    Done
+-                  </button>
+-                </div>
+-              </div>
+-            )}
+-
+-            {/* Upload Error */}
+-            {uploadError && (
+-              <div className="bg-rose-950/50 border border-rose-500/40 p-3 rounded-2xl text-xs text-rose-300 flex items-center gap-2">
+-                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+-                <span>{uploadError}</span>
+-              </div>
+-            )}
+-          </div>
+-        </div>
+-      )}
+-
+-      {/* ───────────────────────────────────────────────────────────── */}
+-      {/* Chunk Text Inspection Popup Modal */}
+-      {/* ───────────────────────────────────────────────────────────── */}
+-      {selectedChunk && (
+-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+-          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-2xl w-full p-5 md:p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
+-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+-              <div className="flex items-center gap-2">
+-                <BookOpen className="w-5 h-5 text-indigo-400" />
+-                <div>
+-                  <h3 className="text-sm font-bold text-slate-100">
+-                    Source Chunk Inspector • Page {selectedChunk.page_number}
+-                  </h3>
+-                  <span className="text-[11px] text-slate-400">
+-                    Content Type:{' '}
+-                    <span className="text-indigo-300 font-semibold uppercase">
+-                      {selectedChunk.content_type || selectedChunk.collection_type || 'content'}
+-                    </span>{' '}
+-                    | Doc: {selectedChunk.document_name || selectedChunk.document_id || 'Current Document'}
+-                    {selectedChunk.year ? ` • Year ${selectedChunk.year}` : ''}
+-                  </span>
+-                </div>
+-              </div>
+-              <button
+-                onClick={() => setSelectedChunk(null)}
+-                className="p-1.5 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+-              >
+-                <X className="w-5 h-5" />
+-              </button>
+-            </div>
+-
+-            <div className="bg-slate-950 border border-slate-800/80 rounded-2xl p-4 max-h-96 overflow-y-auto font-mono text-xs md:text-sm text-slate-200 leading-relaxed whitespace-pre-wrap">
+-              <HighlightText
+-                text={selectedChunk.text || 'No raw chunk text available in payload.'}
+-                highlight={selectedChunk.highlightText || selectedChunk.text?.slice(0, 100)}
+-                searchQuery=""
+-              />
+-            </div>
+-
+-            <div className="flex justify-end gap-2 pt-2">
+-              <button
+-                onClick={() => copyToClipboard(selectedChunk.text || '', 'modal-chunk')}
+-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
+-              >
+-                {copiedId === 'modal-chunk' ? (
+-                  <>
+-                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+-                    <span>Copied</span>
+-                  </>
+-                ) : (
+-                  <>
+-                    <Copy className="w-3.5 h-3.5" />
+-                    <span>Copy Text</span>
+-                  </>
+-                )}
+-              </button>
+-              <button
+-                onClick={() => setSelectedChunk(null)}
+-                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+-              >
+-                Close
+-              </button>
+-            </div>
+-          </div>
+-        </div>
+-      )}
++      <UploadModal
++        isOpen={isUploadModalOpen}
++        isUploading={isUploading}
++        category={uploadCategory}
++        progressStep={uploadProgressStep}
++        statusText={uploadStatusText}
++        error={uploadError}
++        successSummary={uploadSuccessSummary}
++        fileInputRef={fileInputRef}
++        onStartUpload={handleStartUpload}
++        onFilesSelected={handleFileUpload}
++        onClose={() => {
++          if (!isUploading) {
++            setIsUploadModalOpen(false);
++            setUploadError(null);
++            setUploadSuccessSummary(null);
++          }
++        }}
++        onDone={() => {
++          setIsUploadModalOpen(false);
++          setUploadSuccessSummary(null);
++        }}
++      />
++
++      <SourceInspector
++        chunk={selectedChunk}
++        copiedId={copiedId}
++        onCopy={copyToClipboard}
++        onClose={() => setSelectedChunk(null)}
++      />
+     </div>
+   );
+-};
++};
+\ No newline at end of file
+diff --git a/src/components/SourceInspector.tsx b/src/components/SourceInspector.tsx
+new file mode 100644
+index 0000000..e8317de
+--- /dev/null
++++ b/src/components/SourceInspector.tsx
+@@ -0,0 +1,79 @@
++import React from 'react';
++import { BookOpen, X, Copy, Check } from 'lucide-react';
++import { HighlightText } from './HighlightText';
++import { SourceItem } from './chatTypes';
++
++interface SourceInspectorProps {
++  chunk: SourceItem | null;
++  copiedId: string | null;
++  onCopy: (text: string, id: string) => void;
++  onClose: () => void;
++}
++
++export const SourceInspector: React.FC<SourceInspectorProps> = ({ chunk, copiedId, onCopy, onClose }) => {
++  if (!chunk) return null;
++
++  return (
++    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
++      <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-2xl w-full p-5 md:p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
++        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
++          <div className="flex items-center gap-2">
++            <BookOpen className="w-5 h-5 text-indigo-400" />
++            <div>
++              <h3 className="text-sm font-bold text-slate-100">
++                Source Chunk Inspector • Page {chunk.page_number}
++              </h3>
++              <span className="text-[11px] text-slate-400">
++                Content Type:{' '}
++                <span className="text-indigo-300 font-semibold uppercase">
++                  {chunk.content_type || chunk.collection_type || 'content'}
++                </span>{' '}
++                | Doc: {chunk.document_name || chunk.document_id || 'Current Document'}
++                {chunk.year ? ` • Year ${chunk.year}` : ''}
++              </span>
++            </div>
++          </div>
++          <button
++            onClick={() => onClose()}
++            className="p-1.5 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
++          >
++            <X className="w-5 h-5" />
++          </button>
++        </div>
++
++        <div className="bg-slate-950 border border-slate-800/80 rounded-2xl p-4 max-h-96 overflow-y-auto font-mono text-xs md:text-sm text-slate-200 leading-relaxed whitespace-pre-wrap">
++          <HighlightText
++            text={chunk.text || 'No raw chunk text available in payload.'}
++            highlight={chunk.highlightText || chunk.text?.slice(0, 100)}
++            searchQuery=""
++          />
++        </div>
++
++        <div className="flex justify-end gap-2 pt-2">
++          <button
++            onClick={() => onCopy(chunk.text || '', 'modal-chunk')}
++            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
++          >
++            {copiedId === 'modal-chunk' ? (
++              <>
++                <Check className="w-3.5 h-3.5 text-emerald-400" />
++                <span>Copied</span>
++              </>
++            ) : (
++              <>
++                <Copy className="w-3.5 h-3.5" />
++                <span>Copy Text</span>
++              </>
++            )}
++          </button>
++          <button
++            onClick={() => onClose()}
++            className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer"
++          >
++            Close
++          </button>
++        </div>
++      </div>
++    </div>
++  );
++};
+\ No newline at end of file
+diff --git a/src/components/UploadModal.tsx b/src/components/UploadModal.tsx
+new file mode 100644
+index 0000000..adde94d
+--- /dev/null
++++ b/src/components/UploadModal.tsx
+@@ -0,0 +1,191 @@
++import React from 'react';
++import { UploadCloud, X, BookOpen, FileText, RefreshCw, Check, FileCheck2, AlertCircle } from 'lucide-react';
++import { UploadSummary } from './chatTypes';
++
++interface UploadModalProps {
++  isOpen: boolean;
++  isUploading: boolean;
++  category: 'magazine' | 'report';
++  progressStep: number;
++  statusText: string;
++  error: string | null;
++  successSummary: UploadSummary | null;
++  fileInputRef: React.RefObject<HTMLInputElement | null>;
++  onStartUpload: (category: 'magazine' | 'report') => void;
++  onFilesSelected: (files: FileList | null) => void;
++  onClose: () => void;
++  onDone: () => void;
++}
++
++export const UploadModal: React.FC<UploadModalProps> = ({
++  isOpen,
++  isUploading,
++  category,
++  progressStep,
++  statusText,
++  error,
++  successSummary,
++  fileInputRef,
++  onStartUpload,
++  onFilesSelected,
++  onClose,
++  onDone,
++}) => {
++  if (!isOpen) return null;
++
++  return (
++    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
++      <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full p-5 md:p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
++        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
++          <div className="flex items-center gap-2">
++            <UploadCloud className="w-5 h-5 text-indigo-400" />
++            <h3 className="text-base font-bold text-slate-100">Upload Document</h3>
++          </div>
++          <button
++            onClick={onClose}
++            disabled={isUploading}
++            className="p-1.5 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-xl transition-colors cursor-pointer disabled:opacity-30"
++          >
++            <X className="w-5 h-5" />
++          </button>
++        </div>
++
++        {/* Hidden file input */}
++        <input
++          ref={fileInputRef}
++          type="file"
++          accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
++          className="hidden"
++          onChange={(e) => onFilesSelected(e.target.files)}
++        />
++
++        {!isUploading && !successSummary && (
++          <div className="space-y-4">
++            <p className="text-xs text-slate-300">
++              Which type of document are you uploading?
++            </p>
++
++            <div className="grid grid-cols-2 gap-3">
++              <button
++                type="button"
++                onClick={() => onStartUpload('magazine')}
++                className="p-4 rounded-2xl border border-slate-800 bg-slate-950 hover:bg-slate-800/80 hover:border-indigo-500/60 transition-all flex flex-col items-center text-center space-y-2 group cursor-pointer"
++              >
++                <div className="w-12 h-12 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 group-hover:scale-110 transition-transform">
++                  <BookOpen className="w-6 h-6" />
++                </div>
++                <span className="font-bold text-xs text-slate-100">📖 MAGAZINES</span>
++                <span className="text-[10px] text-slate-400">
++                  Annual/periodical editions, literary articles, poems, TOC
++                </span>
++              </button>
++
++              <button
++                type="button"
++                onClick={() => onStartUpload('report')}
++                className="p-4 rounded-2xl border border-slate-800 bg-slate-950 hover:bg-slate-800/80 hover:border-emerald-500/60 transition-all flex flex-col items-center text-center space-y-2 group cursor-pointer"
++              >
++                <div className="w-12 h-12 rounded-2xl bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform">
++                  <FileText className="w-6 h-6" />
++                </div>
++                <span className="font-bold text-xs text-slate-100">📊 REPORTS</span>
++                <span className="text-[10px] text-slate-400">
++                  Quarterly proformas, official metrics, data tables
++                </span>
++              </button>
++            </div>
++
++            <div className="text-[11px] text-slate-500 text-center">
++              Supports PDF (.pdf) and Microsoft Word (.docx, .doc).
++            </div>
++          </div>
++        )}
++
++        {/* Ingestion Progress Display */}
++        {isUploading && (
++          <div className="space-y-4 py-4">
++            <div className="text-center space-y-1">
++              <RefreshCw className="w-8 h-8 animate-spin text-indigo-400 mx-auto mb-2" />
++              <h4 className="text-sm font-semibold text-slate-200">
++                Processing {category === 'magazine' ? 'Magazine' : 'Report'}
++              </h4>
++              <p className="text-xs text-indigo-300 font-medium">{statusText}</p>
++            </div>
++
++            {/* 5-Step Pipeline Progress Indicator */}
++            <div className="space-y-2 pt-2">
++              {[
++                { step: 1, label: 'Uploading document file' },
++                { step: 2, label: 'Extracting text and tables' },
++                { step: 3, label: 'Detecting structure (Index / Content / Tables)' },
++                { step: 4, label: 'Generating multilingual embeddings (384-D)' },
++                { step: 5, label: 'Stored in Qdrant Vector DB' }
++              ].map((s) => {
++                const isDone = progressStep > s.step;
++                const isCurrent = progressStep === s.step;
++                return (
++                  <div
++                    key={s.step}
++                    className={`flex items-center gap-2.5 text-xs p-2 rounded-xl transition-colors ${
++                      isDone
++                        ? 'bg-emerald-950/30 text-emerald-300 border border-emerald-500/20'
++                        : isCurrent
++                        ? 'bg-indigo-950/40 text-indigo-200 border border-indigo-500/30 font-semibold'
++                        : 'text-slate-600'
++                    }`}
++                  >
++                    {isDone ? (
++                      <Check className="w-4 h-4 text-emerald-400 shrink-0" />
++                    ) : isCurrent ? (
++                      <RefreshCw className="w-4 h-4 animate-spin text-indigo-400 shrink-0" />
++                    ) : (
++                      <div className="w-4 h-4 rounded-full border border-slate-700 flex items-center justify-center text-[10px] shrink-0">
++                        {s.step}
++                      </div>
++                    )}
++                    <span>{s.label}</span>
++                  </div>
++                );
++              })}
++            </div>
++          </div>
++        )}
++
++        {/* Upload Success Summary */}
++        {successSummary && (
++          <div className="space-y-4 py-2">
++            <div className="bg-emerald-950/40 border border-emerald-500/30 rounded-2xl p-4 space-y-2">
++              <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs">
++                <FileCheck2 className="w-4 h-4" />
++                <span>Successfully Ingested into Qdrant!</span>
++              </div>
++              <p className="text-xs text-slate-200 font-medium">{successSummary.name}</p>
++              <div className="grid grid-cols-3 gap-2 text-[11px] text-slate-400 pt-2 border-t border-emerald-500/20">
++                <div>Category: <span className="text-white font-medium capitalize">{successSummary.type}</span></div>
++                <div>Year: <span className="text-emerald-300 font-bold">{successSummary.year || 'Auto'}</span></div>
++                <div>Pages: <span className="text-white font-medium">{successSummary.pages}</span></div>
++              </div>
++            </div>
++
++            <div className="flex justify-end">
++              <button
++                onClick={onDone}
++                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer"
++              >
++                Done
++              </button>
++            </div>
++          </div>
++        )}
++
++        {/* Upload Error */}
++        {error && (
++          <div className="bg-rose-950/50 border border-rose-500/40 p-3 rounded-2xl text-xs text-rose-300 flex items-center gap-2">
++            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
++            <span>{error}</span>
++          </div>
++        )}
++      </div>
++    </div>
++  );
++};
+\ No newline at end of file
+diff --git a/src/components/chatTypes.ts b/src/components/chatTypes.ts
+new file mode 100644
+index 0000000..0175195
+--- /dev/null
++++ b/src/components/chatTypes.ts
+@@ -0,0 +1,120 @@
++// Shapes used by the chat UI components (MainChatbot and its children).
++
++export interface SourceItem {
++  chunk_id?: string;
++  chunkId?: string;
++  document_id?: string;
++  docName?: string;
++  document_name?: string;
++  document_type?: 'magazine' | 'report';
++  year?: number | null;
++  content_type?: string;
++  page_number?: number;
++  pageNumber?: number;
++  collection_type?: string;
++  table_id?: string;
++  extractionConfidence?: number;
++  text?: string;
++  quote?: string;
++  highlightText?: string;
++  section?: string;
++  relevanceScore?: number;
++}
++
++// ---------------------------------------------------------------------------
++// Comparison chart data
++// ---------------------------------------------------------------------------
++
++/**
++ * Raw `chart_data` as the backend sends it (report_metrics.py / magazine_metrics.py):
++ *
++ *    { type: "bar", labels: ["Metric A", ...],
++ *      series: [{ name: "2024", values: [..] }, { name: "2025", values: [..] }], unit: "" }
++ *
++ * `normalizeChartData()` in ChatMessages.tsx also accepts a few other common shapes
++ * (Chart.js `datasets`, row lists, `{years, metrics}`) so a format change does not break the UI.
++ */
++export type RawChartData =
++  | {
++      labels?: (string | number)[];
++      type?: string;
++      series?: { name?: string | number; values?: (number | string | null)[] }[];
++      datasets?: { label?: string | number; data?: (number | string | null)[] }[];
++      years?: (string | number)[];
++      metrics?: { name?: string; metric?: string; label?: string; values?: (number | string | null)[] }[];
++      rows?: Record<string, unknown>[];
++      data?: Record<string, unknown>[];
++      items?: Record<string, unknown>[];
++      title?: string;
++      unit?: string;
++      [key: string]: unknown;
++    }
++  | Record<string, unknown>[]
++  | string;
++
++/**
++ * One row of the backend's `comparison` list (report / magazine comparison).
++ * `values` is keyed by period, e.g. { "2024": 12, "2025": 18 }.
++ */
++export interface BackendComparisonRow {
++  metric: string;
++  region?: string | null;
++  section_no?: string;
++  section?: string;
++  is_percent?: boolean;
++  values: Record<string, number | null>;
++  change?: number | null;
++  change_pct?: number | null;
++}
++
++/** One row of the normalised comparison table. */
++export interface ComparisonRow {
++  metric: string;
++  /** True when the values are percentages (shown with %, change in percentage points). */
++  isPercent?: boolean;
++  /** Value for each period, in the same order as `ComparisonData.periods`. */
++  values: (number | null)[];
++  /** Absolute change from the first to the last period (null if either is missing). */
++  change: number | null;
++  /** Percentage change from the first to the last period (null if base is 0/missing). */
++  changePct: number | null;
++}
++
++/** Normalised data the table and bar graph render from. */
++export interface ComparisonData {
++  title?: string;
++  unit?: string;
++  /** Column labels, e.g. ["2024", "2025"]. */
++  periods: string[];
++  rows: ComparisonRow[];
++}
++
++export interface ChatMessage {
++  id: string;
++  sender: 'user' | 'assistant';
++  text: string;
++  timestamp: string;
++  sources?: SourceItem[];
++  detectedScript?: string;
++  scopeLabel?: string;
++  /** Graph data from the backend's `chart_data` field (either spelling is read). */
++  chartData?: RawChartData | null;
++  chart_data?: RawChartData | null;
++  /** Comparison rows from the backend's `comparison` field (preferred source for the table). */
++  comparison?: BackendComparisonRow[] | null;
++  /** Period labels from the backend's `periods` field, oldest first. */
++  periods?: string[] | null;
++}
++
++export interface OllamaStatusInfo {
++  available: boolean;
++  model: string;
++}
++
++export interface UploadSummary {
++  name: string;
++  type?: string;
++  year?: number | null;
++  pages?: number;
++  chunks?: number;
++}
+\ No newline at end of file

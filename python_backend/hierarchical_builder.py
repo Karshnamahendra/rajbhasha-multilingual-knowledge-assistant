@@ -303,6 +303,57 @@ def build_table_hierarchy(table: Dict[str, Any]) -> Optional[HierarchicalNode]:
 
 
 
+# Magazine masthead / credits headings. In editorial pages the role is on one
+# line and the names are on the following lines, with no ":" in between, e.g.
+#   विशेष सहयोग
+#   नवीन चन्द्र
+_MASTHEAD_HEADINGS = {
+    "संरक्षक", "मुख्य संरक्षक", "संपादक", "सम्पादक", "मुख्य संपादक", "प्रधान संपादक",
+    "सह संपादक", "सह-संपादक", "उप संपादक", "संपादक मंडल", "संपादक मण्डल", "संपादकीय मंडल",
+    "कवर डिजाइन", "कवर डिज़ाइन", "आवरण", "आवरण सज्जा", "आवरण डिजाइन", "विशेष सहयोग", "सहयोग",
+    "परामर्श", "परामर्शदाता", "मार्गदर्शन", "मार्गदर्शक", "प्रकाशक", "संयोजक", "संकलन",
+    "संकलनकर्ता", "टंकण", "अध्यक्ष", "सचिव", "सदस्य सचिव", "सदस्य", "प्रबंध संपादक",
+    "patron", "chief patron", "editor", "chief editor", "editor-in-chief", "co-editor",
+    "associate editor", "editorial board", "cover design", "special support", "special thanks",
+    "advisor", "advisors", "publisher", "convener", "compiled by", "chairman", "secretary",
+}
+
+
+def _is_masthead_heading(line: str) -> bool:
+    return clean_key(line).lower() in _MASTHEAD_HEADINGS
+
+
+def _looks_like_name_line(line: str) -> bool:
+    t = clean_text(line)
+    if not t or ":" in t or "：" in t or re.search(r"\d", t):
+        return False
+    return 1 <= len(t.split()) <= 5 and len(t) <= 60
+
+
+def build_masthead_nodes(pages: List[Dict[str, Any]], seen_keys: Set[str]) -> List[HierarchicalNode]:
+    """Heading line + following name lines  ->  HierarchicalNode(key=heading, value='name1, name2')."""
+    nodes: List[HierarchicalNode] = []
+    for page in pages:
+        p_num = page.get("page_number")
+        lines = [ln.strip() for ln in (page.get("text") or "").splitlines() if ln.strip()]
+        i = 0
+        while i < len(lines):
+            if _is_masthead_heading(lines[i]):
+                key = clean_key(lines[i])
+                names = []
+                j = i + 1
+                while j < len(lines) and len(names) < 6 and not _is_masthead_heading(lines[j]) and _looks_like_name_line(lines[j]):
+                    names.append(clean_text(lines[j]))
+                    j += 1
+                if names and key not in seen_keys:
+                    seen_keys.add(key)
+                    nodes.append(HierarchicalNode(key=key, value=", ".join(names), source_page=p_num))
+                i = j if names else i + 1
+            else:
+                i += 1
+    return nodes
+
+
 def build_prose_content_hierarchy(pages: List[Dict[str, Any]], existing_keys: Set[str]) -> List[HierarchicalNode]:
     """Extracts standalone Field : Value pairs outside tables into a single consolidated section."""
     content_nodes: List[HierarchicalNode] = []
@@ -320,12 +371,34 @@ def build_prose_content_hierarchy(pages: List[Dict[str, Any]], existing_keys: Se
 
         lines = [line.strip() for line in text.splitlines() if line.strip()]
 
-        for line in lines:
+        for idx, line in enumerate(lines):
             m = kv_pattern.match(line)
             if m:
                 k_raw, v_raw = m.groups()
+                # Heading ending with ":" and no value on the same line, followed by
+                # list items (docx bullets lose their "•"), e.g.
+                #   कैसे बचें इन साइबर हमलों से:
+                #   मजबूत पासवर्ड रखें ...
+                #   अनजान ईमेल, लिंक ... न खोलें।
+                if not clean_val(v_raw) and "?" not in k_raw and len(k_raw.split()) <= 12:
+                    items = []
+                    for nxt in lines[idx + 1: idx + 16]:
+                        n_clean = clean_text(nxt)
+                        if not n_clean or n_clean.endswith((":", "：")) or len(n_clean.split()) > 25:
+                            break
+                        items.append(re.sub(r"^[•●▪◦\-*]\s*", "", n_clean))
+                    k_list = clean_key(k_raw)
+                    if len(items) >= 2 and k_list and k_list not in seen_keys:
+                        seen_keys.add(k_list)
+                        all_kv_children.append(HierarchicalNode(
+                            key=k_list, value="\n".join("- " + it for it in items), source_page=p_num))
+                    continue
                 # Skip if the key is purely a numeric index like '1.', '2.', '3'
                 if re.fullmatch(r"\d+[.)\s:-]*", k_raw.strip()):
+                    continue
+                # Skip poem / prose lines that only look like "key : value":
+                # a question as key, several colons in one line, or a very long key.
+                if "?" in k_raw or len(re.findall(r"[:：]", line)) > 1 or len(k_raw.split()) > 8:
                     continue
                 k_clean = clean_key(k_raw)
                 v_clean = clean_val(v_raw)
@@ -336,6 +409,14 @@ def build_prose_content_hierarchy(pages: List[Dict[str, Any]], existing_keys: Se
                     if len(v_clean) > 0 and not v_clean.startswith(":"):
                         seen_keys.add(k_clean)
                         all_kv_children.append(HierarchicalNode(key=k_clean, value=v_clean, source_page=p_num))
+
+    masthead_children = build_masthead_nodes(pages, seen_keys)
+    if masthead_children:
+        content_nodes.append(HierarchicalNode(
+            key="संपादक मंडल / Editorial Board",
+            children=masthead_children,
+            source_page=masthead_children[0].source_page
+        ))
 
     if all_kv_children:
         content_nodes.append(HierarchicalNode(

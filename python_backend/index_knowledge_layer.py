@@ -548,6 +548,9 @@ class TOCExtractor:
                 if m_pg:
                     page_target = int(m_pg.group(1))
                     rest = rest[:m_pg.start()].strip()
+                # DOCX table rows arrive as "title : : : author : page" (the ":" column is a
+                # cell of its own), so drop the separator left behind by the page cell.
+                rest = re.sub(r"[\s:：]+$", "", rest)
 
                 # Separate title and author
                 title = ""
@@ -557,10 +560,12 @@ class TOCExtractor:
                     title = parts[0].strip()
                     author = parts[1].strip() if len(parts) > 1 else ""
                 elif ":" in rest or "：" in rest:
-                    colons = [m.start() for m in re.finditer(r"[:：]", rest)]
-                    last_colon = colons[-1]
-                    title = rest[:last_colon].strip()
-                    author = rest[last_colon + 1:].strip()
+                    segs = [x.strip() for x in re.split(r"[:：]", rest) if x.strip()]
+                    if len(segs) >= 2:
+                        title = ": ".join(segs[:-1])
+                        author = segs[-1]
+                    else:
+                        title = segs[0] if segs else rest.strip()
                 elif " by " in rest.lower():
                     idx = rest.lower().rfind(" by ")
                     title = rest[:idx].strip()
@@ -781,13 +786,31 @@ class StructuredIndexEngine:
 
         # 7. Extra spaces clean karein
         cleaned_target = re.sub(r"\s+", " ", text).strip()
-        cleaned_target = re.sub(r"^[\u0900-\u0903\s]+|[\u0900-\u0903\s]+$", "", cleaned_target).strip()
+        # Drop only stray marks at the START. A mark at the end belongs to the word
+        # (माँ, कहानियां), so stripping it there turned "माँ" into "मा".
+        cleaned_target = re.sub(r"^[\u0900-\u0903\s]+", "", cleaned_target).strip()
         return cleaned_target
 
     def _extract_author_target(self, query: str) -> str:
         """Extract author name from a TITLE_BY_AUTHOR / ARTICLE_BY_AUTHOR query, preserving proper nouns."""
         text = query.strip()
         text = re.sub(r'["\'\?:,।–—]', ' ', text)
+        # "X ne kitne lekh likhe" / "X ने कितने लेख लिखे हैं" -> keep only what is before ne/ने
+        m_ne = re.search(r'(?:^|\s)(?:ne|ने)\s', text, flags=re.IGNORECASE)
+        if m_ne and m_ne.start() > 0:
+            text = text[:m_ne.start()]
+        # "how many articles did X write"
+        m_did = re.search(r'\bhow\s+many\s+\w+\s+(?:did|has|have)\s+(.+?)\s+(?:write|written)\b', text, flags=re.IGNORECASE)
+        if m_did:
+            text = m_did.group(1)
+        # "articles written by X" / "X द्वारा लिखे गए लेख"
+        m_by = re.search(r'\b(?:written|authored)\s+by\s+(.+)$', text, flags=re.IGNORECASE)
+        if m_by:
+            text = m_by.group(1)
+        m_dwara = re.search(r'^(.+?)\s+(?:द्वारा|dwara)\s', text, flags=re.IGNORECASE)
+        if m_dwara:
+            text = m_dwara.group(1)
+        text = re.sub(r'\b(?:how\s+many|total|kul|kitne|kitni)\b|कितने|कितनी|कुल', ' ', text, flags=re.IGNORECASE)
         
         # Strip prefixes like "Which article was written by", "What did", "Who wrote"
         text = re.sub(r'^(?:which\s+(?:article|poem|story|report|work)\s+(?:was|were|is|are)?\s*written\s+by|what\s+did|which\s+(?:article|poem|story|report)\s+did)\s+', ' ', text, flags=re.IGNORECASE)
@@ -811,6 +834,119 @@ class StructuredIndexEngine:
         cleaned_words = [w for w in words if w.lower().rstrip('.') not in noise_words and len(w.strip()) > 0]
         return ' '.join(cleaned_words).strip()
 
+
+    _AUTHOR_STOPS = {
+        "and", "aur", "evam", "va", "or", "dr", "ms", "mrs", "mr", "shri", "sushri", "shrimati", "kumari", "km",
+        "डॉ", "सुश्री", "श्रीमती", "श्री", "कुमारी", "कु", "और", "एवं", "व", "तथा",
+    }
+
+    def _strict_author_match(self, query_author: str, cand_author: str, cand_roman: Optional[str] = None) -> bool:
+        """Every word of the asked name must match a whole word of the author's name.
+
+        Fuzzy substring scoring treats "सुनीता" and "नीता" as the same name, so for
+        author lists a word only matches when it is identical, or when both romanised
+        forms share the first letter and the consonant skeleton (sunita / suneeta,
+        naveen / navin), or are near-identical long words.
+        """
+        def words(text):
+            return [w for w in re.findall(r"[a-zA-Z\u0900-\u097F]+", (text or "").lower())
+                    if w not in self._AUTHOR_STOPS and len(w) > 1]
+
+        def roman(w):
+            if not re.search(r"[\u0900-\u097F]", w):
+                return w
+            # ड़ / ढ़ are spoken as "r" (अरोड़ा = Arora)
+            w = w.replace("\u095c", "र").replace("\u095d", "र").replace("ड\u093c", "र").replace("ढ\u093c", "र")
+            return romanize_generic(w).lower().strip()
+
+        q_words = words(query_author)
+        c_words = words(cand_author) + words(cand_roman)
+        if not q_words or not c_words:
+            return False
+        c_forms = [(cw, roman(cw)) for cw in c_words]
+        for qw in q_words:
+            qr = roman(qw)
+            ok = False
+            for cw, cr in c_forms:
+                if qw == cw or (qr and qr == cr):
+                    ok = True
+                elif qr and cr and qr[0] == cr[0]:
+                    qs, cs = self._consonant_skeleton(qr), self._consonant_skeleton(cr)
+                    if len(qs) >= 2 and qs == cs:
+                        ok = True
+                    elif min(len(qr), len(cr)) >= 5 and difflib.SequenceMatcher(None, qr, cr).ratio() >= 0.85:
+                        ok = True
+                if ok:
+                    break
+            if not ok:
+                return False
+        return True
+
+    def _answer_author_works(self, query: str, author_q: str, records: List[Dict[str, Any]]):
+        """Count + list every work of an author from the TOC records.
+
+        "सुनीता ने कितने लेख लिखे?" ->
+            सुनीता अरोड़ा ने कुल 2 रचनाएँ लिखी हैं:
+            1. <title> (पृष्ठ 12)
+            2. <title> (पृष्ठ 40)
+        Different people with the same first name are listed separately.
+        """
+        q_low = query.lower()
+        is_hindi = bool(re.search(r"[\u0900-\u097F]|\b(?:ne|kitne|kitni|likhe|likha|lekh|kavita|hai|hain)\b", q_low))
+        want_poem = any(k in q_low for k in ["poem", "kavita", "कविता", "कविताएं", "कवितायें", "काव्य"])
+        want_story = any(k in q_low for k in ["story", "stories", "kahani", "कहानी", "कहानियां"])
+
+        hits = []
+        for rec in records:
+            a = rec.get("author_original")
+            if not a:
+                continue
+            if not self._strict_author_match(author_q, a, rec.get("author_roman")):
+                continue
+            sec = (rec.get("section_original") or "").lower()
+            rtype = (rec.get("type") or "").lower()
+            if want_poem and not ("poem" in rtype or "कविता" in sec):
+                continue
+            if want_story and not ("story" in rtype or "कहानी" in sec):
+                continue
+            hits.append(rec)
+
+        if not hits:
+            return "", []
+
+        # group by (author, document) keeping TOC order, drop duplicate titles
+        groups: Dict[tuple, List[Dict[str, Any]]] = {}
+        seen = set()
+        for rec in hits:
+            key_t = (rec.get("document_id"), rec.get("author_original"), rec.get("title_original"))
+            if key_t in seen:
+                continue
+            seen.add(key_t)
+            groups.setdefault((rec.get("author_original"), rec.get("document_id")), []).append(rec)
+
+        multi_doc = len({d for _, d in groups}) > 1
+        noun_hi_pl = "कविताएँ" if want_poem else ("कहानियाँ" if want_story else "रचनाएँ")
+        noun_hi_sg = "कविता" if want_poem else ("कहानी" if want_story else "रचना")
+        noun_en_pl = "poems" if want_poem else ("stories" if want_story else "works")
+        noun_en_sg = "poem" if want_poem else ("story" if want_story else "work")
+        blocks = []
+        for (author, doc_id), recs in groups.items():
+            doc_label = re.sub(r"\.(?:docx?|pdf)$", "", str(doc_id or ""), flags=re.IGNORECASE)
+            lines = []
+            for i, r in enumerate(recs, 1):
+                pg = r.get("page_number")
+                pg_txt = (f" (पृष्ठ {pg})" if is_hindi else f" (page {pg})") if pg else ""
+                lines.append(f"{i}\\. {r.get('title_original')}{pg_txt}  ")
+            n = len(recs)
+            if is_hindi:
+                head = (f"**{author}** ने कुल **{n}** {noun_hi_pl} लिखी हैं" if n > 1
+                        else f"**{author}** ने **1** {noun_hi_sg} लिखी है")
+                head += f" ({doc_label} में):" if multi_doc and doc_label else ":"
+            else:
+                head = f"**{author}** wrote **{n}** {noun_en_pl if n > 1 else noun_en_sg}"
+                head += f" (in {doc_label}):" if multi_doc and doc_label else ":"
+            blocks.append(head + "\n\n" + "\n".join(lines))
+        return "\n\n".join(blocks), hits
 
     def _extract_topic_keywords(self, query: str) -> str:
         """Extract the topic/subject from a topic-search query like 'AI se related article kisne likhe' or 'ai related all articles'."""
@@ -1251,6 +1387,19 @@ class StructuredIndexEngine:
             or bool(re.search(r'\bने\s+(?:कौन\s*(?:सा|सी)|क्या|लिखा|लिखी)', norm_q))
         )
 
+        # 3B. AUTHOR_WORKS: "सुनीता ने कितने लेख लिखे", "sunita ne kitne lekh likhe",
+        # "how many articles did Sunita write", "articles written by Sunita"
+        has_ne_likh = bool(re.search(r'(?:^|\s)(?:ne|ने)\s+.*(?:likh|लिख|rach|रच)', norm_q))
+        is_author_works = (
+            has_ne_likh
+            or bool(re.search(r'\bhow\s+many\s+\w+\s+(?:did|has|have)\s+.+?\s+(?:write|written)\b', norm_q))
+            or bool(re.search(r'\b(?:articles?|poems?|stories|works?)\s+(?:written|authored)\s+by\s+\S+', norm_q))
+            or bool(re.search(r'(?:द्वारा\s+लिखे|द्वारा\s+लिखी|dwara\s+likh)', norm_q))
+        )
+        if is_author_works:
+            is_title_by_author = True
+        wants_author_count = is_author_works and (is_count or is_list or bool(re.search(r'कितनी|कितने|kitni|kitne|how\s+many|कौन[\s-]*कौन|kaun[\s-]*kaun|सभी|सारे|सूची|नाम|\bnaam\b|\blist\b|\ball\b|\bwhich\b', norm_q)))
+
         # 4. AUTHOR_BY_ARTICLE (AUTHOR_BY_TITLE) Detection
         has_who_word = (
             any(k in norm_q for k in [
@@ -1317,6 +1466,8 @@ class StructuredIndexEngine:
                 intent = "LAST_ITEM"
             else:
                 intent = "NTH_ITEM"
+        elif is_author_works:
+            intent = "TITLE_BY_AUTHOR"
         elif is_count:
             intent = "COUNT"
         elif is_page:
@@ -1356,6 +1507,7 @@ class StructuredIndexEngine:
 
         return {
             "intent": intent,
+            "wants_author_count": bool(intent == "TITLE_BY_AUTHOR" and wants_author_count),
             "ordinal": ordinal,
             "section": matched_section,
             "entity_candidate": cleaned_entity if (cleaned_entity and (len(cleaned_entity) >= 1 if intent == "ARTICLE_BY_PAGE" else len(cleaned_entity) >= 2)) else None,
@@ -1703,6 +1855,9 @@ class StructuredIndexEngine:
         # =====================================================================
         # INTENT 4: TITLE_BY_AUTHOR (e.g. "Himani Garg ne kaunsa lekh likha?")
         # =====================================================================
+        elif intent == "TITLE_BY_AUTHOR" and entity_cand and slot_data.get("wants_author_count"):
+            answer_text, matched_records = self._answer_author_works(query, entity_cand, records)
+
         elif intent == "TITLE_BY_AUTHOR" and entity_cand:
             # Detect requested work type if specified in query
             req_type = None

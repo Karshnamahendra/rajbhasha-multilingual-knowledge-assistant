@@ -41,6 +41,10 @@ def extract_factual_span(query: str, text: str, analysis: dict = None) -> str:
     if len(text.split()) <= 4:
         return text
 
+    # A list answer ("- item" lines) is returned whole, never cut to one sentence.
+    if len(re.findall(r'(?m)^\s*[-•]\s+', text)) >= 2:
+        return text
+
     q_lower = (query or "").lower()
     exp_type = ((analysis.get("expected_value_type") if analysis else None) or "").upper()
 

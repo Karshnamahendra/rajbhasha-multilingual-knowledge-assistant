@@ -36,6 +36,49 @@ from hierarchical_builder import build_document_hierarchy
 from docx_toc import extract_docx_toc_records
 
 
+# ---------------------------------------------------------------------------
+# Role / designation guard for "who is the <role>" questions.
+# If the question names a role (Secretary, Director, ...), an answer is only
+# allowed from evidence that actually contains that role in some language.
+# Prevents returning a random person (e.g. a Project Engineer) for "Secretary".
+# ---------------------------------------------------------------------------
+_ROLE_GROUPS = [
+    ("secretary", "sachiv", "सचिव"),
+    ("director", "nideshak", "निदेशक"),
+    ("chairman", "chairperson", "president", "adhyaksh", "adhyaksha", "अध्यक्ष"),
+    ("editor", "sampadak", "संपादक", "सम्पादक"),
+    ("minister", "mantri", "मंत्री"),
+    ("engineer", "abhiyanta", "अभियंता"),
+    ("officer", "adhikari", "अधिकारी"),
+    ("manager", "prabandhak", "प्रबंधक"),
+    ("convener", "convenor", "sanyojak", "संयोजक"),
+    ("head", "pramukh", "प्रमुख"),
+    ("translator", "anuvadak", "अनुवादक"),
+]
+
+
+def _query_roles(query: str) -> list:
+    """Return the role groups named in the question."""
+    q = (query or "").lower()
+    found = []
+    for group in _ROLE_GROUPS:
+        for term in group:
+            if re.search(r'(?<![A-Za-z\u0900-\u097F])' + re.escape(term), q):
+                found.append(group)
+                break
+    return found
+
+
+def _text_has_roles(text: str, role_groups: list) -> bool:
+    """True when every requested role appears in the text (any language variant)."""
+    t = (text or "").lower()
+    return all(any(term in t for term in group) for group in role_groups)
+
+
+def _cand_text(c: Dict[str, Any]) -> str:
+    return " ".join(str(c.get(k) or "") for k in ("node_value", "node_key", "hierarchy_path_text", "text"))
+
+
 class RAGPipeline:
 
     def __init__(self):
@@ -389,10 +432,69 @@ class RAGPipeline:
         # 1. UNDERSTAND USER QUESTION & ROUTE MODE
         # =====================================================
         analysis = self.analyzer.analyze(query, requested_mode=query_mode, document_id=document_id)
+        if _query_roles(query) and re.search(r"(?<![A-Za-z\u0900-\u097F])(?:नाम|naam|name)(?![A-Za-z\u0900-\u097F])", str(query).lower()):
+            analysis["expected_value_type"] = "PERSON"
         resolved_mode = analysis.get("query_mode", "CONTENT_BASED")
         safe_q = str(query).encode("ascii", errors="replace").decode("ascii")
         print(f"[RAGPipeline] Query route: document={document_id}, mode={resolved_mode}, "
               f"intent={analysis.get('intent')}, script={analysis.get('detected_script')}, query={safe_q!r}")
+
+        # =========================================================================
+        # 1.4 AUTHOR WORKS (count + list) straight from the TOC index layer.
+        # "सुनीता ने कितने लेख लिखे" must list every article, so it is answered
+        # from the TOC records before the hierarchical search picks a single node.
+        # =========================================================================
+        try:
+            _slot = self.index_engine.classify_intent(query, document_id)
+        except Exception:
+            _slot = {}
+        # Title -> author / title -> page / page -> title are exact table-of-contents
+        # lookups. When the TOC has a confident match, answer from it before the
+        # hierarchical search can pick a neighbouring row.
+        if (_slot.get("intent") in {"AUTHOR_BY_TITLE", "PAGE_BY_TITLE", "ARTICLE_BY_PAGE"}
+                and _slot.get("entity_candidate") and not _query_roles(query)):
+            _res = self.index_engine.execute_index_query(
+                query=query, document_id=document_id, query_mode=query_mode,
+                conversation_article_id=conversation_article_id
+            )
+            if _res and _res.get("answer") and _res.get("matched_records"):
+                return {
+                    "answer": _res["answer"],
+                    "evidence": _res.get("evidence", []),
+                    "query_analysis": {
+                        "intent": _slot.get("intent"),
+                        "query_mode": "INDEX_BASED",
+                        "requested_mode": query_mode,
+                        "detected_script": analysis.get("detected_script", "neutral"),
+                        "target_title": _slot.get("entity_candidate"),
+                    }
+                }
+
+        if _slot.get("wants_author_count") and _slot.get("entity_candidate"):
+            _res = self.index_engine.execute_index_query(
+                query=query, document_id=document_id, query_mode=query_mode,
+                conversation_article_id=conversation_article_id
+            )
+            if _res and _res.get("answer"):
+                return {
+                    "answer": _res["answer"],
+                    "evidence": _res.get("evidence", []),
+                    "query_analysis": {
+                        "intent": "AUTHOR_WORKS",
+                        "query_mode": "INDEX_BASED",
+                        "requested_mode": query_mode,
+                        "detected_script": analysis.get("detected_script", "neutral"),
+                        "target_entity": _slot.get("entity_candidate"),
+                    }
+                }
+            is_hi = bool(re.search(r"[\u0900-\u097F]", query))
+            return {
+                "answer": (f"चयनित पत्रिका की अनुक्रमणिका में '{_slot.get('entity_candidate')}' नाम के लेखक की कोई रचना नहीं मिली।"
+                           if is_hi else
+                           f"No work by '{_slot.get('entity_candidate')}' was found in the selected magazine's table of contents."),
+                "evidence": [],
+                "query_analysis": {"intent": "AUTHOR_WORKS", "query_mode": "INDEX_BASED"}
+            }
 
         # =========================================================================
         # 1.5 PRIMARY UNIFIED HIERARCHICAL RETRIEVAL (Step 4 Primary Search Branch)
@@ -437,6 +539,29 @@ class RAGPipeline:
                 top_val = top_cand.get("node_value")
                 top_key = top_cand.get("node_key")
 
+                # Reject symbol-only values such as "✓", "-", "—" (table tick marks etc.)
+                if top_cand is not None and not re.search(r"[A-Za-z0-9\u0900-\u097F]", str(top_val or "")):
+                    real_cands = [c for c in hier_best_evidence if re.search(r"[A-Za-z0-9\u0900-\u097F]", str(c.get("node_value") or ""))]
+                    if real_cands:
+                        top_cand = real_cands[0]
+                        top_val = top_cand.get("node_value")
+                        top_key = top_cand.get("node_key")
+                    else:
+                        top_cand = None
+
+                # Role guard (all question types): "कार्यकारी निदेशक का नाम" / "who is the Secretary"
+                # must be answered from a node that actually mentions that role.
+                asked_roles = _query_roles(query)
+                if asked_roles and top_cand is not None:
+                    role_cands = [c for c in hier_best_evidence if _text_has_roles(_cand_text(c), asked_roles)]
+                    if role_cands:
+                        top_cand = role_cands[0]
+                        top_val = top_cand.get("node_value")
+                        top_key = top_cand.get("node_key")
+                    else:
+                        print("[RAGPipeline] Role guard: no hierarchical node mentions the asked role.")
+                        top_cand = None
+
                 # Value-Type & Content Quality Gating
                 exp_type = analysis.get("expected_value_type")
                 if exp_type == "DURATION":
@@ -456,7 +581,10 @@ class RAGPipeline:
 
                 elif exp_type in {"PERSON", "DESCRIPTION"} or analysis.get("is_content_question"):
                     val_str = str(top_val or "").strip()
-                    if top_cand and (re.fullmatch(r"[-+]?\d+(?:[,.]\d+)?%?", val_str) or len(val_str.split()) <= 2):
+                    # A person's name is usually 2-3 words ("नवीन चन्द्र"), so the short-value
+                    # rule applies only to descriptive questions, not to PERSON questions.
+                    too_short = len(val_str.split()) <= 2 and exp_type != "PERSON"
+                    if top_cand and (re.fullmatch(r"[-+]?\d+(?:[,.]\d+)?%?", val_str) or too_short):
                         desc_cands = [
                             c for c in hier_best_evidence
                             if len(str(c.get("node_value") or "").strip().split()) >= 4
@@ -1040,6 +1168,15 @@ class RAGPipeline:
         if not best_evidence:
             return {
                 "answer": "इस प्रश्न का उत्तर देने के लिए पर्याप्त प्रमाण दस्तावेज़ में नहीं मिला।",
+                "evidence": [],
+                "query_analysis": analysis
+            }
+
+        asked_roles = _query_roles(query)
+        if asked_roles and not any(_text_has_roles(_cand_text(c), asked_roles) for c in best_evidence):
+            print("[RAGPipeline] Role guard: retrieved content does not mention the asked role.")
+            return {
+                "answer": "इस प्रश्न में पूछे गए पद (designation) की जानकारी दिए गए दस्तावेज़ों में उपलब्ध नहीं है।",
                 "evidence": [],
                 "query_analysis": analysis
             }
