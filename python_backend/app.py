@@ -79,7 +79,11 @@ def _doc_type_of(doc_id: str):
 
 report_metrics = None if _IS_LAUNCHER else ReportMetrics(pipeline.table_store, doc_type_of=_doc_type_of)
 # Magazine counts / author stats / edition comparison, computed from the contents (TOC) records
-magazine_metrics = None if _IS_LAUNCHER else MagazineMetrics(pipeline.index_store, doc_type_of=_doc_type_of)
+magazine_metrics = None if _IS_LAUNCHER else MagazineMetrics(
+    pipeline.index_store,
+    doc_type_of=_doc_type_of,
+    embed_fn=pipeline.vector_store.embed_fn,
+)
 
 class QueryRequest(BaseModel):
     query: Optional[str] = ""

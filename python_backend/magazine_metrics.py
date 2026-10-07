@@ -16,6 +16,7 @@ Nothing here is specific to one magazine.
 from __future__ import annotations
 
 import difflib
+import math
 import re
 from collections import Counter, OrderedDict
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -114,9 +115,11 @@ def _edition_label(document_id: str) -> str:
 
 
 class MagazineMetrics:
-    def __init__(self, index_store, doc_type_of: Optional[Callable[[str], Optional[str]]] = None):
+    def __init__(self, index_store, doc_type_of: Optional[Callable[[str], Optional[str]]] = None,
+                 embed_fn: Optional[Callable] = None):
         self.index_store = index_store
         self.doc_type_of = doc_type_of
+        self.embed_fn = embed_fn
         self.term_memory = DynamicTerminologyMemory()
 
     # -- data ---------------------------------------------------------------------
@@ -191,6 +194,41 @@ class MagazineMetrics:
                 return False
         return True
 
+    def _semantic_topic_matches(self, query: str, entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Find TOC entries whose title/section is semantically about the requested topic.
+
+        This is a fallback for cross-language or synonymous title wording (for
+        example, an English topic asked about when the contents title is Hindi).
+        It compares only article titles and section labels, never author names.
+        """
+        if not self.embed_fn or not entries:
+            return []
+        query_terms = [t for t in _tokens(query) if t not in _STOP and not t.isdigit()]
+        if not query_terms:
+            return []
+        topic_query = " ".join(query_terms)
+        title_texts = [" ".join(filter(None, [e.get("title_original"), e.get("section_original")]))
+                       for e in entries]
+        try:
+            vectors = self.embed_fn([topic_query, *title_texts])
+            q = vectors[0]
+            q_norm = math.sqrt(sum(float(x) * float(x) for x in q)) or 1.0
+            scored = []
+            for entry, vector in zip(entries, vectors[1:]):
+                v_norm = math.sqrt(sum(float(x) * float(x) for x in vector)) or 1.0
+                score = sum(float(a) * float(b) for a, b in zip(q, vector)) / (q_norm * v_norm)
+                scored.append((score, entry))
+            if not scored:
+                return []
+            best = max(score for score, _ in scored)
+            # Keep relevant candidates near the best match, with a conservative
+            # floor to avoid presenting unrelated TOC entries as topic matches.
+            floor = max(0.30, best - 0.12)
+            return [entry for score, entry in scored if score >= floor and score >= 0.30]
+        except Exception as exc:
+            print(f"[MagazineMetrics] semantic topic fallback skipped: {exc}")
+            return []
+
     def _author_counts(self, entries: List[Dict[str, Any]]) -> List[Tuple[str, List[Dict[str, Any]]]]:
         groups: List[Tuple[str, List[Dict[str, Any]]]] = []
         for e in entries:
@@ -236,13 +274,24 @@ class MagazineMetrics:
     def _count_or_list(self, query: str, docs: "OrderedDict[str, List[Dict[str, Any]]]") -> Optional[Dict[str, Any]]:
         pred, cat_label = self._category(query)
         topics = self._topic_terms(query)
+        semantic_ids = None
+        semantic_label = " ".join(t for t in _tokens(query) if t not in _STOP and not t.isdigit())
         if topics:
             # Filler words ("wale", "related", "संबंधित") name no topic: keep only words
             # that occur in at least one title; if none do, this is not a topic count.
             all_titles = [e.get("title_original") for es in docs.values() for e in es]
             topics = [g for g in topics if any(self._title_matches(t, [g]) for t in all_titles)]
-            if not topics:
-                return None
+            lexical_hits = [e for es in docs.values() for e in es
+                            if topics and self._title_matches(e.get("title_original"), topics)]
+            if not topics or not lexical_hits:
+                # Topic words may not appear literally in the title: retrieve by
+                # multilingual title/section similarity before falling back to RAG.
+                topic_entries = [e for es in docs.values() for e in es]
+                semantic_hits = self._semantic_topic_matches(query, topic_entries)
+                if not semantic_hits:
+                    return None
+                semantic_ids = {id(e) for e in semantic_hits}
+                topics = []
         wants_list = bool(_LIST_RE.search(query)) and not _COUNT_RE.search(query)
         parts, evidence, results = [], [], []
         for doc, entries in docs.items():
@@ -251,23 +300,27 @@ class MagazineMetrics:
                 chosen = [e for e in chosen if pred(e.get("section_original") or "", e.get("type") or "")]
             if topics:
                 chosen = [e for e in chosen if self._title_matches(e.get("title_original"), topics)]
+            elif semantic_ids is not None:
+                chosen = [e for e in chosen if id(e) in semantic_ids]
+            filtered = bool(pred or topics or semantic_ids is not None)
             head = f'📖 **{doc}**' if len(docs) > 1 else ""
-            if not pred and not topics:
+            if not filtered:
                 bd = self._breakdown(entries)
                 text = f"कुल **{len(entries)}** रचनाएँ: " + ", ".join(f"{k} {v}" for k, v in bd.items())
             else:
-                topic_txt = ("‘" + ", ".join(v[0] for v in topics) + "’ विषय पर ") if topics else ""
+                topic_txt = (("‘" + ", ".join(v[0] for v in topics) + "’ विषय पर ") if topics else
+                             (f"‘{semantic_label}’ विषय से संबंधित " if semantic_ids is not None else ""))
                 noun = cat_label or "रचनाएँ"
                 text = f"{topic_txt}{noun}: **{len(chosen)}**"
                 if chosen:
                     # The contents index is the authoritative list. Return every
                     # matching entry so requests for all articles are complete.
                     text += "\n" + "\n".join(self._line(e) for e in chosen)
-            if wants_list and not pred and not topics:
+            if wants_list and not filtered:
                 text += "\n" + "\n".join(self._line(e) for e in entries)
             parts.append((head + "\n" if head else "") + text)
-            evidence.extend(chosen if (pred or topics) else entries)
-            results.append({"document_id": doc, "count": len(chosen) if (pred or topics) else len(entries),
+            evidence.extend(chosen if filtered else entries)
+            results.append({"document_id": doc, "count": len(chosen) if filtered else len(entries),
                             "category": cat_label, "topic": [v[0] for v in topics]})
         if topics and all(r["count"] == 0 for r in results):
             return None  # topic word may be something the TOC simply doesn't name; let RAG try
