@@ -2,6 +2,7 @@
 import re
 import unicodedata
 import logging
+from difflib import SequenceMatcher
 from typing import Dict, Any, List, Set, Optional, Tuple
 import numpy as np
 
@@ -428,7 +429,9 @@ class SemanticQueryAnalyzer:
             all_variants_lower, re.IGNORECASE
         ))
 
-        expected_value_type = "TEXT"
+        # Keep the absence of a value-type constraint explicit. TEXT is a
+        # stored-value classification, not the default intent of every query.
+        expected_value_type = None
         if is_pct_query:
             expected_value_type = "PERCENTAGE"
         elif is_person_query:
@@ -765,6 +768,216 @@ class SemanticQueryAnalyzer:
         elif re.search(r'\b(?:report|reporting|रिपोर्ट|प्रतिवेदन|प्रपत्र|form|proforma)\b', all_variants_lower, re.IGNORECASE):
             target_doc_type = "report"
 
+        # Parse structural constraints as independent slots. Use the raw query
+        # for positional grammar and existing normalizers/memory for labels.
+        def canonical_label(value: Optional[str], transliterate: bool = False) -> Optional[str]:
+            if not value:
+                return None
+            value = re.sub(r"^[\s\W_]+|[\s\W_]+$", "", value.strip(), flags=re.UNICODE)
+            if not value:
+                return None
+            if not transliterate:
+                field_label = FieldNormalizer.canonical(value)
+                if field_label:
+                    return field_label
+            variants_for_label = [value]
+            variants_for_label.extend(self.normalizer.generate_normalized_variants(value, document_id)[0])
+            deva = None
+            if transliterate:
+                deva = self.algorithmic_transliterate(value)
+                if deva:
+                    variants_for_label.append(deva)
+            for variant in dict.fromkeys(variants_for_label):
+                term = self.term_memory.resolve_term(variant, document_id=document_id)
+                if term and term in self.term_memory.terms:
+                    return str(self.term_memory.terms[term].get("canonical") or term)
+            # Keep an explicit, otherwise-unrecognized label without guessing.
+            normalized_surface = deva if transliterate and deva and re.search(r"[\u0900-\u097F]", deva) else value
+            return " ".join(re.findall(r"[\w\u0900-\u097F]+", normalized_surface.casefold())) or None
+
+        aggregation = None
+        aggregation_patterns = (
+            ("COUNT", r"(?<![\w\u0900-\u097F])(?:how\s+many|count|number\s+of|kitne|kitni|kitna|kitnon|कितने|कितनी|कितना|संख्या|गिनती)(?![\w\u0900-\u097F])"),
+            ("SUM", r"(?<![\w\u0900-\u097F])(?:sum|योग|कुल\s+योग)(?![\w\u0900-\u097F])"),
+            ("AVERAGE", r"(?<![\w\u0900-\u097F])(?:average|mean|औसत)(?![\w\u0900-\u097F])"),
+            ("PERCENTAGE", r"(?<![\w\u0900-\u097F])(?:percentage|percent|प्रतिशत|फीसदी)(?![\w\u0900-\u097F])"),
+            ("TOTAL", r"(?<![\w\u0900-\u097F])(?:total|कुल)(?![\w\u0900-\u097F])"),
+        )
+        for aggregate_name, aggregate_pattern in aggregation_patterns:
+            if re.search(aggregate_pattern, lower_q, re.IGNORECASE):
+                aggregation = aggregate_name
+                break
+
+        # A section/clause is an entity constraint, never part of the field.
+        section_match = re.search(
+            r"(?<![\w\u0900-\u097F])(?:section|sec\.?|धारा|अनुच्छेद|clause|खण्ड|खंड)\s*\(?\s*(\d+(?:\s*\(\s*\d+\s*\))?)\s*\)?",
+            lower_q, re.IGNORECASE
+        )
+        parent_section = ("section " + re.sub(r"\s+", "", section_match.group(1))) if section_match else None
+
+        # Match a name next to a region marker in either order. Prefer the
+        # trailing-marker form so a following Hindi postposition (e.g. "me")
+        # cannot be mistaken for the region's name.
+        region_marker = r"(?:region|zone|kshetra|kshetr|क्षेत्र|अंचल)"
+        region_name = r"[\w\u0900-\u097F-]+"
+        region_match = re.search(
+            rf"(?<![\w\u0900-\u097F])(?P<name>{region_name})\s*(?:[‘’'\"“”])?\s+{region_marker}(?![\w\u0900-\u097F])",
+            lower_q, re.IGNORECASE
+        )
+        if not region_match:
+            region_match = re.search(
+                rf"(?<![\w\u0900-\u097F]){region_marker}\s+(?P<name>{region_name})(?![\w\u0900-\u097F])",
+                lower_q, re.IGNORECASE
+            )
+            if region_match and region_match.group("name").casefold() in {
+                "me", "mein", "में", "in", "under", "के", "का", "की", "hai", "है"
+            }:
+                region_match = None
+        requested_region = canonical_label(region_match.group("name"), transliterate=True) if region_match else None
+
+        # Recognize language concepts in the query text, allowing modest OCR/
+        # spelling variation for established language names without adding
+        # query-specific aliases.
+        language_aliases = {
+            "hindi": ("hindi", "हिंदी", "हिन्दी"),
+            "english": ("english", "अंग्रेजी", "अंग्रेज़ी"),
+            "bilingual": ("bilingual", "bilingually", "द्विभाषी", "द्विभाषीय"),
+        }
+        language_matches = []
+        for token_match in re.finditer(r"[\w\u0900-\u097F]+", lower_q):
+            token = token_match.group(0)
+            roman_token = romanize_generic(token).casefold()
+            for language_name, aliases in language_aliases.items():
+                alias_forms = {alias.casefold() for alias in aliases}
+                alias_forms.update(romanize_generic(alias).casefold() for alias in aliases if re.search(r"[\u0900-\u097F]", alias))
+                exact = token.casefold() in alias_forms or roman_token in alias_forms
+                fuzzy = any(
+                    min(len(token), len(alias)) >= 8
+                    and abs(len(token) - len(alias)) <= 2
+                    and SequenceMatcher(None, token.casefold(), alias).ratio() >= 0.82
+                    for alias in alias_forms if re.fullmatch(r"[a-z]+", alias)
+                )
+                if exact or fuzzy:
+                    language_matches.append({"language": language_name, "start": token_match.start(), "end": token_match.end()})
+                    break
+
+        relation_patterns = (
+            ("reply_received", r"(?<![\w\u0900-\u097F])(?:reply\s+received|response\s+received|उत्तर\s+(?:मिले|मिला|प्राप्त)|uttar\s+(?:mile|mila))(?![\w\u0900-\u097F])"),
+            ("reply_given", r"(?<![\w\u0900-\u097F])(?:(?:repl(?:y|ies|ied)|answer(?:s|ed)?|respond(?:s|ed|ing)?|उत्तर)\b.{0,48}\b(?:given|provided|answered|diya|diye|di|दिए|दिया|दिये|प्रदान)|(?:उत्तर|जवाब).{0,32}(?:दिए|दिया|दिये|diye|diya))(?![\w\u0900-\u097F])"),
+            ("received", r"(?<![\w\u0900-\u097F])(?:receive(?:d|s)?|got|mila|mile|mili|mil(?:e|a|i)|prapt|praapt|प्राप्त|मिले|मिला|मिली|आए|आये)(?![\w\u0900-\u097F])"),
+            ("sent", r"(?<![\w\u0900-\u097F])(?:send|sends|sent|bhej\w*|भेज\w*|प्रेषित)(?![\w\u0900-\u097F])"),
+            ("issued", r"(?<![\w\u0900-\u097F])(?:issue|issues|issued|issuing|jaari|jari|जारी|निर्गत)(?![\w\u0900-\u097F])"),
+        )
+        relation_matches = []
+        for relation_name, relation_pattern in relation_patterns:
+            for match in re.finditer(relation_pattern, lower_q, re.IGNORECASE):
+                relation_matches.append({"relation": relation_name, "start": match.start(), "end": match.end()})
+        relation_matches.sort(key=lambda item: item["start"])
+
+        # Language attached to a received/input entity is a condition language;
+        # language attached to an issued/sent/reply output is a target language.
+        source_languages = set()
+        target_langs = set()
+        received_positions = [m["start"] for m in relation_matches if m["relation"] == "received"]
+        reply_positions = [m["start"] for m in relation_matches if m["relation"] in {"reply_given", "reply_received"}]
+        for language in language_matches:
+            before_received = any(0 <= pos - language["end"] <= 48 for pos in received_positions)
+            after_reply = any(-48 <= language["start"] - pos <= 96 for pos in reply_positions)
+            if before_received and not after_reply:
+                source_languages.add(language["language"])
+            else:
+                target_langs.add(language["language"])
+        condition_langs = set(source_languages)
+
+        # Extract a field from the remaining content terms after removing only
+        # recognized structural slots, actions, aggregation terms and grammar.
+        removed_spans = []
+        if section_match:
+            removed_spans.append(section_match.span())
+        if region_match:
+            removed_spans.append(region_match.span())
+        removed_spans.extend((m["start"], m["end"]) for m in language_matches)
+        query_without_slots = list(lower_q)
+        for start, end in removed_spans:
+            query_without_slots[start:end] = " " * (end - start)
+        field_text = "".join(query_without_slots)
+        grammar_terms = {
+            # English / Roman-Hindi / Hindi function and question words.
+            "under", "in", "of", "for", "from", "by", "the", "a", "an", "is", "are", "was", "were", "be", "to", "me", "mein", "ka", "ki", "ke", "hai", "hain", "tha", "thi", "the", "kitne", "kitni", "kitna", "kitnon", "how", "many", "what", "which", "kya", "kiske", "kis", "gye", "gaya", "gayi", "gaye", "diye", "diya", "do", "does", "did", "kar", "kiye", "kiye", "liye", "liye", "and", "or", "aur", "है", "हैं", "था", "थी", "थे", "में", "से", "का", "की", "के", "को", "पर", "अंतर्गत", "तहत", "कितने", "कितनी", "कितना", "कितनों", "क्या", "कौन", "गए", "गई", "गया", "दिए", "दिया", "और", "केवल"
+        }
+        action_terms = {
+            "receive", "received", "receives", "got", "mila", "mile", "mili", "prapt", "praapt", "sent", "send", "sends", "bheja", "bheje", "bheji", "bhejne", "issued", "issue", "issues", "issuing", "jaari", "jari", "reply", "replies", "replied", "answer", "answers", "answered", "respond", "responded", "response", "उत्तर", "जवाब", "प्राप्त", "मिले", "मिला", "मिली", "भेजे", "भेजा", "भेजी", "प्रेषित", "जारी", "निर्गत", "दिए", "दिया", "दिये", "प्रदान"
+        }
+        aggregate_terms = {
+            "total", "count", "number", "sum", "average", "mean", "percentage", "percent", "pct", "value", "कुल", "संख्या", "योग", "औसत", "प्रतिशत", "फीसदी", "मान"
+        }
+        residual_terms = []
+        for token_match in re.finditer(r"[\w\u0900-\u097F]+", field_text):
+            token = token_match.group(0).casefold()
+            if token in grammar_terms or token in action_terms or token in aggregate_terms:
+                continue
+            # Remove inflected action/auxiliary tokens without discarding the
+            # noun phrase that identifies the requested field.
+            if token.startswith(("bhej", "issue", "receiv")) or token in {"gye", "gayi", "gaya", "gaye"}:
+                continue
+            residual_terms.append(token)
+        requested_attribute_surface = " ".join(residual_terms) or None
+
+        # Prefer exact existing metadata fields and established index fields;
+        # otherwise retain the cleaned semantic field phrase.
+        factual_structural_request = (table_intent or is_count) and not is_content_question
+        requested_attribute = canonical_label(requested_attribute_surface) if factual_structural_request else None
+        if (requested_attribute_surface and not requested_field and factual_structural_request
+                and not is_index_question):
+            requested_field = requested_attribute or requested_attribute_surface
+
+        if factual_structural_request and requested_field and requested_field not in {"title", "author", "page", "category", "branch_children"}:
+            # Ensure an existing metadata field is not replaced by a noisy
+            # whole-question embedding match.
+            requested_field = canonical_label(str(requested_field)) or requested_field
+        if (requested_attribute is None and factual_structural_request and requested_field
+                and requested_field not in {"title", "author", "page", "category", "branch_children"}):
+            requested_attribute = requested_field
+
+        requested_entity_surface = parent_section
+        if not requested_entity_surface and requested_field and factual_structural_request:
+            # For an explicit attribute-of-entity construction, retain the
+            # entity only when the other phrase resolves to the field already
+            # identified above. This avoids treating arbitrary clause text as
+            # an entity constraint.
+            possessive = re.search(r"(?P<entity>.+?)\s+(?:का|की|के|ka|ki|ke)\s+(?P<attribute>.+)$", lower_q, re.IGNORECASE)
+            of_phrase = re.search(r"(?:what|which)\s+(?:is|are|was|were)\s+(?:the\s+)?(?P<attribute>.+?)\s+(?:of|for)\s+(?P<entity>.+)$", lower_q, re.IGNORECASE)
+            for entity_match, attribute_group in ((possessive, "attribute"), (of_phrase, "attribute")):
+                if not entity_match:
+                    continue
+                if canonical_label(entity_match.group(attribute_group)) == canonical_label(str(requested_field)):
+                    requested_entity_surface = entity_match.group("entity")
+                    break
+        requested_entity = (requested_entity_surface if parent_section else canonical_label(requested_entity_surface)) if requested_entity_surface else None
+
+        # Keep multiple relations (for example incoming letters and replies)
+        # rather than flattening them into one direction.
+        relation_names = [m["relation"] for m in relation_matches]
+        base_relation = next((name for name in relation_names if name in {"received", "sent", "issued"}), None)
+        reply_relation = next((name for name in relation_names if name in {"reply_given", "reply_received"}), None)
+        action_relation = reply_relation or base_relation
+        source_direction = "received" if base_relation == "received" else None
+        target_direction = reply_relation or (base_relation if base_relation in {"sent", "issued"} else None)
+        relationships = [{"relation": name} for name in relation_names]
+
+        target_entity_type = "article" if is_author_by_article or is_title_by_author or requested_field in {"title", "author", "page"} else None
+
+        period_match = re.search(
+            r"(?<![\w\u0900-\u097F])(?:period|quarter|quarterly|वित्तीय\s+वर्ष|तिमाही|अवधि)\s+([\w\u0900-\u097F/-]+)",
+            lower_q, re.IGNORECASE
+        )
+        requested_period = period_match.group(0).strip() if period_match else (str(target_year) if target_year else None)
+        scope_match = re.search(
+            r"(?<![\w\u0900-\u097F])(?:by|per|for\s+each|प्रति|प्रत्येक)\s+([\w\u0900-\u097F-]+)",
+            lower_q, re.IGNORECASE
+        )
+        aggregation_scope = canonical_label(scope_match.group(1)) if scope_match else None
+
         return {
             "original_query": query,
             "cleaned_query": cleaned_query,
@@ -775,11 +988,30 @@ class SemanticQueryAnalyzer:
             "requested_mode": requested_mode,
             "entities": enriched_entities,
             "target_title": target_title,
-            "target_entity_type": "article" if requested_field else None,
-            "target_entity": target_title,
+            "target_entity_type": target_entity_type,
+            "target_entity": target_title or requested_entity,
             "target_year": target_year,
             "target_document_type": target_doc_type,
             "requested_field": requested_field,
+            "requested_attribute": requested_attribute,
+            "requested_entity": requested_entity,
+            "parent_section": parent_section,
+            "action_relation": action_relation,
+            "action": action_relation,
+            "direction": source_direction or target_direction,
+            "source_direction": source_direction,
+            "target_direction": target_direction,
+            "relationships": relationships,
+            "source_language": sorted(condition_langs) or None,
+            "condition_language": sorted(condition_langs) or None,
+            "target_language": sorted(target_langs) or None,
+            "region": requested_region,
+            "requested_region": requested_region,
+            "target_region": requested_region,
+            "period": requested_period,
+            "aggregation": aggregation,
+            "aggregation_scope": aggregation_scope,
+            "value_type": expected_value_type if expected_value_type != "TEXT" else None,
             "is_count_or_list": is_count or is_list or is_branch_enumeration or is_author_by_article or is_title_by_author or is_structure,
             "is_branch_enumeration": is_branch_enumeration,
             "is_index_question": is_index_question,

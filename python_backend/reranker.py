@@ -2,6 +2,238 @@
 import re
 from typing import List, Dict, Any, Optional
 
+
+class StructuralRecordMatcher:
+    """Three-state eligibility checks over query and candidate structure."""
+
+    _terminology_memory = None
+
+    @staticmethod
+    def _norm(value: Any) -> str:
+        return " ".join(re.findall(r"[\w\u0900-\u097F]+", str(value or "").casefold()))
+
+    @classmethod
+    def _field_labels(cls, value: Any, document_id: Any = None) -> set:
+        """Build exact comparable labels using existing multilingual normalizers."""
+        label = cls._norm(value)
+        if not label:
+            return set()
+        labels = {label}
+        try:
+            from index_knowledge_layer import romanize_generic
+            roman = cls._norm(romanize_generic(label))
+            if roman:
+                labels.add(roman)
+        except Exception:
+            pass
+
+        try:
+            from terminology_memory import DynamicTerminologyMemory
+            if cls._terminology_memory is None:
+                cls._terminology_memory = DynamicTerminologyMemory()
+            key = cls._terminology_memory.resolve_term(label, document_id=document_id)
+            if key and key in cls._terminology_memory.terms:
+                record = cls._terminology_memory.terms[key]
+                labels.add(cls._norm(record.get("canonical")))
+                for alias in (record.get("english", set()) | record.get("hindi", set())
+                              | record.get("roman", set()) | record.get("ocr_variants", set())):
+                    normalized_alias = cls._norm(alias)
+                    if normalized_alias:
+                        labels.add(normalized_alias)
+        except Exception:
+            pass
+
+        # FieldNormalizer is the project's existing cross-lingual field
+        # canonicalizer. Only accept a canonical identity shared by both inputs;
+        # it cannot turn aggregation or row-entity metadata into a field label.
+        try:
+            from structured_store import FieldNormalizer
+            canonical = FieldNormalizer.canonical(label)
+            descriptor = FieldNormalizer.CANONICAL_FIELDS.get(canonical) if canonical else None
+            label_tokens = FieldNormalizer._normalize_tokens(label)
+            descriptor_tokens = FieldNormalizer._normalize_tokens(descriptor) if descriptor else set()
+            if canonical and label_tokens.intersection(descriptor_tokens):
+                labels.add(cls._norm(canonical))
+        except Exception:
+            pass
+        labels.update(re.sub(r"[^\w\u0900-\u097F]", "", item) for item in tuple(labels))
+        return {item for item in labels if item}
+
+    @classmethod
+    def _candidate_field(cls, candidate: Dict[str, Any], meta: Dict[str, Any]) -> Any:
+        # Explicit field metadata takes precedence over generic hierarchy labels.
+        for key in ("column_attribute", "field", "field_name", "field_key", "field_label",
+                    "column_name", "attribute", "attribute_name", "attribute_key"):
+            value = candidate.get(key)
+            if value in (None, ""):
+                value = meta.get(key)
+            if value not in (None, ""):
+                return value
+
+        node_key = candidate.get("node_key") or meta.get("node_key")
+        if node_key not in (None, ""):
+            # A node key equal to the separately stored row or parent identity
+            # describes that entity, not the field containing its value.
+            row_entity = candidate.get("row_entity") or meta.get("row_entity")
+            parent_key = candidate.get("parent_key") or meta.get("parent_key")
+            node_label = cls._norm(node_key)
+            if node_label and node_label not in {cls._norm(row_entity), cls._norm(parent_key)}:
+                return node_key
+
+        # A value-bearing leaf's final path label can identify its field when no
+        # stronger field metadata exists. Never use node_value as an identity.
+        path = candidate.get("hierarchy_path") or meta.get("hierarchy_path") or []
+        if isinstance(path, str):
+            path = [part.strip() for part in re.split(r"\s*(?:>|/|\\)\s*", path) if part.strip()]
+        value = candidate.get("node_value", meta.get("node_value"))
+        node_type = cls._norm(candidate.get("node_type") or meta.get("node_type")).upper()
+        if len(path) >= 2 and value not in (None, "") and node_type == "LEAF":
+            last = path[-1]
+            row_entity = candidate.get("row_entity") or meta.get("row_entity")
+            parent_key = candidate.get("parent_key") or meta.get("parent_key")
+            if cls._norm(last) not in {cls._norm(row_entity), cls._norm(parent_key)}:
+                return last
+        return None
+
+    @classmethod
+    def evaluate_candidate(cls, analysis: Dict[str, Any], candidate: Dict[str, Any]) -> str:
+        meta = candidate.get("metadata") or {}
+
+        def get(*keys):
+            for key in keys:
+                value = candidate.get(key)
+                if value is None or value == "":
+                    value = meta.get(key)
+                if value is not None and value != "":
+                    return value
+            return None
+
+        identity = []
+        requested_field = analysis.get("requested_field")
+        candidate_field = cls._candidate_field(candidate, meta)
+        if requested_field and requested_field != "branch_children":
+            query_labels = cls._field_labels(requested_field, get("document_id"))
+            candidate_labels = cls._field_labels(candidate_field, get("document_id"))
+            if candidate_labels:
+                identity.append("VALID" if query_labels.intersection(candidate_labels) else "CONTRADICTED")
+            else:
+                identity.append("UNKNOWN")
+
+        expected_type = cls._norm(analysis.get("expected_value_type")).upper()
+        candidate_type = cls._norm(get("value_type")).upper()
+        if expected_type:
+            if candidate_type:
+                # Query intent (for example COUNT or PERSON) and stored value
+                # shape (for example NUMERIC or TEXT) are different type systems.
+                # Compare them through generic compatibility groups rather than
+                # requiring their labels to be identical.
+                compatible_candidate_types = {
+                    "COUNT": {"NUMERIC", "NUMBER", "INTEGER", "COUNT"},
+                    "PERCENTAGE": {"PERCENTAGE"},
+                    "DATE": {"DATE", "TEXT"},
+                    "DURATION": {"DURATION", "NUMERIC", "TEXT"},
+                    "MONETARY": {"MONETARY", "NUMERIC", "TEXT"},
+                    "PERSON": {"PERSON", "NAME", "TEXT"},
+                    "DESCRIPTION": {"DESCRIPTION", "TEXT"},
+                }
+                compatible = compatible_candidate_types.get(expected_type, {expected_type})
+                identity.append("VALID" if candidate_type in compatible else "CONTRADICTED")
+            else:
+                identity.append("UNKNOWN")
+
+        # Keep the requested entity/section separate from the requested field.
+        # Compare only against explicit structural identity (or path labels when
+        # the payload lacks a dedicated slot); never infer identity from value.
+        requested_entity = analysis.get("requested_entity")
+        if requested_entity:
+            entity_values = [get("row_entity"), get("entity"), get("entity_name")]
+            entity_values = [value for value in entity_values if value not in (None, "")]
+            if not entity_values:
+                path = get("hierarchy_path") or []
+                if isinstance(path, str):
+                    path = [part.strip() for part in re.split(r"\s*(?:>|/|\\)\s*", path) if part.strip()]
+                entity_values = list(path[:-1]) if path else []
+                if not entity_values:
+                    entity_values = [get("parent_key")]
+            entity_values = [value for value in entity_values if value not in (None, "")]
+            qlabels = cls._field_labels(requested_entity, get("document_id"))
+            if entity_values:
+                candidate_labels = set().union(*(
+                    cls._field_labels(value, get("document_id")) for value in entity_values
+                ))
+                identity.append("VALID" if qlabels.intersection(candidate_labels) else "CONTRADICTED")
+            else:
+                identity.append("UNKNOWN")
+
+        requested_section = analysis.get("parent_section")
+        if requested_section:
+            section_values = [get("root_section"), get("section"), get("parent_section")]
+            section_values = [value for value in section_values if value not in (None, "")]
+            if not section_values:
+                path = get("hierarchy_path") or []
+                if isinstance(path, str):
+                    path = [part.strip() for part in re.split(r"\s*(?:>|/|\\)\s*", path) if part.strip()]
+                section_values = path
+            section_values = [value for value in section_values if value not in (None, "")]
+            def section_labels(value):
+                labels = cls._field_labels(value, get("document_id"))
+                number_parts = re.findall(r"\d+(?:\s*\(\s*\d+\s*\))?", str(value or ""))
+                if number_parts:
+                    labels.add("section-number:" + " ".join(
+                        re.sub(r"\s+", "", part) for part in number_parts
+                    ))
+                return labels
+
+            qlabels = section_labels(requested_section)
+            if section_values:
+                candidate_labels = set().union(*(
+                    section_labels(value) for value in section_values
+                ))
+                identity.append("VALID" if qlabels.intersection(candidate_labels) else "CONTRADICTED")
+            else:
+                identity.append("UNKNOWN")
+
+        # Compare only explicitly analyzed dimensions; candidate metadata is optional.
+        def values(value):
+            if isinstance(value, (list, tuple, set)):
+                return [item for item in value if item not in (None, "")]
+            return [value] if value not in (None, "") else []
+
+        for query_keys, candidate_keys in (
+            (("action", "action_relation", "direction", "requested_direction", "source_direction", "target_direction"),
+             ("action", "action_relation", "direction", "relationship_direction", "source_direction", "target_direction")),
+            (("source_language",), ("source_language",)),
+            (("target_language", "reply_language"), ("target_language", "reply_language")),
+            (("region", "requested_region", "target_region"), ("region", "region_name", "row_entity")),
+        ):
+            qvalue = next((analysis.get(k) for k in query_keys if values(analysis.get(k))), None)
+            qvalues = values(qvalue)
+            if not qvalues:
+                continue
+            cvalue = get(*candidate_keys)
+            cvalues = values(cvalue)
+            if not cvalues:
+                identity.append("UNKNOWN")
+                continue
+            qlabels = set().union(*(cls._field_labels(value, get("document_id")) for value in qvalues))
+            clabels = set().union(*(cls._field_labels(value, get("document_id")) for value in cvalues))
+            identity.append("VALID" if qlabels.intersection(clabels) else "CONTRADICTED")
+
+        if "CONTRADICTED" in identity:
+            return "CONTRADICTED"
+
+        if analysis.get("intent") not in {"branch_enumeration", "list", "structure_query"}:
+            value = get("node_value")
+            node_type = cls._norm(get("node_type")).upper()
+            has_value = value is not None and str(value).strip() != ""
+            if node_type in {"BRANCH", "HEADING", "PARENT"} or not has_value:
+                identity.append("UNKNOWN")
+
+        # A factual record needs enough observed structure to qualify as VALID.
+        if not identity and not any(get(k) for k in ("root_section", "parent_key", "row_entity", "column_attribute", "node_key", "hierarchy_path", "structural_record_id")):
+            return "UNKNOWN"
+        return "VALID" if identity and all(state == "VALID" for state in identity) else "UNKNOWN"
+
 class ReciprocalRankFusion:
     """
     Reciprocal Rank Fusion (RRF) combines candidate lists from multiple query variants.
@@ -76,11 +308,23 @@ class EvidenceReranker:
             if not all(w in stopwords for w in bg.split())
         }
 
+        structural_states = {
+            str(cand.get("id", id(cand))): StructuralRecordMatcher.evaluate_candidate(query_analysis, cand)
+            for cand in candidates
+        }
+        has_factual_leaf = any(
+            StructuralRecordMatcher._norm(c.get("node_type") or (c.get("metadata") or {}).get("node_type")).upper() not in {"BRANCH", "HEADING", "PARENT"}
+            and (c.get("node_value") is not None or (c.get("metadata") or {}).get("node_value") is not None)
+            for c in candidates
+        )
+
         scored = []
         for cand in candidates:
             text = cand["text"]
             text_lower = text.lower()
             meta = cand.get("metadata", {})
+            structural_state = structural_states[str(cand.get("id", id(cand)))]
+            cand["structural_eligibility"] = structural_state
             score = 0.0
 
             # 1. Similarity and RRF baselines
@@ -317,9 +561,19 @@ class EvidenceReranker:
                         if cand_cat_matches > 0:
                             score += 0.45
 
+            # Keep structural eligibility lexicographically ahead of every soft signal.
+            # If a factual leaf exists in this result set, heading/branch candidates
+            # cannot be selected as the final factual evidence.
             cand["rerank_score"] = round(score, 4)
+            node_type_norm = StructuralRecordMatcher._norm(cand.get("node_type") or meta.get("node_type")).upper()
+            if has_factual_leaf and node_type_norm in {"BRANCH", "HEADING", "PARENT"}:
+                structural_state = "CONTRADICTED"
+                cand["structural_eligibility"] = structural_state
             scored.append(cand)
 
-        # Sort descending
-        scored.sort(key=lambda x: x["rerank_score"], reverse=True)
+        # Explicit contradictions are ineligible. VALID evidence always precedes
+        # UNKNOWN structure; soft scores only order candidates within each state.
+        scored = [c for c in scored if c.get("structural_eligibility") != "CONTRADICTED"]
+        state_order = {"VALID": 0, "UNKNOWN": 1, "CONTRADICTED": 2}
+        scored.sort(key=lambda x: (state_order.get(x.get("structural_eligibility"), 1), -x["rerank_score"]))
         return scored[:top_n]

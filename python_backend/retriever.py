@@ -6,7 +6,7 @@ from typing import List, Dict, Any, Optional, Set
 
 from vector_store import VectorStore
 from query_analyzer import SemanticQueryAnalyzer
-from reranker import ReciprocalRankFusion
+from reranker import ReciprocalRankFusion, StructuralRecordMatcher
 from config import settings
 
 logger = logging.getLogger("HybridRetriever")
@@ -489,5 +489,37 @@ class HybridRetriever:
             f"Sparse={len(sparse_candidates)} -> Fused RRF={len(fused_candidates)}"
         )
 
-        return fused_candidates[:top_k]
+        ranked_candidates = fused_candidates[:top_k]
+
+        # Semantic ranks are candidate discovery only. When the analyzer found
+        # a structural constraint, independently scan the scoped payloads and
+        # union explicitly VALID records so RRF truncation cannot hide them.
+        has_structural_constraints = bool(
+            (analysis.get("requested_field") and analysis.get("requested_field") != "branch_children")
+            or analysis.get("requested_entity")
+            or analysis.get("parent_section")
+            or analysis.get("requested_region")
+            or analysis.get("action_relation")
+            or analysis.get("source_language")
+            or analysis.get("target_language")
+            or analysis.get("expected_value_type")
+        )
+        if has_structural_constraints:
+            existing_ids = {str(c.get("id")) for c in ranked_candidates}
+            structural_candidates = self.vector_store.get_all_hierarchical_candidates(
+                document_id=document_id,
+                document_type=filter_doc_type,
+                year=filter_year,
+            )
+            for candidate in structural_candidates:
+                candidate_id = str(candidate.get("id"))
+                if candidate_id in existing_ids:
+                    continue
+                if StructuralRecordMatcher.evaluate_candidate(analysis, candidate) != "VALID":
+                    continue
+                candidate["structural_candidate"] = True
+                ranked_candidates.append(candidate)
+                existing_ids.add(candidate_id)
+
+        return ranked_candidates
 

@@ -362,6 +362,12 @@ class VectorStore:
                 "hierarchy_path_text": path_text,
                 "text": path_text,
                 "node_type": str(p.get("node_type", "leaf")),
+                "row_entity": p.get("row_entity"),
+                "column_attribute": p.get("column_attribute"),
+                "value_type": p.get("value_type"),
+                "root_section": p.get("root_section"),
+                "parent_key": p.get("parent_key"),
+                "structural_record_id": p.get("structural_record_id"),
             }
 
             qdrant_points.append(
@@ -475,6 +481,66 @@ class VectorStore:
         except Exception as e:
             logger.error(f"[VectorStore] Error retrieving hierarchical points: {e}")
             return []
+
+    def get_all_hierarchical_candidates(
+        self,
+        document_id: Optional[str] = None,
+        document_type: Optional[str] = None,
+        year: Optional[Union[int, str]] = None,
+    ) -> List[Dict[str, Any]]:
+        """Scroll all hierarchy payloads within the same document/type/year scope.
+
+        Structural candidates are discovered independently of dense/sparse rank,
+        so an exact field/value record can be considered even when it lies below
+        the semantic retrieval cutoff.
+        """
+        query_filter = self._build_hierarchical_filter(
+            document_id=document_id,
+            document_type=document_type,
+            year=year,
+        )
+        results: List[Dict[str, Any]] = []
+        offset = None
+        try:
+            while True:
+                points, next_offset = self.client.scroll(
+                    collection_name=self.hierarchical_collection_name,
+                    scroll_filter=query_filter,
+                    limit=500,
+                    offset=offset,
+                    with_payload=True,
+                    with_vectors=False,
+                )
+                for point in points:
+                    payload = point.payload or {}
+                    results.append({
+                        "id": payload.get("id") or str(point.id),
+                        "text": payload.get("hierarchy_path_text") or payload.get("text", ""),
+                        "metadata": payload,
+                        "document_id": payload.get("document_id"),
+                        "file_name": payload.get("file_name"),
+                        "document_type": payload.get("document_type"),
+                        "year": payload.get("year"),
+                        "quarter": payload.get("quarter"),
+                        "report_period": payload.get("report_period"),
+                        "node_key": payload.get("node_key", ""),
+                        "node_value": payload.get("node_value"),
+                        "hierarchy_path": payload.get("hierarchy_path", []),
+                        "hierarchy_path_text": payload.get("hierarchy_path_text", ""),
+                        "source_page": payload.get("source_page"),
+                        "node_type": payload.get("node_type", "leaf"),
+                        "score": 0.0,
+                        "vector_sim": 0.0,
+                        "rrf_score": 0.0,
+                        "lexical_score": 0.0,
+                    })
+                if next_offset is None:
+                    break
+                offset = next_offset
+        except Exception as exc:
+            logger.warning(f"[VectorStore] Structural hierarchy scroll failed: {exc}")
+            return []
+        return results
 
     def search_children_by_path_prefix(
         self,

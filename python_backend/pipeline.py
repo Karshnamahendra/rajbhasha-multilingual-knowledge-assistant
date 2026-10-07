@@ -530,6 +530,44 @@ class RAGPipeline:
                 document_id=document_id
             )
 
+            # Final structural acceptance gate for hierarchical factual evidence.
+            # Query analysis supplies the constraints; candidates without a VALID
+            # structural identity cannot contribute a bare node_value to the answer.
+            is_branch_query = (
+                analysis.get("intent") == "branch_enumeration"
+                or analysis.get("is_branch_enumeration")
+            )
+            has_structural_constraints = bool(
+                (analysis.get("requested_field") and analysis.get("requested_field") != "branch_children")
+                or analysis.get("expected_value_type")
+                or analysis.get("requested_attribute")
+                or analysis.get("requested_entity")
+                or analysis.get("parent_section")
+                or analysis.get("requested_region")
+                or analysis.get("requested_direction")
+                or analysis.get("action_relation")
+                or analysis.get("aggregation")
+                or analysis.get("source_language")
+                or analysis.get("target_language")
+            )
+            hier_best_evidence = [
+                c for c in hier_best_evidence
+                if c.get("structural_eligibility") != "CONTRADICTED"
+            ]
+            if not is_branch_query:
+                hier_best_evidence = [
+                    c for c in hier_best_evidence
+                    if str(c.get("node_type") or c.get("metadata", {}).get("node_type") or "").casefold() not in {"branch", "heading", "parent"}
+                ]
+                if has_structural_constraints:
+                    hier_best_evidence = [
+                        c for c in hier_best_evidence
+                        if c.get("structural_eligibility") == "VALID"
+                        and c.get("node_value", c.get("metadata", {}).get("node_value")) is not None
+                        and str(c.get("node_value", c.get("metadata", {}).get("node_value"))).strip()
+                        and str(c.get("node_type") or c.get("metadata", {}).get("node_type") or "").casefold() not in {"branch", "heading", "parent"}
+                    ]
+
             # Accept any hierarchical candidate that clears the reranker quality floor.
             # The threshold is intentionally permissive (>= 0.30) because the reranker
             # already applies multi-factor scoring; a lower score still means the node
@@ -810,7 +848,8 @@ class RAGPipeline:
                             print(f"[RAGPipeline:Debug] ask: is_branch_enum=True, selected doc={best_doc}, parent_path={parent_path}, scoped_siblings={list(grouped.keys())}")
 
                     if not verified_hier_meta:
-                        if top_val is not None and str(top_val).strip() != "":
+                        if (top_cand.get("structural_eligibility") == "VALID"
+                                and top_val is not None and str(top_val).strip() != ""):
                             verified_hier_meta = {
                                 "Field": top_key or "Value",
                                 "Value": str(top_val).strip(),
@@ -921,7 +960,8 @@ class RAGPipeline:
                     if not all_siblings_covered or not raw_answer or is_refusal:
                         if verified_hier_meta and verified_hier_meta.get("Value"):
                             raw_answer = str(verified_hier_meta.get("Value")).strip()
-                        elif top_val is not None and str(top_val).strip() != "":
+                        elif (top_cand.get("structural_eligibility") == "VALID"
+                                and top_val is not None and str(top_val).strip() != ""):
                             raw_answer = str(top_val).strip()
 
                     if raw_answer and not is_branch_enum:
@@ -1090,9 +1130,9 @@ class RAGPipeline:
                             "query_analysis": {**analysis, "query_mode": analysis.get("query_mode"),
                                                "structured_evidence": first_r},
                         }
-                    return {"answer": "The requested structured field was not found in this document.",
-                            "evidence": [],
-                            "query_analysis": {**analysis, "query_mode": analysis.get("query_mode")}}
+                    # A field classifier can return a canonical candidate even
+                    # when no persisted metadata record exists. Continue to the
+                    # document-backed table matcher before reporting no answer.
 
                 record = self.structured_store.find(document_id, field)
                 print("\n================ STRUCTURED QUERY DEBUG ================\n"
@@ -1109,8 +1149,9 @@ class RAGPipeline:
                     return {"answer": self._structured_answer(query, record), "evidence": [evidence],
                             "query_analysis": {**analysis, "query_mode": analysis.get("query_mode"),
                                                "structured_evidence": record}}
-                return {"answer": "The requested structured field was not found in this document.", "evidence": [],
-                        "query_analysis": {**analysis, "query_mode": analysis.get("query_mode")}}
+                # Do not treat a missing metadata-store row as proof that the
+                # requested fact is absent: numeric/form values may be stored
+                # only in the extracted table records handled below.
 
             # Queries requesting a form's field labels can use the table engine,
             # but still must not fall through to generic content retrieval.
@@ -1122,7 +1163,10 @@ class RAGPipeline:
                 target_languages=analysis.get("target_languages"),
                 condition_languages=analysis.get("condition_languages")
             )
-            if table_result and not analysis.get("is_hybrid"):
+            if table_result and (
+                not analysis.get("is_hybrid")
+                or analysis.get("expected_value_type") == "COUNT"
+            ):
                 try:
                     print(f"[RAGPipeline] Structured answer: document={document_id}, "
                           f"details={table_result.get('details')}, evidence={table_result.get('evidence')}")
@@ -1191,6 +1235,10 @@ class RAGPipeline:
         # Generate Grounded Answer with LLM
         verified_table_data = (table_result.get("details") if (analysis.get("table_intent") and "table_result" in locals() and table_result) else None)
         raw_answer = self.generator.generate_answer(query, best_evidence, verified_metadata=verified_table_data)
+        if raw_answer and analysis.get("expected_value_type") == "COUNT":
+            # Keep count answers concise by applying the existing generic
+            # evidence-span extractor to the grounded generation result.
+            raw_answer = extract_factual_span(query, raw_answer, analysis)
 
         # Format Evidence For Frontend
         formatted_evidence = []

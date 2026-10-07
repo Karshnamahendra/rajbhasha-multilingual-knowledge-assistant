@@ -339,7 +339,8 @@ class ReportMetrics:
         explicitly selected several documents. A bare "अंतर" with nothing selected
         is usually a normal question ("हिंदी और अंग्रेजी में अंतर"), not a report comparison."""
         periods = set(re.findall(r"20\d{2}", query or ""))
-        if len(periods) >= 2:
+        exact_dates = set(re.findall(r"\d{1,2}[._/-]\d{1,2}[._/-]20\d{2}", query or ""))
+        if len(periods) >= 2 or len(exact_dates) >= 2:
             return True
         return several_selected and bool(_COMPARE_RE.search(query or ""))
 
@@ -399,6 +400,17 @@ class ReportMetrics:
     def compare(self, query: str, document_ids: Optional[List[str]] = None,
                 max_rows: int = 40) -> Optional[Dict[str, Any]]:
         recs = [r for r in self.records(document_ids) if r["value"] is not None]
+        # If the query names report periods, keep comparison scoped to those
+        # periods. This prevents unrelated available reports from filling gaps.
+        exact_dates = re.findall(r"\d{1,2}[._/-]\d{1,2}[._/-]20\d{2}", query or "")
+        requested_years = set(re.findall(r"20\d{2}", query or ""))
+        if exact_dates:
+            normalize_date = lambda value: tuple(int(part) for part in re.split(r"[._/-]", value))
+            wanted_dates = {normalize_date(value) for value in exact_dates}
+            recs = [r for r in recs if (match := _PERIOD_RE.search(str(r.get("period", ""))))
+                    and normalize_date(match.group(0)) in wanted_dates]
+        elif requested_years:
+            recs = [r for r in recs if any(year in str(r.get("period", "")) for year in requested_years)]
         periods = sorted({r["period"] for r in recs}, key=_period_sort_key)
         if len(periods) < 2:
             return None
@@ -433,7 +445,9 @@ class ReportMetrics:
         wanted_regions = self.named_regions(query)
         if wanted_regions:
             narrowed = [row for row in table if row["region"] in wanted_regions]
-            table = narrowed or table
+            if not narrowed:
+                return None
+            table = narrowed
 
         # Narrow to what the question asks about, if it names something specific
         q_tokens = _content_tokens(re.sub(r"20\d{2}|\d{1,2}[._-]\d{1,2}[._-]\d{4}", " ", query or ""))
@@ -470,16 +484,20 @@ class ReportMetrics:
             "unit": "%" if chart_rows and chart_rows[0]["is_percent"] else "",
         }
 
-        lines = [f"**{first}** और **{last}** की रिपोर्ट की तुलना ({len(out_rows)} मद):", ""]
+        lines = [f"**{len(periods)} अवधियों** की रिपोर्ट तुलना ({len(out_rows)} मद):", ""]
         for r in out_rows[:15]:
             name = (f'{r["region"]} क्षेत्र – ' if r["region"] else "") + r["metric"]
             a, b = r["values"].get(first), r["values"].get(last)
+            period_values = "; ".join(
+                f'{period}: {_fmt(r["values"].get(period), r["is_percent"])}'
+                for period in periods if r["values"].get(period) is not None
+            )
             delta = ""
             if r["change"] is not None:
                 sign = "+" if r["change"] > 0 else ""
                 delta = f' ({sign}{_fmt(r["change"], r["is_percent"])}'
                 delta += f', {sign}{_fmt(r["change_pct"])}%)' if r["change_pct"] is not None else ")"
-            lines.append(f'- {name}: {_fmt(a, r["is_percent"])} → {_fmt(b, r["is_percent"])}{delta}')
+            lines.append(f'- {name}: {period_values}{delta}')
         if len(out_rows) > 15:
             lines.append(f"- … और {len(out_rows) - 15} मद (पूरी तालिका नीचे)")
 

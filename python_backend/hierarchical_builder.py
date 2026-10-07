@@ -143,7 +143,45 @@ def build_table_hierarchy(table: Dict[str, Any]) -> Optional[HierarchicalNode]:
         table_title = "तालिका विवरण"
 
     cleaned_title = clean_key(table_title) or table_title
-    table_node = HierarchicalNode(key=cleaned_title, source_page=page_number)
+    root_section = clean_key(table.get("root_section") or table.get("section") or cleaned_title) or cleaned_title
+    table_identity = "::".join(str(part) for part in (
+        table.get("document_id") or "",
+        table.get("table_id") or table.get("table_index") or cleaned_title,
+    ))
+    table_node = HierarchicalNode(
+        key=cleaned_title,
+        source_page=page_number,
+        root_section=root_section,
+        value_type="BRANCH",
+        metadata={"table_derived": True, "table_id": table_identity},
+    )
+
+    def table_value_node(
+        key: str,
+        value: str,
+        row_entity: Optional[str],
+        column_attribute: str,
+        parent_key: str,
+        row_index: int,
+        column_index: int,
+    ) -> HierarchicalNode:
+        normalized_attribute = clean_key(column_attribute) or column_attribute
+        record_id = HierarchicalNode._stable_structural_id([
+            table_identity, page_number, root_section, parent_key, row_entity,
+            normalized_attribute, row_index, column_index, "leaf",
+        ])
+        return HierarchicalNode(
+            key=key,
+            value=value,
+            source_page=page_number,
+            row_entity=row_entity,
+            column_attribute=normalized_attribute,
+            value_type=HierarchicalNode._value_type(value, "leaf"),
+            root_section=root_section,
+            parent_key=parent_key,
+            structural_record_id=record_id,
+            metadata={"table_derived": True, "table_id": table_identity},
+        )
 
     if not rows:
         return table_node
@@ -204,40 +242,98 @@ def build_table_hierarchy(table: Dict[str, Any]) -> Optional[HierarchicalNode]:
             break
 
     if label_col:
-        for r in data_rows:
+        for row_index, r in enumerate(data_rows):
             row_subject = clean_val(r.get(label_col, ""))
             if not row_subject or row_subject in {":", "::"}:
                 continue
             cleaned_row_subject = clean_key(row_subject) or row_subject
-            row_node = HierarchicalNode(key=cleaned_row_subject, source_page=page_number)
-            for col, col_name in resolved_cols.items():
+            row_node = HierarchicalNode(
+                key=cleaned_row_subject,
+                source_page=page_number,
+                row_entity=cleaned_row_subject,
+                root_section=root_section,
+                parent_key=cleaned_title,
+                value_type="BRANCH",
+                structural_record_id=HierarchicalNode._stable_structural_id([
+                    table_identity, page_number, root_section, cleaned_title, row_index, "row-branch",
+                ]),
+                metadata={"table_derived": True, "table_id": table_identity},
+            )
+            for column_index, (col, col_name) in enumerate(resolved_cols.items()):
                 if col == label_col:
                     continue
                 val = clean_val(r.get(col, ""))
                 if val and val not in {":", "::"}:
-                    row_node.add_child(HierarchicalNode(key=col_name or col, value=val, source_page=page_number))
+                    row_node.add_child(table_value_node(
+                        key=col_name or col,
+                        value=val,
+                        row_entity=cleaned_row_subject,
+                        column_attribute=col_name or col,
+                        parent_key=cleaned_row_subject,
+                        row_index=row_index,
+                        column_index=column_index,
+                    ))
             if row_node.children:
                 table_node.add_child(row_node)
     else:
         if len(data_rows) == 1:
             r = data_rows[0]
-            for col, col_name in resolved_cols.items():
+            for column_index, (col, col_name) in enumerate(resolved_cols.items()):
                 val = clean_val(r.get(col, ""))
                 if val and val not in {":", "::"} and not re.fullmatch(r"\(\d+\)", val):
-                    table_node.add_child(HierarchicalNode(key=col_name or col, value=val, source_page=page_number))
+                    table_node.add_child(table_value_node(
+                        key=col_name or col,
+                        value=val,
+                        row_entity=None,
+                        column_attribute=col_name or col,
+                        parent_key=cleaned_title,
+                        row_index=0,
+                        column_index=column_index,
+                    ))
         else:
-            for r in data_rows:
+            for row_index, r in enumerate(data_rows):
                 row_items = [(resolved_cols.get(c, c), clean_val(r.get(c, ""))) for c in headers if clean_val(r.get(c, ""))]
                 row_items = [(k, v) for k, v in row_items if k and v and v not in {":", "::"}]
                 if len(row_items) == 2 and not re.fullmatch(r"[-+]?\d+", row_items[0][1]):
-                    table_node.add_child(HierarchicalNode(key=clean_key(row_items[0][1]), value=row_items[1][1], source_page=page_number))
+                    entity = clean_key(row_items[0][1]) or row_items[0][1]
+                    attr = row_items[1][0]
+                    row_node = HierarchicalNode(
+                        key=entity,
+                        source_page=page_number,
+                        row_entity=entity,
+                        root_section=root_section,
+                        parent_key=cleaned_title,
+                        value_type="BRANCH",
+                        structural_record_id=HierarchicalNode._stable_structural_id([
+                            table_identity, page_number, root_section, cleaned_title, row_index, "row-branch",
+                        ]),
+                        metadata={"table_derived": True, "table_id": table_identity},
+                    )
+                    row_node.add_child(table_value_node(
+                        key=attr,
+                        value=row_items[1][1],
+                        row_entity=entity,
+                        column_attribute=attr,
+                        parent_key=entity,
+                        row_index=row_index,
+                        column_index=1,
+                    ))
+                    table_node.add_child(row_node)
                 else:
-                    for k, v in row_items:
-                        table_node.add_child(HierarchicalNode(key=k, value=v, source_page=page_number))
+                    for column_index, (k, v) in enumerate(row_items):
+                        table_node.add_child(table_value_node(
+                            key=k,
+                            value=v,
+                            row_entity=None,
+                            column_attribute=k,
+                            parent_key=cleaned_title,
+                            row_index=row_index,
+                            column_index=column_index,
+                        ))
 
     # Fallback / Key-Value form table mode if no children built
     if not table_node.children:
-        for r in rows:
+        for row_index, r in enumerate(rows):
             label = ""
             val = ""
             if title_candidates and title_candidates[0] in r:
@@ -263,7 +359,15 @@ def build_table_hierarchy(table: Dict[str, Any]) -> Optional[HierarchicalNode]:
                 c_lbl = clean_key(label)
                 c_val = clean_val(val)
                 if c_lbl and c_val:
-                    table_node.add_child(HierarchicalNode(key=c_lbl, value=c_val, source_page=page_number))
+                    table_node.add_child(table_value_node(
+                        key=c_lbl,
+                        value=c_val,
+                        row_entity=None,
+                        column_attribute=c_lbl,
+                        parent_key=cleaned_title,
+                        row_index=row_index,
+                        column_index=0,
+                    ))
 
     # Narrative / sequential text table handling (e.g. Section 11 narrative sub-sections, notes, achievements)
     if not table_node.children:

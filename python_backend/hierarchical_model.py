@@ -8,6 +8,7 @@ from __future__ import annotations
 import os
 import re
 import json
+import hashlib
 from typing import Any, Dict, List, Optional, Tuple
 
 
@@ -31,12 +32,42 @@ class HierarchicalNode:
         children: Optional[List[HierarchicalNode]] = None,
         source_page: Optional[int] = None,
         metadata: Optional[Dict[str, Any]] = None,
+        row_entity: Optional[str] = None,
+        column_attribute: Optional[str] = None,
+        value_type: Optional[str] = None,
+        root_section: Optional[str] = None,
+        parent_key: Optional[str] = None,
+        structural_record_id: Optional[str] = None,
     ):
         self.key: str = str(key or "").strip()
         self.value: Optional[str] = str(value).strip() if value is not None else None
         self.children: List[HierarchicalNode] = children if children is not None else []
         self.source_page: Optional[int] = source_page
         self.metadata: Dict[str, Any] = metadata or {}
+        self.row_entity = row_entity if row_entity is not None else self.metadata.get("row_entity")
+        self.column_attribute = column_attribute if column_attribute is not None else self.metadata.get("column_attribute")
+        self.value_type = value_type if value_type is not None else self.metadata.get("value_type")
+        self.root_section = root_section if root_section is not None else self.metadata.get("root_section")
+        self.parent_key = parent_key if parent_key is not None else self.metadata.get("parent_key")
+        self.structural_record_id = structural_record_id if structural_record_id is not None else self.metadata.get("structural_record_id")
+
+    @staticmethod
+    def _value_type(value: Optional[str], node_type: str) -> str:
+        if node_type == "branch":
+            return "BRANCH"
+        text = str(value or "").strip()
+        if re.fullmatch(r"[-+]?(?:\d+(?:[,.]\d+)*)(?:\.\d+)?\s*%", text):
+            return "PERCENTAGE"
+        if re.fullmatch(r"(?:\d{4}[-/.]\d{1,2}[-/.]\d{1,2}|\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4})", text):
+            return "DATE"
+        if re.fullmatch(r"[-+]?(?:\d+(?:[,.]\d+)*)(?:\.\d+)?", text):
+            return "NUMERIC"
+        return "TEXT"
+
+    @staticmethod
+    def _stable_structural_id(parts: List[Any]) -> str:
+        serialized = json.dumps(parts, ensure_ascii=False, separators=(",", ":"), default=str)
+        return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
     def add_child(self, child: HierarchicalNode) -> HierarchicalNode:
         if child is not None:
@@ -93,6 +124,7 @@ class HierarchicalNode:
         doc_metadata: Dict[str, Any],
         parent_path: Optional[List[str]] = None,
         include_branches: bool = True,
+        structural_ordinal: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
         """Recursively converts this node and its descendants into indexable Qdrant point dictionaries.
 
@@ -122,6 +154,14 @@ class HierarchicalNode:
             val_str = str(self.value).strip()
             path_text = " > ".join(current_path) + f" = {val_str}" if current_path else f"= {val_str}"
             leaf_id = f"{doc_id}::hier::leaf::{path_text}"
+            root_section = self.root_section or (current_path[0] if current_path else None)
+            parent_key = self.parent_key or (current_path[-2] if len(current_path) > 1 else None)
+            value_type = self.value_type or self._value_type(val_str, "leaf")
+            structural_record_id = self.structural_record_id or self._stable_structural_id([
+                doc_id, root_section, parent_key, self.row_entity, self.column_attribute,
+                self.key, current_path, self.source_page, "leaf",
+                self.metadata.get("structural_ordinal", structural_ordinal),
+            ])
             points.append({
                 "id": leaf_id,
                 "document_id": doc_id,
@@ -141,12 +181,25 @@ class HierarchicalNode:
                 "hierarchy_path_text": path_text,
                 "text": path_text,
                 "node_type": "leaf",
+                "row_entity": self.row_entity,
+                "column_attribute": self.column_attribute,
+                "value_type": value_type,
+                "root_section": root_section,
+                "parent_key": parent_key,
+                "structural_record_id": structural_record_id,
             })
 
         # 2. Branch node (contains children)
         elif self.children and include_branches and current_path:
             path_text = " > ".join(current_path)
             branch_id = f"{doc_id}::hier::branch::{path_text}"
+            root_section = self.root_section or (current_path[0] if current_path else None)
+            parent_key = self.parent_key or (current_path[-2] if len(current_path) > 1 else None)
+            structural_record_id = self.structural_record_id or self._stable_structural_id([
+                doc_id, root_section, parent_key, self.row_entity, self.column_attribute,
+                self.key, current_path, self.source_page, "branch",
+                self.metadata.get("structural_ordinal", structural_ordinal),
+            ])
             branch_page = self.source_page
             if branch_page is None:
                 for ch in self.children:
@@ -172,15 +225,22 @@ class HierarchicalNode:
                 "hierarchy_path_text": path_text,
                 "text": path_text,
                 "node_type": "branch",
+                "row_entity": self.row_entity,
+                "column_attribute": self.column_attribute,
+                "value_type": self.value_type or self._value_type(None, "branch"),
+                "root_section": root_section,
+                "parent_key": parent_key,
+                "structural_record_id": structural_record_id,
             })
 
         # Recurse into children
-        for child in self.children:
+        for child_index, child in enumerate(self.children):
             points.extend(
                 child.to_indexable_points(
                     doc_metadata=doc_metadata,
                     parent_path=current_path,
                     include_branches=include_branches,
+                    structural_ordinal=child_index,
                 )
             )
 
@@ -242,12 +302,13 @@ class DocumentHierarchy:
 
         if self.root.children and self.root.value is None:
             points: List[Dict[str, Any]] = []
-            for child in self.root.children:
+            for child_index, child in enumerate(self.root.children):
                 points.extend(
                     child.to_indexable_points(
                         doc_metadata=self.metadata,
                         parent_path=[],
                         include_branches=include_branches,
+                        structural_ordinal=child_index,
                     )
                 )
             return points
