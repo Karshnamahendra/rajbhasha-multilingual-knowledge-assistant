@@ -62,6 +62,7 @@ _STOP = {
 
 # Roman Hindi / English words -> a Devanagari stem found in the report labels
 _ALIASES = {
+    "हिन्दी": "हिंदी", "अंग्रेज़ी": "अंग्रेजी",
     "patra": "पत्र", "patr": "पत्र", "patron": "पत्र", "letter": "पत्र", "letters": "पत्र",
     "bheje": "भेजे", "bheja": "भेजे", "issued": "भेजे", "sent": "भेजे",
     "prapt": "प्राप्त", "received": "प्राप्त", "aaye": "प्राप्त", "aye": "प्राप्त",
@@ -71,9 +72,9 @@ _ALIASES = {
     "tippani": "टिप्पणियों", "noting": "टिप्पणियों", "notings": "टिप्पणियों",
     "prishth": "पृष्ठों", "pages": "पृष्ठों",
     "karyashala": "कार्यशाला", "workshop": "कार्यशाला", "workshops": "कार्यशाला",
-    "prashikshit": "प्रशिक्षित", "trained": "प्रशिक्षित",
-    "adhikari": "अधिकारियों", "officers": "अधिकारियों",
-    "karmachari": "कर्मचारियों", "employees": "कर्मचारियों",
+    "prashikshit": "प्रशिक्षित", "trained": "प्रशिक्षित", "train": "प्रशिक्षित",
+    "adhikari": "अधिकारियों", "officers": "अधिकारी",
+    "karmachari": "कर्मचारियों", "employee": "कर्मचारी", "employees": "कर्मचारी",
     "kagjat": "कागजात", "kagaz": "कागजात", "documents": "कागजात",
     "pratishat": "प्रतिशत", "percentage": "प्रतिशत", "percent": "प्रतिशत",
     "baithak": "बैठक", "meeting": "बैठक", "meetings": "बैठक",
@@ -87,20 +88,46 @@ _ALIASES = {
     "adhikariyon": "अधिकारियों", "karmchari": "कर्मचारियों", "karmchariyon": "कर्मचारियों",
     "karmachariyon": "कर्मचारियों", "staff": "कर्मचारियों",
     "uttaron": "उत्तर", "jawab": "उत्तर", "answered": "उत्तर",
+    "correspondence": "पत्राचार", "original": "मूल", "note": "टिप्पणियों",
     "karyashalaon": "कार्यशाला", "karyashalayen": "कार्यशाला",
 }
 
 # Direction words: "को / to" = letters sent to a region, "से / from" = received from it
 _DIRECTION_TO = {"को", "ko", "to", "bheje", "भेजे", "issued", "sent"}
 _DIRECTION_FROM = {"से", "se", "from", "प्राप्त", "prapt", "received"}
+_ANSWER_TERMS = {"उत्तर", "uttar", "जवाब", "jawab", "reply", "replies", "replied",
+                 "answer", "answers", "answered", "response", "responses"}
+_HINDI_TERMS = {"hindi", "हिंदी", "हिन्दी"}
+_ENGLISH_TERMS = {"english", "अंग्रेजी", "अंग्रेज़ी"}
+
+
+def _language_near_action(query: str, action_terms: set) -> Optional[str]:
+    """Return a language explicitly attached to an action (e.g. Hindi replies)."""
+    tokens = _tokens(query)
+    actions = [i for i, token in enumerate(tokens) if token in action_terms]
+    candidates = []
+    for i, token in enumerate(tokens):
+        language = "hindi" if token in _HINDI_TERMS else "english" if token in _ENGLISH_TERMS else None
+        if language:
+            distance = min((abs(i - action) for action in actions), default=999)
+            if distance <= 3:
+                candidates.append((distance, language))
+    if not candidates:
+        return None
+    candidates.sort(key=lambda item: item[0])
+    return candidates[0][1]
 
 _COMPARE_RE = re.compile(
-    r"(?<![\wऀ-ॿ])(compare|comparison|vs\.?|versus|तुलना|tulna|बनाम|banaam|अंतर|antar|difference|फर्क|farak|growth|वृद्धि|badlav|बदलाव)(?![\wऀ-ॿ])",
+    r"(?<![\wऀ-ॿ])(compare|comparison|vs\.?|versus|increase|increased|increasing|decrease|decreased|decreasing|change|changed|तुलना|tulna|बनाम|banaam|अंतर|antar|difference|फर्क|farak|growth|वृद्धि|vriddhi|badlav|बदलाव)(?![\wऀ-ॿ])",
     re.I,
 )
 _MULTI_PERIOD_RE = re.compile(
     r"(?<![\wऀ-ॿ])(both|two|multiple|dono|dono\s+(?:quarter|timahi|report)|"
-    r"दोनों|दो\s+तिमाहियों|दो\s+रिपोर्टों|दो\s+रिपोर्ट|दो\s+अवधियों)(?![\wऀ-ॿ])",
+    r"all\s+(?:selected\s+)?(?:periods?|quarters?|reports?|files?)|"
+    r"whole\s+year|full\s+year|entire\s+year|yearly|throughout\s+(?:the\s+)?year|"
+    r"(?:\d+|four|चार|chaar)\s+quarters?|saare\s+quarters?|poore\s+saal|pure\s+saal|saal\s+bhar|"
+    r"दोनों|दो\s+तिमाहियों|चार\s+तिमाहियों|सभी\s+तिमाहियों|पूरे\s+साल|पूरे\s+वर्ष|"
+    r"दो\s+रिपोर्टों|दो\s+रिपोर्ट|दो\s+अवधियों)(?![\wऀ-ॿ])",
     re.I,
 )
 _ALL_REGIONS_RE = re.compile(
@@ -116,13 +143,20 @@ _COUNT_INTENT_RE = re.compile(
 )
 # "region A", "क क्षेत्र", "‘क’ क्षेत्र", "ka kshetra"
 _NAMED_REGION_RE = re.compile(
-    r"regions?\s*[‘'\"`]?\s*([abc])\b|(?<![ऀ-ॿ])[‘'\"`]?\s*(क|ख|ग)\s*[’'\"`]?\s*क्षेत्र|\b(ka|kha|ga)\s+kshetr",
+    r"regions?\s*[‘'\"`]?\s*([abc])\b|(?<![ऀ-ॿ])[‘'\"`]?\s*(क|ख|ग)\s*[’'\"`]?\s*क्षेत्र|[‘'\"`]?\b(ka|kha|kh|k|ga|g)\b[’'\"`]?\s+kshetr(?:a)?",
     re.I,
 )
-_REGION_ENUM_EN_RE = re.compile(r"\bregions?\s+([abc](?:\s*(?:,|and|&)\s*[abc])*)", re.I)
-_REGION_ENUM_HI_RE = re.compile(r"((?:[‘'\"`]?\s*[कखग]\s*[’'\"`]?\s*(?:,|और|and)\s*)+[‘'\"`]?\s*[कखग]\s*[’'\"`]?)\s*क्षेत्र", re.I)
-_REGION_ENUM_ROMAN_RE = re.compile(r"\b(?:kha|kh|ka|k|ga|g)(?:\s*(?:,|aur|and|&)\s*(?:kha|kh|ka|k|ga|g))+\s+kshetr", re.I)
+_REGION_ENUM_EN_RE = re.compile(
+    r"\bregions?\s+((?:[‘’'\"`]?\s*[abc]\s*[‘’'\"`]?\s*(?:,|and|&)\s*)*"
+    r"[‘’'\"`]?\s*[abc]\s*[‘’'\"`]?)", re.I)
+_REGION_ENUM_HI_RE = re.compile(
+    r"((?:[‘’'\"`]?\s*[कखग]\s*[’'\"`]?\s*(?:,|और|and)\s*)+"
+    r"[‘’'\"`]?\s*[कखग]\s*[’'\"`]?)\s*क्षेत्र", re.I)
+_REGION_ENUM_ROMAN_RE = re.compile(
+    r"(?<![a-z])((?:kha|kh|ka|k|ga|g)\s*(?:,|aur|and|&)\s*"
+    r"(?:kha|kh|ka|k|ga|g)(?:\s*(?:,|aur|and|&)\s*(?:kha|kh|ka|k|ga|g))*)(?![a-z])", re.I)
 _ROMAN_REGION = {"k": "क", "ka": "क", "kh": "ख", "kha": "ख", "g": "ग", "ga": "ग"}
+_SECTION_REF_RE = re.compile(r"(?<![\wऀ-ॿ])(?:section|sec\.?|धारा|dhara)\s*(\d{1,2})(?:\s*\(\s*(\d{1,2})\s*\))?", re.I)
 
 
 def _tokens(text: str) -> List[str]:
@@ -149,6 +183,27 @@ def _stem_match(a: str, b: str) -> bool:
 def _overlap(query_toks: Iterable[str], label_toks: Iterable[str]) -> int:
     label_toks = list(label_toks)
     return sum(1 for q in set(query_toks) if any(_stem_match(q, l) for l in label_toks))
+
+
+def _best_section_scope(query: str, rows: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], bool]:
+    """Prefer a distinctly named table section, without depending on section numbers."""
+    query_terms = _content_tokens(query or "")
+    section_terms = [set(_content_tokens(row.get("section") or "")) for row in rows]
+    unique_sections = {str(row.get("section") or ""): terms
+                       for row, terms in zip(rows, section_terms)}
+    section_frequency: Dict[str, int] = {}
+    for terms in unique_sections.values():
+        for term in terms:
+            section_frequency[term] = section_frequency.get(term, 0) + 1
+    scores = [
+        sum(max((1.0 / section_frequency[term] for term in terms if _stem_match(qterm, term)), default=0.0)
+            for qterm in set(query_terms))
+        for terms in section_terms
+    ]
+    strongest = max(scores, default=0.0)
+    if strongest >= 1.0:
+        return [row for row, score in zip(rows, scores) if score >= strongest - 0.25], True
+    return rows, False
 
 
 def _short_label(label: str) -> str:
@@ -223,6 +278,7 @@ def records_from_table(table: Dict[str, Any], period: str) -> List[Dict[str, Any
         return []
     out: List[Dict[str, Any]] = []
     column_labels: Dict[int, str] = {}
+    column_groups: Dict[int, str] = {}
     section_no, section, region, region_header = "", "", None, ""
     for cells in matrix:
         cells = [c.strip() for c in cells]
@@ -234,6 +290,8 @@ def records_from_table(table: Dict[str, Any], period: str) -> List[Dict[str, Any
             section_no = _SECTION_NO_RE.match(cells[0]).group(1)
             section = next((c for c in cells[1:] if c and c != ":"), "")
             region, region_header = None, ""
+            column_labels.clear()
+            column_groups.clear()
             # A section row can itself carry a value (e.g. "7. meeting date : 23.09.2024")
             rest = [c for c in cells[1:] if c and c != ":"]
             if len(rest) >= 2 and rest[-1] != rest[0]:
@@ -250,9 +308,20 @@ def records_from_table(table: Dict[str, Any], period: str) -> List[Dict[str, Any
                           and not _NUMBER_RE.match(c)]
             numeric_cells = [(i, c) for i, c in enumerate(cells) if _NUMBER_RE.match(c)]
             if len(text_cells) >= 2 and len(numeric_cells) <= 1:
+                if all(re.fullmatch(r"\(\s*\d+\s*\)", value) for _, value in text_cells):
+                    continue  # column numbering row, not labels
+                category_cells = [(i, value) for i, value in text_cells if i >= 2]
+                parent = column_labels.get(min((i for i, _ in category_cells), default=-1), "")
                 for i, value in text_cells:
-                    if i >= 2:
+                    if i < 1:
+                        continue
+                    if category_cells and i >= 2 and parent:
+                        column_labels[i] = f"{parent} – {value}"
+                        column_groups[i] = parent
+                    else:
                         column_labels[i] = value
+                        if i >= 2:
+                            column_groups[i] = value
                 continue
 
         region_cell = next(((i, _REGION_RE.search(c) or _REGION_EN_RE.search(c))
@@ -275,6 +344,23 @@ def records_from_table(table: Dict[str, Any], period: str) -> List[Dict[str, Any
                     out.append(_record(table, period, section_no, section, region, region_header,
                                        metric_label, raw_value, parsed, is_percent))
                 continue
+        # Header-driven tables without a region column can have several
+        # numeric values per row (for example counts split by staff category).
+        # Preserve each value with its dynamically extracted column label.
+        numeric_values = [(i, raw) for i, raw in enumerate(cells) if _NUMBER_RE.match(raw)]
+        if len(numeric_values) >= 2:
+            indexed_values = []
+            for i, raw in numeric_values:
+                metric_label = column_labels.get(i)
+                value, pct = _parse_value(raw)
+                if metric_label and value is not None:
+                    indexed_values.append((i, metric_label, raw, value, pct))
+            if indexed_values:
+                for i, metric_label, raw, value, pct in indexed_values:
+                    out.append(_record(table, period, section_no, section, None, "",
+                                       metric_label, raw, value, pct,
+                                       aggregation_group=column_groups.get(i)))
+                continue
         label = max(filled, key=len)
         # Region row: "‘क’ क्षेत्र से / From Region ‘A’"
         m = _REGION_RE.search(label)
@@ -296,7 +382,8 @@ def records_from_table(table: Dict[str, Any], period: str) -> List[Dict[str, Any
     return out
 
 
-def _record(table, period, section_no, section, region, region_header, label, raw, val, pct):
+def _record(table, period, section_no, section, region, region_header, label, raw, val, pct,
+            aggregation_group=None):
     # Some report tables encode the region inside each metric label instead of
     # as a separate header row (e.g. "‘क’ क्षेत्र (letters sent in Hindi %)").
     # Normalize that schema so matching, comparison tables, and charts can use
@@ -326,6 +413,7 @@ def _record(table, period, section_no, section, region, region_header, label, ra
         "raw_value": raw,
         "value": val,
         "is_percent": pct,
+        "aggregation_group": aggregation_group,
     }
 
 
@@ -334,10 +422,12 @@ def _record(table, period, section_no, section, region, region_header, label, ra
 # ─────────────────────────────────────────────────────────────────────────────
 
 class ReportMetrics:
-    def __init__(self, table_store, doc_type_of=None):
+    def __init__(self, table_store, doc_type_of=None, embed_fn=None):
         self.table_store = table_store
         # Optional: document_id -> "report" | "magazine" (upload category). Magazines are skipped.
         self.doc_type_of = doc_type_of
+        self.embed_fn = embed_fn
+        self._embedding_cache: Dict[str, List[float]] = {}
 
     # -- loading ----------------------------------------------------------------
     def records(self, document_ids: Optional[List[str]] = None) -> List[Dict[str, Any]]:
@@ -360,54 +450,103 @@ class ReportMetrics:
         return out
 
     # -- scoring ----------------------------------------------------------------
-    @staticmethod
-    def _score(query: str, rec: Dict[str, Any]) -> float:
+    def _semantic_similarity(self, left: str, right: str) -> float:
+        """Compare a query with extracted table text using the shared embedder."""
+        if not self.embed_fn or not left.strip() or not right.strip():
+            return 0.0
+        try:
+            missing = [text for text in dict.fromkeys((left, right)) if text not in self._embedding_cache]
+            if missing:
+                for text, vector in zip(missing, self.embed_fn(missing)):
+                    self._embedding_cache[text] = vector
+            a, b = self._embedding_cache[left], self._embedding_cache[right]
+            norm_a = sum(float(x) ** 2 for x in a) ** 0.5 or 1.0
+            norm_b = sum(float(x) ** 2 for x in b) ** 0.5 or 1.0
+            return sum(float(x) * float(y) for x, y in zip(a, b)) / (norm_a * norm_b)
+        except Exception:
+            return 0.0
+
+    def _score(self, query: str, rec: Dict[str, Any]) -> float:
         q = _content_tokens(query)
         if not q:
             return 0.0
         label = _content_tokens(rec["metric"])
         context = _content_tokens(f'{rec["section"]} {rec["region_header"]}')
         score = 2.0 * _overlap(q, label) + 0.5 * _overlap(q, context)
+        # Exact terms from a table's parent heading are strong evidence for
+        # short/ambiguous cell labels; keep this independent of any report data.
+        score += 2.5 * _overlap(q, _content_tokens(str(rec.get("section") or "")))
+        score += 14.0 * self._semantic_similarity(query, str(rec.get("metric") or ""))
+        # Many report tables use short cell labels (for example “हिन्दी में”)
+        # whose meaning only becomes clear beside the table's section heading.
+        score += 6.0 * self._semantic_similarity(query, str(rec.get("section") or ""))
+        score += 10.0 * self._semantic_similarity(
+            query, " ".join(str(rec.get(key) or "") for key in ("section", "region_header", "metric"))
+        )
         # Direction: "को/to" means sent to the region, "से/from" means received from it
         raw_q = set(_tokens(query))
-        ctx = set(_tokens(f'{rec["section"]} {rec["region_header"]}'))
         label_raw = set(_tokens(rec["metric"]))
         if raw_q & _TOTAL_WORDS and label_raw & _TOTAL_WORDS:
             score += 1.5
         wants_pct = bool(raw_q & _PERCENT_WORDS) or "%" in (query or "")
         asks_count = bool(_COUNT_INTENT_RE.search(query or "")) and not wants_pct
         if rec.get("is_percent"):
-            score += 1.5 if wants_pct else -8.0 if asks_count else -1.5
-        asks_hindi = bool(raw_q & {"hindi", "हिंदी", "हिन्दी"})
-        asks_english = bool(raw_q & {"english", "अंग्रेजी", "अंग्रेज़ी"})
+            score += 1.5 if wants_pct else -20.0 if asks_count else -1.5
+        asks_hindi = bool(raw_q & _HINDI_TERMS)
+        asks_english = bool(raw_q & _ENGLISH_TERMS)
+        context_raw = set(_tokens(f'{rec["section"]} {rec["region_header"]}'))
         label_hindi = bool(label_raw & {"hindi", "हिंदी", "हिन्दी"})
         label_english = bool(label_raw & {"english", "अंग्रेजी", "अंग्रेज़ी"})
-        if asks_hindi:
-            score += 4.0 if label_hindi else -4.0
-        elif asks_english:
-            score += 4.0 if label_english else -4.0
-        q_sent, q_received = bool(raw_q & _DIRECTION_TO), bool(raw_q & _DIRECTION_FROM)
-        ctx_sent, ctx_received = bool(ctx & _DIRECTION_TO), bool(ctx & _DIRECTION_FROM)
+        context_hindi = bool(context_raw & _HINDI_TERMS)
+        context_english = bool(context_raw & _ENGLISH_TERMS)
+        response_language = _language_near_action(query, _ANSWER_TERMS)
+        asks_answer = bool(raw_q & _ANSWER_TERMS)
+        label_is_answer = bool(label_raw & _ANSWER_TERMS)
+        if asks_answer:
+            score += 8.0 if label_is_answer else -8.0
+        if asks_answer and response_language:
+            row_language_matches = (response_language == "hindi" and label_hindi) or (
+                response_language == "english" and label_english)
+            score += 8.0 if row_language_matches else -8.0
+        elif asks_hindi and asks_english:
+            # A multi-language question may also request an overall-total row;
+            # do not reject that row just because it has no single language tag.
+            if label_hindi or label_english:
+                score += 4.0
+            elif raw_q & _TOTAL_WORDS and label_raw & _TOTAL_WORDS:
+                score += 4.0
+            else:
+                score -= 10.0
+        elif asks_hindi or asks_english:
+            hindi_match = asks_hindi and (label_hindi or (not asks_english and context_hindi))
+            english_match = asks_english and (label_english or (not asks_hindi and context_english))
+            row_matches_language = hindi_match or english_match
+            score += 4.0 if row_matches_language else -10.0
+        q_sent = bool(raw_q & _DIRECTION_TO) or "send" in raw_q
+        q_received = bool(raw_q & _DIRECTION_FROM)
+        ctx_sent, ctx_received = bool(context_raw & _DIRECTION_TO), bool(context_raw & _DIRECTION_FROM)
         # Prefer the explicit action in the question over a locative "from".
         # E.g. "letters sent in Hindi from Region A" asks about dispatch, while
         # "letters received from Region A" asks about receipt.
         if q_sent:
-            score += 4.0 if ctx_sent else 0.0
-            score -= 4.0 if ctx_received else 0.0
+            score += 10.0 if ctx_sent else 0.0
+            score -= 10.0 if ctx_received else 0.0
         elif q_received:
-            score += 4.0 if ctx_received else 0.0
-            score -= 4.0 if ctx_sent else 0.0
+            score += 10.0 if ctx_received else 0.0
+            score -= 10.0 if ctx_sent else 0.0
         return score
 
     @staticmethod
     def named_regions(query: str) -> set:
         found = set()
         for enum in _REGION_ENUM_EN_RE.finditer(query or ""):
-            found.update(_REGION_EN_TO_HI[letter.lower()] for letter in re.findall(r"[abc]", enum.group(1), re.I))
+            found.update(_REGION_EN_TO_HI[letter.lower()]
+                         for letter in re.findall(r"(?<![a-z])[abc](?![a-z])", enum.group(1), re.I))
         for enum in _REGION_ENUM_HI_RE.finditer(query or ""):
             found.update(re.findall(r"[कखग]", enum.group(1)))
         for enum in _REGION_ENUM_ROMAN_RE.finditer(query or ""):
-            found.update(_ROMAN_REGION[letter.lower()] for letter in re.findall(r"\bkha\b|\bkh\b|\bka\b|\bk\b|\bga\b|\bg\b", enum.group(0), re.I))
+            found.update(_ROMAN_REGION[letter.lower()]
+                         for letter in re.findall(r"(?<![a-z])(?:kha|kh|ka|k|ga|g)(?![a-z])", enum.group(1), re.I))
         for m in _NAMED_REGION_RE.finditer(query or ""):
             if m.group(1):
                 found.add(_REGION_EN_TO_HI[m.group(1).lower()])
@@ -483,7 +622,7 @@ class ReportMetrics:
 
     # -- comparison ---------------------------------------------------------------
     def compare(self, query: str, document_ids: Optional[List[str]] = None,
-                max_rows: int = 40) -> Optional[Dict[str, Any]]:
+                max_rows: Optional[int] = None) -> Optional[Dict[str, Any]]:
         recs = [r for r in self.records(document_ids) if r["value"] is not None]
         # If the query names report periods, keep comparison scoped to those
         # periods. This prevents unrelated available reports from filling gaps.
@@ -519,7 +658,9 @@ class ReportMetrics:
                 key = match or key
             row = rows.setdefault(key, {"section_no": r["section_no"], "section": r["section"],
                                         "region": r["region"], "metric": r["metric_short"],
-                                        "is_percent": r["is_percent"], "values": {}, "evidence": []})
+                                        "is_percent": r["is_percent"],
+                                        "aggregation_group": r.get("aggregation_group"),
+                                        "values": {}, "evidence": []})
             row["values"][r["period"]] = r["value"]
             row["evidence"].append(r)
 
@@ -527,12 +668,33 @@ class ReportMetrics:
         if not table:
             return None
 
+        # An explicit section reference is a hard structural constraint, not a
+        # loose keyword. It prevents a Section 3(3) question matching Section 2.
+        section_ref = _SECTION_REF_RE.search(query or "")
+        if section_ref:
+            wanted_no, wanted_sub = section_ref.group(1), section_ref.group(2)
+            scoped = [row for row in table if str(row.get("section_no") or "") == wanted_no]
+            if wanted_sub:
+                sub_re = re.compile(rf"(?<!\d){re.escape(wanted_no)}\s*\(\s*{re.escape(wanted_sub)}\s*\)")
+                exact_sub = [row for row in scoped if sub_re.search(str(row.get("section") or ""))]
+                scoped = exact_sub or scoped
+            if not scoped:
+                return None
+            table = scoped
+
         wanted_regions = self.named_regions(query)
         if wanted_regions:
             narrowed = [row for row in table if row["region"] in wanted_regions]
             if not narrowed:
                 return None
             table = narrowed
+
+        # If the wording contains a distinctive term from a report section,
+        # keep the comparison inside the best matching section. This resolves
+        # repeated labels such as “हिन्दी में” that appear under incoming letters,
+        # replies, and outgoing correspondence alike.
+        table, section_scoped = _best_section_scope(query, table)
+        section_scope_rows = list(table)
 
         # Narrow to what the question asks about, if it names something specific
         q_tokens = _content_tokens(re.sub(r"20\d{2}|\d{1,2}[._-]\d{1,2}[._-]\d{4}", " ", query or ""))
@@ -543,13 +705,96 @@ class ReportMetrics:
                 # The question names something that is not a row in these tables
                 # (e.g. "हिंदी और अंग्रेजी में अंतर"): leave it to normal RAG.
                 return None
-            # Keep close matches for wording variation, but don't mix adjacent
-            # table sections (e.g. Hindi letters received vs Hindi-sent %).
-            table = [row for s, row in scored if s >= max(2.0, top - 0.35)]
+            # Keep only close semantic matches. Region rows for a requested list
+            # remain separate, while unrelated measures (e.g. replies vs letters
+            # sent) fall out after direction and whole-row context scoring.
+            coordinated = bool(re.search(r",|;|\b(?:and|aur)\b|और", query or "", re.I))
+            raw_query_tokens = set(_tokens(query or ""))
+            requests_multiple_languages = bool(
+                raw_query_tokens & {"hindi", "हिंदी", "हिन्दी"}
+                and raw_query_tokens & {"english", "अंग्रेजी", "अंग्रेज़ी"}
+            )
+            margin = 2.5 if coordinated or requests_multiple_languages else 0.6
+            table = [row for score, row in scored if score >= max(2.0, top - margin)]
+
+        # When a query explicitly requests more than one language in a table
+        # section, treat those language labels as separate requested measures.
+        # Embeddings can rank the short Hindi and English cell labels unevenly;
+        # the table's own labels are authoritative once the section is identified.
+        query_token_set = set(_tokens(query or ""))
+        asks_hindi = bool(query_token_set & {"hindi", "हिंदी", "हिन्दी"})
+        asks_english = bool(query_token_set & {"english", "अंग्रेजी", "अंग्रेज़ी"})
+        asks_total = bool(query_token_set & _TOTAL_WORDS)
+        response_language = _language_near_action(query, _ANSWER_TERMS)
+        asks_answer = bool(query_token_set & _ANSWER_TERMS)
+        if section_scoped and asks_hindi and asks_english and not (asks_answer and response_language):
+            requested_measures = []
+            for row in section_scope_rows:
+                if row.get("is_percent"):
+                    continue
+                label_tokens = set(_tokens(row.get("metric") or ""))
+                language_match = bool(label_tokens & {"hindi", "हिंदी", "हिन्दी", "english", "अंग्रेजी", "अंग्रेज़ी"})
+                total_match = asks_total and bool(label_tokens & _TOTAL_WORDS)
+                if language_match or total_match:
+                    requested_measures.append(row)
+            if requested_measures:
+                table = requested_measures
+
+        if asks_total:
+            requested_groups = {str(row.get("aggregation_group") or "").casefold()
+                                for row in table if row.get("aggregation_group")}
+            if requested_groups:
+                present = {(row.get("section_no"), row.get("region"), row.get("metric")) for row in table}
+                table.extend(row for row in section_scope_rows
+                             if str(row.get("aggregation_group") or "").casefold() in requested_groups
+                             and (row.get("section_no"), row.get("region"), row.get("metric")) not in present)
+
+        # Sum values that the extracted table explicitly groups under one
+        # parent measure (for example trained officers + trained employees).
+        # This is driven by the document's column headers, not report-specific
+        # question mappings.
+        if asks_total:
+            grouped_submetrics: Dict[Tuple[str, str, str], List[Dict[str, Any]]] = {}
+            ungrouped_rows = []
+            for row in table:
+                parent = str(row.get("aggregation_group") or "").strip()
+                if parent:
+                    key = (str(row.get("section_no") or ""), str(row.get("region") or ""), parent.casefold())
+                    grouped_submetrics.setdefault(key, []).append(row)
+                else:
+                    ungrouped_rows.append(row)
+            for group_rows in grouped_submetrics.values():
+                if len(group_rows) < 2:
+                    ungrouped_rows.extend(group_rows)
+                    continue
+                aggregate = {**group_rows[0], "metric": group_rows[0]["aggregation_group"],
+                             "region": group_rows[0].get("region"), "values": {}, "evidence": []}
+                for row in group_rows:
+                    for period, value in row["values"].items():
+                        if value is not None:
+                            aggregate["values"][period] = aggregate["values"].get(period, 0) + value
+                    aggregate["evidence"].extend(row.get("evidence") or [])
+                ungrouped_rows.append(aggregate)
+            table = ungrouped_rows
+
+        # A total request without an explicit region means aggregate matching
+        # region rows by the extracted metric identity and reporting period.
+        if asks_total and not wanted_regions and any(row.get("region") for row in table):
+            grouped: Dict[Tuple[str, str], Dict[str, Any]] = {}
+            for row in table:
+                key = (str(row.get("section_no") or ""), str(row.get("metric") or "").casefold())
+                target = grouped.setdefault(key, {**row, "region": None, "values": {}, "evidence": []})
+                for period in periods:
+                    value = row.get("values", {}).get(period)
+                    if value is not None:
+                        target["values"][period] = target["values"].get(period, 0) + value
+                target["evidence"].extend(row.get("evidence") or [])
+            table = list(grouped.values())
 
         first, last = periods[0], periods[-1]
         out_rows = []
-        for row in table[:max_rows]:
+        selected_rows = table if max_rows is None else table[:max_rows]
+        for row in selected_rows:
             a, b = row["values"].get(first), row["values"].get(last)
             change = None if a is None or b is None else b - a
             pct = None
@@ -569,7 +814,7 @@ class ReportMetrics:
         # Chart: one series per report, one bar group per metric (percent rows kept separate)
         asks_percent = bool(set(_tokens(query or "")) & _PERCENT_WORDS) or "%" in (query or "")
         preferred_chart_rows = [r for r in out_rows if r["is_percent"]] if asks_percent else [r for r in out_rows if not r["is_percent"]]
-        chart_rows = (preferred_chart_rows or out_rows)[:12]
+        chart_rows = preferred_chart_rows or out_rows
         chart = {
             "type": "bar",
             "labels": [" – ".join(part for part in ([f'{r["region"]} क्षेत्र' if r["region"] else "", r["metric"]]) if part) for r in chart_rows],
@@ -578,7 +823,7 @@ class ReportMetrics:
         }
 
         lines = [f"**{len(periods)} अवधियों** की रिपोर्ट तुलना ({len(out_rows)} मद):", ""]
-        for r in out_rows[:15]:
+        for r in out_rows:
             name = " – ".join(part for part in ([f'{r["region"]} क्षेत्र' if r["region"] else "", r["metric"]]) if part)
             a, b = r["values"].get(first), r["values"].get(last)
             period_values = "; ".join(
@@ -591,13 +836,66 @@ class ReportMetrics:
                 delta = f' ({sign}{_fmt(r["change"], r["is_percent"])}'
                 delta += f', {sign}{_fmt(r["change_pct"])}%)' if r["change_pct"] is not None else ")"
             lines.append(f'- {name}: {period_values}{delta}')
-        if len(out_rows) > 15:
-            lines.append(f"- … और {len(out_rows) - 15} मद (पूरी तालिका नीचे)")
-
-        evidence = [e for row in table[:max_rows] for e in row["evidence"]]
+        evidence = [e for row in selected_rows for e in row["evidence"]]
         return {"kind": "comparison", "answer": "\n".join(lines), "periods": periods,
                 "documents": {p: docs_by_period.get(p) for p in periods},
                 "comparison": out_rows, "chart_data": chart, "evidence": evidence}
+
+    def lookup(self, query: str, document_ids: List[str]) -> Optional[Dict[str, Any]]:
+        """Answer a numeric question from one selected report's extracted tables."""
+        if not _COUNT_INTENT_RE.search(query or ""):
+            return None
+        rows = [r for r in self.records(document_ids) if r.get("value") is not None]
+        if not rows:
+            return None
+        section_ref = _SECTION_REF_RE.search(query or "")
+        if section_ref:
+            rows = [r for r in rows if str(r.get("section_no") or "") == section_ref.group(1)]
+        wanted_regions = self.named_regions(query)
+        if wanted_regions:
+            rows = [r for r in rows if r.get("region") in wanted_regions]
+        if not rows:
+            return None
+        rows, _ = _best_section_scope(query, rows)
+
+        scored = [(self._score(query, row), row) for row in rows]
+        top = max(score for score, _ in scored)
+        if top < 2.0:
+            return None
+        selected = [row for score, row in scored if score >= max(2.0, top - 0.6)]
+        asks_total = bool(set(_tokens(query or "")) & _TOTAL_WORDS)
+        if asks_total:
+            requested_groups = {str(row.get("aggregation_group") or "").casefold()
+                                for row in selected if row.get("aggregation_group")}
+            if requested_groups:
+                present = {(row.get("section_no"), row.get("region"), row.get("metric")) for row in selected}
+                selected.extend(row for row in rows
+                                if str(row.get("aggregation_group") or "").casefold() in requested_groups
+                                and (row.get("section_no"), row.get("region"), row.get("metric")) not in present)
+            groups: Dict[Tuple[str, str, str], List[Dict[str, Any]]] = {}
+            remaining = []
+            for row in selected:
+                parent = str(row.get("aggregation_group") or "").strip()
+                if parent:
+                    groups.setdefault((str(row.get("section_no") or ""),
+                                       str(row.get("region") or ""), parent.casefold()), []).append(row)
+                else:
+                    remaining.append(row)
+            for grouped in groups.values():
+                if len(grouped) > 1:
+                    total = sum(row["value"] for row in grouped)
+                    merged = {**grouped[0], "metric_short": grouped[0]["aggregation_group"],
+                              "raw_value": _fmt(total), "value": total}
+                    remaining.append(merged)
+                else:
+                    remaining.extend(grouped)
+            selected = remaining
+
+        if not selected:
+            return None
+        answer = "\n".join(f'**{row["metric_short"]}:** {_fmt(row["value"], row["is_percent"])}'
+                           for row in selected)
+        return {"kind": "report_lookup", "answer": answer, "evidence": selected}
 
     # -- entry point used by the chat route ------------------------------------------
     def try_answer(self, query: str, document_ids: Optional[List[str]] = None) -> Optional[Dict[str, Any]]:
@@ -609,7 +907,11 @@ class ReportMetrics:
                 if res:
                     return res
             if self.is_region_total(query):
-                return self.region_total(query, document_ids)
+                result = self.region_total(query, document_ids)
+                if result:
+                    return result
+            if document_ids and len(document_ids) == 1:
+                return self.lookup(query, document_ids)
         except Exception as exc:  # never break chat because of this layer
             print(f"[ReportMetrics] skipped: {exc}")
         return None

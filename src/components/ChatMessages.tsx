@@ -233,21 +233,11 @@ const fmt = (n: number | null, digits = 2): string =>
 /** A table/graph value: adds "%" for percentage rows. */
 const fmtVal = (n: number | null, isPercent?: boolean): string => (n === null ? '—' : `${fmt(n)}${isPercent ? '%' : ''}`);
 
-/**
- * Period colours, fixed by position (first period → amber, last → indigo).
- * Validated for colour-blind separation and 3:1 contrast on the dark slate-950 surface.
- */
-const PERIOD_COLORS: Record<number, string[]> = {
-  1: ['#6366f1'],
-  2: ['#d97706', '#6366f1'],
-  3: ['#d97706', '#db2777', '#6366f1'],
-};
-/** The graph draws at most 3 periods; with more, it shows first vs last (the table keeps all). */
-const graphPeriodIndexes = (count: number): number[] =>
-  count <= 3 ? Array.from({ length: count }, (_, i) => i) : [0, count - 1];
-
-/** The graph shows at most this many metrics; the table always has every row. */
-const GRAPH_ROW_LIMIT = 12;
+/** Include every period supplied by the backend, including all selected quarters. */
+const graphPeriodIndexes = (count: number): number[] => Array.from({ length: count }, (_, i) => i);
+/** Spread hues across any number of periods instead of relying on a fixed 2–3 color map. */
+const periodColor = (index: number, count: number): string =>
+  `hsl(${Math.round((index * 360) / Math.max(count, 1))} 76% 56%)`;
 
 // ---------------------------------------------------------------------------
 // Change cell (Badlav)
@@ -352,12 +342,12 @@ const TICK_COUNT = 4;
 const ComparisonBars: React.FC<{ data: ComparisonData }> = ({ data }) => {
   const [hover, setHover] = useState<{ r: number; p: number } | null>(null);
   const idx = graphPeriodIndexes(data.periods.length);
-  const colors = PERIOD_COLORS[idx.length] ?? PERIOD_COLORS[2];
+  const colors = idx.map((_, i) => periodColor(i, idx.length));
 
   const allDrawable = data.rows.filter((r) => idx.some((i) => r.values[i] !== null));
   const counts = allDrawable.filter((r) => !r.isPercent);
   const pool = counts.length ? counts : allDrawable;
-  const drawable = pool.slice(0, GRAPH_ROW_LIMIT);
+  const drawable = pool;
   if (!drawable.length) return null;
   const isPercent = !counts.length;
 
@@ -367,7 +357,6 @@ const ComparisonBars: React.FC<{ data: ComparisonData }> = ({ data }) => {
   );
   const axisMax = isPercent ? Math.min(100, niceMax(dataMax)) || 100 : niceMax(dataMax);
   const ticks = Array.from({ length: TICK_COUNT + 1 }, (_, i) => (axisMax / TICK_COUNT) * i);
-  const hiddenRows = allDrawable.length - drawable.length;
 
   return (
     <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3" role="img" aria-label="Bar graph of the table values">
@@ -379,13 +368,8 @@ const ComparisonBars: React.FC<{ data: ComparisonData }> = ({ data }) => {
             {data.periods[pi]}
           </span>
         ))}
-        {data.periods.length > 3 && (
-          <span className="text-slate-500">(ग्राफ़ में पहला और आख़िरी वर्ष; बाकी तालिका में)</span>
-        )}
-        {hiddenRows > 0 && (
-          <span className="text-slate-500">
-            (ग्राफ़ में {drawable.length} मद{counts.length && counts.length < allDrawable.length ? ', प्रतिशत वाले मद तालिका में' : ''}; सभी {allDrawable.length} तालिका में)
-          </span>
+        {counts.length > 0 && counts.length < allDrawable.length && (
+          <span className="text-slate-500">(ग्राफ़ में संख्या वाले मद; प्रतिशत वाले मद तालिका में)</span>
         )}
       </div>
 
@@ -414,7 +398,7 @@ const ComparisonBars: React.FC<{ data: ComparisonData }> = ({ data }) => {
 
         {/* Plot + labels (scrolls sideways when there are many metrics) */}
         <div className="flex-1 min-w-0 overflow-x-auto">
-          <div style={{ minWidth: drawable.length * idx.length * 22 + drawable.length * 16 }}>
+          <div style={{ minWidth: drawable.length * Math.max(96, idx.length * 24 + 32) }}>
             <div className="relative border-l border-b border-slate-700 mt-3" style={{ height: PLOT_HEIGHT }}>
               {/* Grid lines */}
               {ticks.slice(1).map((t) => (
@@ -503,6 +487,14 @@ const ComparisonBlock: React.FC<{
     const chart = normalizeChartData(raw);
     return fromBackendComparison(comparison, periods, chart?.unit) ?? chart ?? parseComparisonFromText(text);
   }, [raw, comparison, periods, text]);
+  const graphData = useMemo(() => {
+    if (!data) return null;
+    const chart = normalizeChartData(raw);
+    if (!chart?.rows.length) return data;
+    const requestedLabels = new Set(chart.rows.map((row) => row.metric));
+    const requestedRows = data.rows.filter((row) => requestedLabels.has(row.metric));
+    return requestedRows.length ? { ...data, rows: requestedRows, unit: chart.unit ?? data.unit } : data;
+  }, [data, raw]);
   if (!data || !data.rows.length) return null;
 
   const heading = data.title || (data.periods.length >= 2 ? 'तुलना' : 'आँकड़े');
@@ -528,7 +520,7 @@ const ComparisonBlock: React.FC<{
           </button>
         </div>
       </div>
-      {view === 'table' ? <ComparisonTable data={data} /> : <ComparisonBars data={data} />}
+      {view === 'table' ? <ComparisonTable data={data} /> : <ComparisonBars data={graphData ?? data} />}
     </div>
   );
 };
