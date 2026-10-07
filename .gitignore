@@ -58,3 +58,4 @@ python_backend/data/terminology_store.json
 # Local/obsolete tests
 python_backend/tests/
 python_backend/data/
+python_backend/upload_staging_run/
