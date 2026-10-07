@@ -98,6 +98,11 @@ _COMPARE_RE = re.compile(
     r"(?<![\wऀ-ॿ])(compare|comparison|vs\.?|versus|तुलना|tulna|बनाम|banaam|अंतर|antar|difference|फर्क|farak|growth|वृद्धि|badlav|बदलाव)(?![\wऀ-ॿ])",
     re.I,
 )
+_MULTI_PERIOD_RE = re.compile(
+    r"(?<![\wऀ-ॿ])(both|two|multiple|dono|dono\s+(?:quarter|timahi|report)|"
+    r"दोनों|दो\s+तिमाहियों|दो\s+रिपोर्टों|दो\s+रिपोर्ट|दो\s+अवधियों)(?![\wऀ-ॿ])",
+    re.I,
+)
 _ALL_REGIONS_RE = re.compile(
     r"(?<![\wऀ-ॿ])(तीनों|तीनो|सभी|सब|दोनों|all|three|both|teeno|teenon|sabhi|sab|dono)(?![\wऀ-ॿ])",
     re.I,
@@ -105,12 +110,19 @@ _ALL_REGIONS_RE = re.compile(
 _REGION_WORD_RE = re.compile(r"क्षेत्र|kshetr|kshetra|region", re.I)
 _TOTAL_WORDS = {"कुल", "total", "kul", "टोटल"}
 _PERCENT_WORDS = {"प्रतिशत", "percent", "percentage", "pratishat", "%"}
-# "region A", "क क्षेत्र", "‘क’ क्षेत्र", "ka kshetra"
-_NAMED_REGION_RE = re.compile(
-    r"region\s*[‘'\"`]?\s*([abc])\b|(?<![ऀ-ॿ])[‘'\"`]?\s*(क|ख|ग)\s*[’'\"`]?\s*क्षेत्र|\b(ka|kha|ga)\s+kshetr",
+_COUNT_INTENT_RE = re.compile(
+    r"(?<![\wऀ-ॿ])(how\s+many|number\s+of|count|कितने|कितनी|कितना|संख्या|kul|kitne|kitni|kitna)(?![\wऀ-ॿ])",
     re.I,
 )
-_ROMAN_REGION = {"ka": "क", "kha": "ख", "ga": "ग"}
+# "region A", "क क्षेत्र", "‘क’ क्षेत्र", "ka kshetra"
+_NAMED_REGION_RE = re.compile(
+    r"regions?\s*[‘'\"`]?\s*([abc])\b|(?<![ऀ-ॿ])[‘'\"`]?\s*(क|ख|ग)\s*[’'\"`]?\s*क्षेत्र|\b(ka|kha|ga)\s+kshetr",
+    re.I,
+)
+_REGION_ENUM_EN_RE = re.compile(r"\bregions?\s+([abc](?:\s*(?:,|and|&)\s*[abc])*)", re.I)
+_REGION_ENUM_HI_RE = re.compile(r"((?:[‘'\"`]?\s*[कखग]\s*[’'\"`]?\s*(?:,|और|and)\s*)+[‘'\"`]?\s*[कखग]\s*[’'\"`]?)\s*क्षेत्र", re.I)
+_REGION_ENUM_ROMAN_RE = re.compile(r"\b(?:kha|kh|ka|k|ga|g)(?:\s*(?:,|aur|and|&)\s*(?:kha|kh|ka|k|ga|g))+\s+kshetr", re.I)
+_ROMAN_REGION = {"k": "क", "ka": "क", "kh": "ख", "kha": "ख", "g": "ग", "ga": "ग"}
 
 
 def _tokens(text: str) -> List[str]:
@@ -210,6 +222,7 @@ def records_from_table(table: Dict[str, Any], period: str) -> List[Dict[str, Any
     if len(numbered) >= 5 and len(numbered_with_value) >= 0.6 * len(numbered):
         return []
     out: List[Dict[str, Any]] = []
+    column_labels: Dict[int, str] = {}
     section_no, section, region, region_header = "", "", None, ""
     for cells in matrix:
         cells = [c.strip() for c in cells]
@@ -228,6 +241,40 @@ def records_from_table(table: Dict[str, Any], period: str) -> List[Dict[str, Any
                 val, pct = _parse_value(raw)
                 out.append(_record(table, period, section_no, section, None, "", rest[0], raw, val, pct))
             continue
+        # Some report tables put several measures in columns under a blank
+        # generated header. Keep the human-readable column labels so each cell
+        # can be indexed as its own metric instead of retaining only the last
+        # value in the row.
+        if not any(_REGION_RE.search(c) or _REGION_EN_RE.search(c) for c in cells):
+            text_cells = [(i, c) for i, c in enumerate(cells) if c and c not in {":", "："}
+                          and not _NUMBER_RE.match(c)]
+            numeric_cells = [(i, c) for i, c in enumerate(cells) if _NUMBER_RE.match(c)]
+            if len(text_cells) >= 2 and len(numeric_cells) <= 1:
+                for i, value in text_cells:
+                    if i >= 2:
+                        column_labels[i] = value
+                continue
+
+        region_cell = next(((i, _REGION_RE.search(c) or _REGION_EN_RE.search(c))
+                            for i, c in enumerate(cells)
+                            if _REGION_RE.search(c) or _REGION_EN_RE.search(c)), None)
+        if region_cell:
+            region_index, match = region_cell
+            region = match.group(1) if match.re is _REGION_RE else _REGION_EN_TO_HI[match.group(1).lower()]
+            region_header = cells[region_index]
+            indexed_values = []
+            for i, raw_value in enumerate(cells):
+                parsed, is_percent = _parse_value(raw_value)
+                if parsed is None:
+                    continue
+                metric_label = column_labels.get(i)
+                if metric_label:
+                    indexed_values.append((metric_label, raw_value, parsed, is_percent))
+            if indexed_values:
+                for metric_label, raw_value, parsed, is_percent in indexed_values:
+                    out.append(_record(table, period, section_no, section, region, region_header,
+                                       metric_label, raw_value, parsed, is_percent))
+                continue
         label = max(filled, key=len)
         # Region row: "‘क’ क्षेत्र से / From Region ‘A’"
         m = _REGION_RE.search(label)
@@ -235,6 +282,9 @@ def records_from_table(table: Dict[str, Any], period: str) -> List[Dict[str, Any
         if (m or m_en) and len(filled) == 1:
             region = m.group(1) if m else _REGION_EN_TO_HI[m_en.group(1).lower()]
             region_header = label
+            continue
+        # Numbering rows (1 : 2 : 3 : 4) are column guides, not report data.
+        if len(filled) > 1 and all(_NUMBER_RE.match(c) for c in filled):
             continue
         if len(filled) < 2:
             continue
@@ -247,6 +297,19 @@ def records_from_table(table: Dict[str, Any], period: str) -> List[Dict[str, Any
 
 
 def _record(table, period, section_no, section, region, region_header, label, raw, val, pct):
+    # Some report tables encode the region inside each metric label instead of
+    # as a separate header row (e.g. "‘क’ क्षेत्र (letters sent in Hindi %)").
+    # Normalize that schema so matching, comparison tables, and charts can use
+    # region + metric as separate fields without depending on a report template.
+    inline_region = _REGION_RE.search(label or "")
+    if region is None and inline_region:
+        region = inline_region.group(1)
+        region_header = inline_region.group(0)
+        remainder = (label[:inline_region.start()] + " " + label[inline_region.end():]).strip(" :-–—()'‘’\"`")
+        # If the region is the entire visible label and the metric follows in
+        # parentheses, retain that metric text instead of turning it blank.
+        label = remainder or label
+    metric_short = _short_label(label)
     return {
         "document_id": table.get("document_id"),
         "filename": table.get("filename"),
@@ -258,7 +321,7 @@ def _record(table, period, section_no, section, region, region_header, label, ra
         "region": region,
         "region_header": region_header,
         "metric": label,
-        "metric_short": _short_label(label),
+        "metric_short": metric_short,
         "metric_key": _metric_key(label),
         "raw_value": raw,
         "value": val,
@@ -312,17 +375,39 @@ class ReportMetrics:
         if raw_q & _TOTAL_WORDS and label_raw & _TOTAL_WORDS:
             score += 1.5
         wants_pct = bool(raw_q & _PERCENT_WORDS) or "%" in (query or "")
+        asks_count = bool(_COUNT_INTENT_RE.search(query or "")) and not wants_pct
         if rec.get("is_percent"):
-            score += 1.5 if wants_pct else -1.5
-        if raw_q & _DIRECTION_TO and ctx & _DIRECTION_TO:
-            score += 1.0
-        if raw_q & _DIRECTION_FROM and ctx & _DIRECTION_FROM:
-            score += 1.0
+            score += 1.5 if wants_pct else -8.0 if asks_count else -1.5
+        asks_hindi = bool(raw_q & {"hindi", "हिंदी", "हिन्दी"})
+        asks_english = bool(raw_q & {"english", "अंग्रेजी", "अंग्रेज़ी"})
+        label_hindi = bool(label_raw & {"hindi", "हिंदी", "हिन्दी"})
+        label_english = bool(label_raw & {"english", "अंग्रेजी", "अंग्रेज़ी"})
+        if asks_hindi:
+            score += 4.0 if label_hindi else -4.0
+        elif asks_english:
+            score += 4.0 if label_english else -4.0
+        q_sent, q_received = bool(raw_q & _DIRECTION_TO), bool(raw_q & _DIRECTION_FROM)
+        ctx_sent, ctx_received = bool(ctx & _DIRECTION_TO), bool(ctx & _DIRECTION_FROM)
+        # Prefer the explicit action in the question over a locative "from".
+        # E.g. "letters sent in Hindi from Region A" asks about dispatch, while
+        # "letters received from Region A" asks about receipt.
+        if q_sent:
+            score += 4.0 if ctx_sent else 0.0
+            score -= 4.0 if ctx_received else 0.0
+        elif q_received:
+            score += 4.0 if ctx_received else 0.0
+            score -= 4.0 if ctx_sent else 0.0
         return score
 
     @staticmethod
     def named_regions(query: str) -> set:
         found = set()
+        for enum in _REGION_ENUM_EN_RE.finditer(query or ""):
+            found.update(_REGION_EN_TO_HI[letter.lower()] for letter in re.findall(r"[abc]", enum.group(1), re.I))
+        for enum in _REGION_ENUM_HI_RE.finditer(query or ""):
+            found.update(re.findall(r"[कखग]", enum.group(1)))
+        for enum in _REGION_ENUM_ROMAN_RE.finditer(query or ""):
+            found.update(_ROMAN_REGION[letter.lower()] for letter in re.findall(r"\bkha\b|\bkh\b|\bka\b|\bk\b|\bga\b|\bg\b", enum.group(0), re.I))
         for m in _NAMED_REGION_RE.finditer(query or ""):
             if m.group(1):
                 found.add(_REGION_EN_TO_HI[m.group(1).lower()])
@@ -342,7 +427,7 @@ class ReportMetrics:
         exact_dates = set(re.findall(r"\d{1,2}[._/-]\d{1,2}[._/-]20\d{2}", query or ""))
         if len(periods) >= 2 or len(exact_dates) >= 2:
             return True
-        return several_selected and bool(_COMPARE_RE.search(query or ""))
+        return several_selected and bool(_COMPARE_RE.search(query or "") or _MULTI_PERIOD_RE.search(query or ""))
 
     @staticmethod
     def is_region_total(query: str) -> bool:
@@ -458,7 +543,9 @@ class ReportMetrics:
                 # The question names something that is not a row in these tables
                 # (e.g. "हिंदी और अंग्रेजी में अंतर"): leave it to normal RAG.
                 return None
-            table = [row for s, row in scored if s >= max(2.0, top - 1.0)]
+            # Keep close matches for wording variation, but don't mix adjacent
+            # table sections (e.g. Hindi letters received vs Hindi-sent %).
+            table = [row for s, row in scored if s >= max(2.0, top - 0.35)]
 
         first, last = periods[0], periods[-1]
         out_rows = []
@@ -468,25 +555,31 @@ class ReportMetrics:
             pct = None
             if change is not None and a not in (None, 0) and not row["is_percent"]:
                 pct = round(change / a * 100, 2)
+            metric_label = row["metric"]
+            region_label = _REGION_RE.search(metric_label or "")
+            if row["region"] and region_label and region_label.group(1) == row["region"]:
+                metric_label = ""
             out_rows.append({
                 "section_no": row["section_no"], "section": row["section"], "region": row["region"],
-                "metric": row["metric"], "is_percent": row["is_percent"],
+                "metric": metric_label, "is_percent": row["is_percent"],
                 "values": {p: row["values"].get(p) for p in periods},
                 "change": change, "change_pct": pct,
             })
 
         # Chart: one series per report, one bar group per metric (percent rows kept separate)
-        chart_rows = [r for r in out_rows if not r["is_percent"]][:12] or out_rows[:12]
+        asks_percent = bool(set(_tokens(query or "")) & _PERCENT_WORDS) or "%" in (query or "")
+        preferred_chart_rows = [r for r in out_rows if r["is_percent"]] if asks_percent else [r for r in out_rows if not r["is_percent"]]
+        chart_rows = (preferred_chart_rows or out_rows)[:12]
         chart = {
             "type": "bar",
-            "labels": [(f'{r["region"]} क्षेत्र – ' if r["region"] else "") + r["metric"] for r in chart_rows],
+            "labels": [" – ".join(part for part in ([f'{r["region"]} क्षेत्र' if r["region"] else "", r["metric"]]) if part) for r in chart_rows],
             "series": [{"name": p, "values": [r["values"].get(p) for r in chart_rows]} for p in periods],
             "unit": "%" if chart_rows and chart_rows[0]["is_percent"] else "",
         }
 
         lines = [f"**{len(periods)} अवधियों** की रिपोर्ट तुलना ({len(out_rows)} मद):", ""]
         for r in out_rows[:15]:
-            name = (f'{r["region"]} क्षेत्र – ' if r["region"] else "") + r["metric"]
+            name = " – ".join(part for part in ([f'{r["region"]} क्षेत्र' if r["region"] else "", r["metric"]]) if part)
             a, b = r["values"].get(first), r["values"].get(last)
             period_values = "; ".join(
                 f'{period}: {_fmt(r["values"].get(period), r["is_percent"])}'

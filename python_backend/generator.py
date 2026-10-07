@@ -41,12 +41,92 @@ def extract_factual_span(query: str, text: str, analysis: dict = None) -> str:
     if len(text.split()) <= 4:
         return text
 
-    # A list answer ("- item" lines) is returned whole, never cut to one sentence.
-    if len(re.findall(r'(?m)^\s*[-•]\s+', text)) >= 2:
+    # Preserve multi-item answers only when the user requested a list. Retrieval
+    # fallback can contain several bulleted evidence snippets for a single-fact
+    # question, which must still be narrowed to the requested fact below.
+    asked_for_list = bool(
+        analysis and analysis.get("intent") in {"list", "branch_enumeration"}
+    ) or bool(re.search(
+        r'(?<![\w\u0900-\u097F])(?:list|name\s+all|show\s+all|all\s+articles|सूची|कौन-कौन\s*से|कौन\s*कौन\s*से|नाम\s+बताओ)(?![\w\u0900-\u097F])',
+        (query or "").lower(), re.IGNORECASE
+    ))
+    if asked_for_list and len(re.findall(r'(?m)^\s*[-•]\s+', text)) >= 2:
         return text
 
     q_lower = (query or "").lower()
     exp_type = ((analysis.get("expected_value_type") if analysis else None) or "").upper()
+    sentences = [s.strip() for s in re.split(r'(?<=[।.!?])\s+|\n+', text) if s.strip()]
+
+    # Return only the requested place for where/kahan questions. The location
+    # is extracted from the evidence sentence around its event/venue relation.
+    if exp_type == "LOCATION" or re.search(
+        r'(?<![\w\u0900-\u097F])(?:where|kahan|kahaan|kaha|कहाँ|कहां|किस\s+स्थान|kis\s+jagah)(?![\w\u0900-\u097F])',
+        q_lower, re.IGNORECASE
+    ):
+        for sentence in sentences:
+            place_match = re.search(
+                r'([\w\u0900-\u097F][\w\u0900-\u097F ,./–-]{2,160}?)\s+में\s+(?=(?:आयोजित|संपन्न|हुआ|हुई|किया\s+गया|की\s+गई))',
+                sentence
+            )
+            if place_match:
+                place = place_match.group(1).strip(' ,:-')
+                # A date often precedes the venue in Hindi sentences.
+                place = re.sub(r'^.*?\d{4}\s+को\s*', '', place).strip(' ,:-')
+                if place:
+                    return place
+            english_place = re.search(
+                r'\b(?:held|conducted|organized|organised|took\s+place)\s+(?:at|in)\s+'
+                r'(.+?)(?=\s+(?:on|during|where|which)|[.!?]|$)',
+                sentence, re.IGNORECASE
+            )
+            if english_place:
+                return english_place.group(1).strip(' ,:-')
+
+    # Recipient requests should resolve to the addressee phrase in the source,
+    # not to a nearby numeric table or to the whole surrounding paragraph.
+    asks_recipient = bool(re.search(
+        r'\b(?:to\s+whom|whom\s+(?:was|were|did|has|have))\b|'
+        r'(?<![\w\u0900-\u097F])(?:किसको|किसे|किन्हें|किनको|kisko|kise|kinhe)'
+        r'.{0,100}(?:भेज|प्रेषित|ई-?मेल|bhej|send|sent|email|emailed)',
+        q_lower, re.IGNORECASE
+    ))
+    if asks_recipient:
+        for sentence in sentences:
+            hindi_recipient = re.search(
+                r'(?:ई\s*[-–]?\s*मेल|ईमेल|e-?mail)\s*(?:द्वारा|के\s+माध्यम\s+से|से|by|through)\s+'
+                r'(.{2,140}?)(?=\s+को\s+(?:भेज|प्रेषित)|[।.!?]|$)',
+                sentence, re.IGNORECASE
+            )
+            if hindi_recipient:
+                return hindi_recipient.group(1).strip(' ,:-')
+            english_recipient = re.search(
+                r'\b(?:sent|emailed|forwarded|shared)\b.{0,40}?\bto\s+'
+                r'(.{2,120}?)(?=\s+(?:by\s+email|via\s+email)|[.!?]|$)',
+                sentence, re.IGNORECASE
+            )
+            if english_recipient:
+                return english_recipient.group(1).strip(' ,:-')
+
+    asks_award_item = bool(re.search(
+        r'\b(?:what|which)\s+(?:award|prize)\b|'
+        r'\b(?:kaunsa|kaun\s+sa|kya)\s+(?:award|puraskar|inaam)\b|'
+        r'(?:कौन\s*सा|क्या)\s*(?:पुरस्कार|इनाम|अवार्ड)',
+        q_lower, re.IGNORECASE
+    ))
+    if asks_award_item:
+        for sentence in sentences:
+            if not re.search(r'पुरस्कार|इनाम|अवार्ड|\baward\b|\bprize\b', sentence, re.IGNORECASE):
+                continue
+            award_match = re.search(
+                r'(\d[\d,]*(?:\.\d+)?(?:\s*/-)?\s*(?:रुपये?|रुपए|₹|rupees?|rs\.?)?'
+                r'(?:\s*(?:का|की|के))?\s*(?:नकद|नगद|cash)?\s*'
+                r'(?:पुरस्कार|इनाम|अवार्ड|\baward\b|\bprize\b)'
+                r'(?:\s*(?:और|and)\s*(?:प्रमाण\s*पत्र|certificate))?)',
+                sentence, re.IGNORECASE
+            )
+            if award_match:
+                return award_match.group(1).strip(' ,:-')
+            return sentence + ("।" if not sentence.endswith("।") else "")
 
     # 1. DURATION (e.g. कितने वर्ष, how many years, kitne varsh)
     if exp_type == "DURATION" or re.search(r'(?:कितने\s*(?:वर्ष|साल|माह|महीने|दिन)|how\s+many\s+(?:years|months|days)|kitne\s+(?:varsh|saal))', q_lower):
@@ -213,7 +293,9 @@ class Generator:
             "present in a section/category, or asks for description/summary (e.g. 'what is in X', "
             "'which articles are under Y', 'कौन सा लेख', 'कौन-कौन से', 'सूची', 'विवरण', 'ब्यौरा'), "
             "enumerate the relevant child node keys and entries from the evidence hierarchy. "
-            "Do not say 'not found' if the section and its children are present in the evidence."
+            "Do not say 'not found' if the section and its children are present in the evidence.\n"
+            "7. Answer only the specific fact requested (for example, a date, place, recipient, person, value, or yes/no). "
+            "Do not repeat the surrounding paragraph or include other facts unless the user asks for them."
         )
 
         user_prompt = f"""{verified_block}

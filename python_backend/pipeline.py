@@ -1094,7 +1094,12 @@ class RAGPipeline:
         # for a metadata/form field question.
         # =====================================================
         if analysis.get("table_intent"):
-            field = analysis.get("requested_field")
+            # Semantic field classification can confuse ordinary count nouns
+            # (for example, "letters") with metadata concepts ("email"). The
+            # structured record store contains report metadata; operational
+            # facts belong to the table cell matcher, with row and column context.
+            field = (analysis.get("requested_field")
+                     if analysis.get("intent") == "REPORT_METADATA_LOOKUP" else None)
             if field:
                 # For address, combine all records (office name line + street continuation).
                 if field == "address":
@@ -1161,11 +1166,14 @@ class RAGPipeline:
                 query_variants=analysis.get("normalized_variants"),
                 expected_value_type=analysis.get("expected_value_type"),
                 target_languages=analysis.get("target_languages"),
-                condition_languages=analysis.get("condition_languages")
+                condition_languages=analysis.get("condition_languages"),
+                action_relation=analysis.get("action_relation"),
+                source_direction=analysis.get("source_direction"),
+                target_direction=analysis.get("target_direction")
             )
             if table_result and (
                 not analysis.get("is_hybrid")
-                or analysis.get("expected_value_type") == "COUNT"
+                or analysis.get("expected_value_type") in {"COUNT", "PERCENTAGE", "MONETARY"}
             ):
                 try:
                     print(f"[RAGPipeline] Structured answer: document={document_id}, "
@@ -1225,7 +1233,7 @@ class RAGPipeline:
                 "query_analysis": analysis
             }
 
-        if not self._has_sufficient_content_evidence(query, best_evidence):
+        if not self._has_sufficient_content_evidence(query, best_evidence, analysis):
             return {
                 "answer": "इस प्रश्न का उत्तर दिए गए दस्तावेज़ के प्रमाण में उपलब्ध नहीं है।",
                 "evidence": [],
@@ -1235,9 +1243,10 @@ class RAGPipeline:
         # Generate Grounded Answer with LLM
         verified_table_data = (table_result.get("details") if (analysis.get("table_intent") and "table_result" in locals() and table_result) else None)
         raw_answer = self.generator.generate_answer(query, best_evidence, verified_metadata=verified_table_data)
-        if raw_answer and analysis.get("expected_value_type") == "COUNT":
-            # Keep count answers concise by applying the existing generic
-            # evidence-span extractor to the grounded generation result.
+        if raw_answer and analysis.get("intent") not in {"list", "branch_enumeration"} \
+                and not analysis.get("is_index_question"):
+            # Keep factual answers focused on the requested value or span.
+            # Explicit list/index questions retain their full generated result.
             raw_answer = extract_factual_span(query, raw_answer, analysis)
 
         # Format Evidence For Frontend
@@ -1283,8 +1292,9 @@ class RAGPipeline:
         self.structured_store.delete_document(document_id)
         self.hierarchical_store.delete_document(document_id)
 
-    @staticmethod
-    def _has_sufficient_content_evidence(query: str, evidence: list[Dict[str, Any]]) -> bool:
+    def _has_sufficient_content_evidence(
+        self, query: str, evidence: list[Dict[str, Any]], analysis: Optional[Dict[str, Any]] = None
+    ) -> bool:
         """Return true only when retrieved text has direct lexical support.
 
         Semantic similarity is useful for finding candidates, but must not by
@@ -1300,8 +1310,19 @@ class RAGPipeline:
             "hai", "hain", "tha", "thi", "mein", "me", "ko", "se", "aur", "ye", "woh",
             "क्या", "का", "के", "की", "है", "हैं", "था", "थी", "में", "को", "से", "और", "यह", "वह"
         }
+        # Compare evidence against every query form produced by the same
+        # multilingual normalizer used during retrieval. Raw-token-only gating
+        # rejected valid semantic matches whenever the question and PDF used
+        # different scripts or terminology (e.g. Roman Hindi vs Devanagari).
+        query_forms = {query}
+        try:
+            query_analysis = analysis or self.analyzer.analyze(query, requested_mode="AUTO")
+            query_forms.update(self.analyzer.expand_query(query_analysis))
+        except Exception:
+            pass
         terms = {
-            token for token in re.findall(r"[A-Za-z0-9\u0900-\u097F]+", query.lower())
+            token for form in query_forms
+            for token in re.findall(r"[A-Za-z0-9\u0900-\u097F]+", str(form).lower())
             # Keep single Devanagari characters (e.g., 'क', 'ख', 'ग' as क्षेत्र identifiers)
             # and single digits; only drop single Latin letters that are not meaningful.
             if (
@@ -1313,10 +1334,22 @@ class RAGPipeline:
             # A query without a meaningful subject cannot be safely grounded.
             return False
 
-        evidence_text = " ".join(chunk.get("text", "").lower() for chunk in evidence)
-        has_term_support = any(term in evidence_text for term in terms)
+        evidence_text = " ".join(
+            str(chunk.get(key) or "")
+            for chunk in evidence
+            for key in ("text", "node_key", "node_value", "hierarchy_path_text")
+        ).lower()
+        has_term_support = any(
+            term in evidence_text or (
+                len(term) > 2 and any(token.startswith(term) or term.startswith(token)
+                                      for token in re.findall(r"[A-Za-z0-9\u0900-\u097F]+", evidence_text))
+            )
+            for term in terms
+        )
         top_score = float(evidence[0].get("rerank_score") if evidence[0].get("rerank_score") is not None else evidence[0].get("score", 0.0))
-        return has_term_support and top_score >= 0.30
+        # A strong reranker match is itself semantic evidence. Keep lexical
+        # support as a fallback for weakly scored exact table/title matches.
+        return top_score >= 0.45 or (has_term_support and top_score >= 0.30)
 
     @staticmethod
     def _structured_answer(query: str, record: Dict[str, Any]) -> str:

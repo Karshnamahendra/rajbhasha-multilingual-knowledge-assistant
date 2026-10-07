@@ -607,7 +607,7 @@ class SemanticQueryAnalyzer:
             r"\b(date|dated|quarter|quarterly|period|reporting\s+period|office|address|phone|telephone|email)\b",
             all_variants_lower))
         form_request_regex = bool(re.search(
-            r"(?<![\w\u0900-\u097F])(?:details?\s+(?:asked|required)|field|fields|form|forms|workshop|workshops|training|trainings|employees?|officers?|files?|meetings?|letters?|issued|issue|issues|jaari|jari|जारी|bilingual|bilingually|dvibhashi|द्विभाषी|sachiv|सचिव|patra|patron|पत्र|पत्रों)(?![\w\u0900-\u097F])",
+            r"(?<![\w\u0900-\u097F])(?:details?\s+(?:asked|required)|field|fields|form|forms|value|values|workshop|workshops|training|trainings|employees?|officers?|files?|meetings?|letters?|issued|issue|issues|jaari|jari|जारी|bilingual|bilingually|dvibhashi|द्विभाषी|sachiv|सचिव|patra|patron|पत्र|पत्रों)(?![\w\u0900-\u097F])",
             all_variants_lower,
             re.IGNORECASE
         ))
@@ -633,6 +633,17 @@ class SemanticQueryAnalyzer:
                         or (numeric_reference and (value_signal or calculation_signal or len(re.findall(r"\b(?:19|20)\d{2}\b", lower_q)) >= 2))
                         or calculation_signal or (is_count and not index_subject)
                         or report_metadata_signal or form_request_signal)
+        recipient_question = bool(re.search(
+            r"\b(?:to\s+whom|whom\s+(?:was|were|did|has|have))\b|"
+            r"(?<![\w\u0900-\u097F])(?:किसको|किसे|किन्हें|किनको|kisko|kise|kinhe|kinh[eai])"
+            r".{0,100}(?:भेज|प्रेषित|ई-?मेल|bhej|send|sent|email|emailed)",
+            lower_q, re.IGNORECASE
+        ))
+        # Recipient questions ask for a person/group mentioned in prose. Words
+        # such as "email" and "sent" may resemble office metadata or form
+        # fields, but must not route these questions into numeric table lookup.
+        if recipient_question and not is_count:
+            table_intent = False
         # Content / explanation / prose questions should NEVER be hijacked by table intent
         if is_content_question and not (is_pct_query or is_count or is_monetary_query):
             table_intent = False
@@ -863,8 +874,8 @@ class SemanticQueryAnalyzer:
 
         relation_patterns = (
             ("reply_received", r"(?<![\w\u0900-\u097F])(?:reply\s+received|response\s+received|उत्तर\s+(?:मिले|मिला|प्राप्त)|uttar\s+(?:mile|mila))(?![\w\u0900-\u097F])"),
-            ("reply_given", r"(?<![\w\u0900-\u097F])(?:(?:repl(?:y|ies|ied)|answer(?:s|ed)?|respond(?:s|ed|ing)?|उत्तर)\b.{0,48}\b(?:given|provided|answered|diya|diye|di|दिए|दिया|दिये|प्रदान)|(?:उत्तर|जवाब).{0,32}(?:दिए|दिया|दिये|diye|diya))(?![\w\u0900-\u097F])"),
-            ("received", r"(?<![\w\u0900-\u097F])(?:receive(?:d|s)?|got|mila|mile|mili|mil(?:e|a|i)|prapt|praapt|प्राप्त|मिले|मिला|मिली|आए|आये)(?![\w\u0900-\u097F])"),
+            ("reply_given", r"(?<![\w\u0900-\u097F])(?:(?:repl(?:y|ies|ied)|answer(?:s|ed)?|respond(?:s|ed|ing)?|uttar|jawab|उत्तर|जवाब)\b.{0,64}\b(?:given|provided|answered|diya|diye|di|kiye|kiya|kiye\s+gaye|kiye\s+gye|दिए|दिया|दिये|गए|गये|प्रदान)|(?:उत्तर|जवाब|uttar|jawab).{0,64}(?:दिए|दिया|दिये|diye|diya|गए|गये|kiye|kiya)|\brepl(?:y|ies|ied)\b)(?![\w\u0900-\u097F])"),
+            ("received", r"(?<![\w\u0900-\u097F])(?:receive(?:d|s)?|got|mila|mile|mili|mil(?:e|a|i)|aaye|aayi|aaya|aye|aya|received|prapt|praapt|प्राप्त|मिले|मिला|मिली|आए|आये)(?![\w\u0900-\u097F])"),
             ("sent", r"(?<![\w\u0900-\u097F])(?:send|sends|sent|bhej\w*|भेज\w*|प्रेषित)(?![\w\u0900-\u097F])"),
             ("issued", r"(?<![\w\u0900-\u097F])(?:issue|issues|issued|issuing|jaari|jari|जारी|निर्गत)(?![\w\u0900-\u097F])"),
         )
@@ -880,12 +891,18 @@ class SemanticQueryAnalyzer:
         target_langs = set()
         received_positions = [m["start"] for m in relation_matches if m["relation"] == "received"]
         reply_positions = [m["start"] for m in relation_matches if m["relation"] in {"reply_given", "reply_received"}]
+        outbound_positions = [m["start"] for m in relation_matches if m["relation"] in {"sent", "issued"}]
+        write_match = re.search(r"(?:writ(?:e|es|ten|ing)|likh\w*|लिख\w*)", lower_q, re.IGNORECASE)
+        letter_match = re.search(r"letters?|patron|patra|पत्रों?|पत्र", lower_q, re.IGNORECASE)
         for language in language_matches:
             before_received = any(0 <= pos - language["end"] <= 48 for pos in received_positions)
             after_reply = any(-48 <= language["start"] - pos <= 96 for pos in reply_positions)
-            if before_received and not after_reply:
+            after_outbound = any(-48 <= language["start"] - pos <= 96 for pos in outbound_positions)
+            before_letter = bool(letter_match and language["end"] <= letter_match.start())
+            if (before_received and not after_reply) or (before_letter and reply_positions):
                 source_languages.add(language["language"])
-            else:
+            elif (after_reply or after_outbound
+                  or (write_match and abs(language["start"] - write_match.start()) <= 72)):
                 target_langs.add(language["language"])
         condition_langs = set(source_languages)
 
@@ -961,7 +978,7 @@ class SemanticQueryAnalyzer:
         base_relation = next((name for name in relation_names if name in {"received", "sent", "issued"}), None)
         reply_relation = next((name for name in relation_names if name in {"reply_given", "reply_received"}), None)
         action_relation = reply_relation or base_relation
-        source_direction = "received" if base_relation == "received" else None
+        source_direction = "received" if base_relation == "received" or (reply_relation and letter_match) else None
         target_direction = reply_relation or (base_relation if base_relation in {"sent", "issued"} else None)
         relationships = [{"relation": name} for name in relation_names]
 

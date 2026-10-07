@@ -16,24 +16,28 @@ async function startServer() {
   app.get('/api/documents', async (_req, res) => {
     try {
       const response = await fetch(`${PYTHON_URL}/api/documents`);
-      if (!response.ok) return res.json({ success: true, documents: [] });
+      if (!response.ok) {
+        return res.status(503).json({ success: false, error: 'FastAPI backend unavailable on port 8000.', documents: [] });
+      }
       const data = await response.json();
       // Support both { success, documents } format and bare array
       const docs = Array.isArray(data) ? data : ((data as any).documents || []);
       return res.json({ success: true, documents: docs });
     } catch {
-      return res.json({ success: true, documents: [] });
+      return res.status(503).json({ success: false, error: 'FastAPI backend unavailable on port 8000.', documents: [] });
     }
   });
 
   app.get(['/api/health', '/api/ollama/status', '/api/status'], async (_req, res) => {
     try {
       const response = await fetch(`${PYTHON_URL}/api/health`);
-      if (!response.ok) return res.json({ status: 'connected', ollama: 'connected' });
+      if (!response.ok) {
+        return res.status(503).json({ status: 'unavailable', available: false, backend: 'unavailable', ollama: 'unknown' });
+      }
       const data = await response.json();
       return res.json(data);
     } catch {
-      return res.json({ status: 'connected', ollama: 'connected' });
+      return res.status(503).json({ status: 'unavailable', available: false, backend: 'unavailable', ollama: 'unknown' });
     }
   });
 

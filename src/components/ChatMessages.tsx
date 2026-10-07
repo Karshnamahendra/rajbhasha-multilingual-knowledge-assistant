@@ -175,7 +175,7 @@ export const fromBackendComparison = (
 
   const out: ComparisonRow[] = rows.map((r) => {
     const values = cols.map((p) => toNumber(r.values?.[p]));
-    const base = buildRow((r.region ? `${r.region} क्षेत्र – ` : '') + (r.metric || ''), values);
+    const base = buildRow([r.region ? `${r.region} क्षेत्र` : '', r.metric || ''].filter(Boolean).join(' – '), values);
     return {
       ...base,
       isPercent: !!r.is_percent,

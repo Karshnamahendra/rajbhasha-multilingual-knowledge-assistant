@@ -38,7 +38,8 @@ _SECTION_33_RE = re.compile(
 # 'kshetra'/'zone' so that queries like "'Ka' kshetra" or "ka' kshetra" are matched.
 _REGION_KA_RE = re.compile(
     r"(?:[\u2018\u2019'\u201c\u201d`]?\s*\u0915\s*[\u2018\u2019'\u201c\u201d`]?\s*\u0915\u094d\u0937\u0947\u0924\u094d\u0930)"
-    r"|(?:(?:region|zone|kshetr|kshetra)\s*(?:a|ka)\b)"
+    r"|(?:(?:region|zone|kshetr|kshetra)\s*[\u2018\u2019'\u201c\u201d`\"]*(?:a|k|ka)\b[\u2018\u2019'\u201c\u201d`\"]*)"
+    r"|(?:\bk\b[\s\u2018\u2019'\u201c\u201d`\"]*(?:region|kshetra|kshetr|zone)\b)"
     r"|(?:\bka\b[\s\u2018\u2019'\u201c\u201d`\"]*(?:region|kshetra|kshetr|zone)\b)"
     r"|(?:[\u2018\u2019'\u201c\u201d]ka[\u2018\u2019'\u201c\u201d])"
     r"|(?:[\u2018\u2019]\u0915[\u2018\u2019])",
@@ -46,7 +47,8 @@ _REGION_KA_RE = re.compile(
 )
 _REGION_KHA_RE = re.compile(
     r"(?:[\u2018\u2019'\u201c\u201d`]?\s*\u0916\s*[\u2018\u2019'\u201c\u201d`]?\s*\u0915\u094d\u0937\u0947\u0924\u094d\u0930)"
-    r"|(?:(?:region|zone|kshetr|kshetra)\s*(?:b|kha)\b)"
+    r"|(?:(?:region|zone|kshetr|kshetra)\s*[\u2018\u2019'\u201c\u201d`\"]*(?:b|kh|kha)\b[\u2018\u2019'\u201c\u201d`\"]*)"
+    r"|(?:\bkh\b[\s\u2018\u2019'\u201c\u201d`\"]*(?:region|kshetra|kshetr|zone)\b)"
     r"|(?:\bkha\b[\s\u2018\u2019'\u201c\u201d`\"]*(?:region|kshetra|kshetr|zone)\b)"
     r"|(?:[\u2018\u2019'\u201c\u201d]kha[\u2018\u2019'\u201c\u201d])"
     r"|(?:[\u2018\u2019]\u0916[\u2018\u2019])",
@@ -54,7 +56,8 @@ _REGION_KHA_RE = re.compile(
 )
 _REGION_GA_RE = re.compile(
     r"(?:[\u2018\u2019'\u201c\u201d`]?\s*\u0917\s*[\u2018\u2019'\u201c\u201d`]?\s*\u0915\u094d\u0937\u0947\u0924\u094d\u0930)"
-    r"|(?:(?:region|zone|kshetr|kshetra)\s*(?:c|ga)\b)"
+    r"|(?:(?:region|zone|kshetr|kshetra)\s*[\u2018\u2019'\u201c\u201d`\"]*(?:c|g|ga)\b[\u2018\u2019'\u201c\u201d`\"]*)"
+    r"|(?:\bg\b[\s\u2018\u2019'\u201c\u201d`\"]*(?:region|kshetra|kshetr|zone)\b)"
     r"|(?:\bga\b[\s\u2018\u2019'\u201c\u201d`\"]*(?:region|kshetra|kshetr|zone)\b)"
     r"|(?:[\u2018\u2019'\u201c\u201d]ga[\u2018\u2019'\u201c\u201d])"
     r"|(?:[\u2018\u2019]\u0917[\u2018\u2019])",
@@ -201,6 +204,9 @@ class StructuredTableEngine:
         expected_value_type: Optional[str] = None,
         target_languages: Optional[List[str]] = None,
         condition_languages: Optional[List[str]] = None,
+        action_relation: Optional[str] = None,
+        source_direction: Optional[str] = None,
+        target_direction: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
 
         tables = self.store.get_tables(document_id)
@@ -213,7 +219,10 @@ class StructuredTableEngine:
         operation = self._operation(query)
 
         # Arithmetic operations (max/min/sum/average/difference/percentage)
-        if operation in {'max', 'min', 'average', 'sum', 'difference', 'percentage'}:
+        # Percentages in extracted forms are usually stored values (for example,
+        # a percentage column). Search for that cell instead of calculating an
+        # unrelated ratio from the first numeric columns in the table.
+        if operation in {'max', 'min', 'average', 'sum', 'difference'}:
             q_tokens = _normalize_tokens(query, self.memory)
             for table in tables:
                 calc = self._calculate_table(query, table, operation, q_tokens)
@@ -234,6 +243,9 @@ class StructuredTableEngine:
                     expected_value_type=expected_value_type,
                     target_languages=target_languages,
                     condition_languages=condition_languages,
+                    action_relation=action_relation,
+                    source_direction=source_direction,
+                    target_direction=target_direction,
                 )
                 if cands and cands[0]['score'] >= self.MIN_SCORE_THRESHOLD:
                     per_clause.append(cands[0])
@@ -248,6 +260,9 @@ class StructuredTableEngine:
                 expected_value_type=expected_value_type,
                 target_languages=target_languages,
                 condition_languages=condition_languages,
+                action_relation=action_relation,
+                source_direction=source_direction,
+                target_direction=target_direction,
             )
             if not scored or scored[0]['score'] < self.MIN_SCORE_THRESHOLD:
                 return None
@@ -521,6 +536,9 @@ class StructuredTableEngine:
         expected_value_type: Optional[str] = None,
         target_languages: Optional[List[str]] = None,
         condition_languages: Optional[List[str]] = None,
+        action_relation: Optional[str] = None,
+        source_direction: Optional[str] = None,
+        target_direction: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
 
         candidates = self._build_candidates(tables)
@@ -530,7 +548,13 @@ class StructuredTableEngine:
         all_queries = [query]
         if query_variants:
             for v in query_variants:
-                if v and v.strip() and v not in all_queries:
+                # Query normalizers often add isolated entity/language words as
+                # recall hints. They help vector search, but max-overlap on a
+                # one-word hint can select an unrelated cell (e.g. Hindi notes
+                # pages for a meeting-minutes question). Keep only complete
+                # phrase variants for table-cell ranking.
+                if (v and v.strip() and v not in all_queries
+                        and len(re.findall(r'[\w\u0900-\u097F]+', v)) >= 3):
                     all_queries.append(v)
 
         query_token_sets = [_normalize_tokens(q, self.memory) for q in all_queries if q and q.strip()]
@@ -580,6 +604,81 @@ class StructuredTableEngine:
                 emb_score = max(_cosine_sim(qe, c_embs[i]) for qe in q_embs)
 
             score = self.EMBED_W * emb_score + self.LEX_W * lex_score
+
+            # Preserve direction when a form has separate incoming, outgoing,
+            # and response columns. "Letters sent" must not match a row about
+            # incoming letters or replies given.
+            direction = target_direction or action_relation
+            query_text = str(query or "").casefold()
+            no_reply_requested = bool(re.search(
+                r"(?:answer|reply|uttar|jawab|उत्तर|जवाब).{0,48}(?:not|required|necessary|important|nhi|nah[iy]|nahi|नहीं|नही)|"
+                r"(?:not|required|necessary|important|nhi|nah[iy]|nahi|नहीं|नही).{0,48}(?:answer|reply|uttar|jawab|उत्तर|जवाब)",
+                query_text,
+            ))
+            if no_reply_requested:
+                direction = "reply_not_required"
+            if direction in {"sent", "issued", "received", "reply_given", "reply_received"}:
+                # A table title can describe the overall topic (for example,
+                # "status of replies to English letters received") while each
+                # data column describes a different fact: received count,
+                # replies by language, or replies not required. Use the cell's
+                # own label first so that the table title cannot make every
+                # column look like the same relation.
+                cell_label = str(cand.get('details', {}).get('label') or '').casefold()
+                table_headers = cand.get('table', {}).get('headers', [])
+                table_label = str(table_headers[1] if len(table_headers) > 1 else '').casefold()
+                sent_signal = bool(re.search(r"sent|bhej|भेज|प्रेषित", cell_label))
+                issued_signal = bool(re.search(r"issued|jari|जारी|निर्गत", cell_label))
+                received_signal = bool(re.search(r"received|प्राप्त|मिले|मिला|मिली", cell_label))
+                reply_signal = bool(re.search(
+                    r"reply|replies|उत्तर|जवाब|दिए जाने|दिए गए|अपेक्षित|आवश्यक", cell_label
+                ))
+                if not (sent_signal or issued_signal or received_signal or reply_signal):
+                    sent_signal = bool(re.search(r"sent|bhej|भेज|प्रेषित", table_label))
+                    issued_signal = bool(re.search(r"issued|jari|जारी|निर्गत", table_label))
+                    received_signal = bool(re.search(r"received|प्राप्त|मिले|मिला|मिली", table_label))
+                candidate_relations = set()
+                if sent_signal:
+                    candidate_relations.add("sent")
+                if received_signal:
+                    candidate_relations.add("received")
+                if reply_signal:
+                    candidate_relations.add("reply_given")
+                if issued_signal:
+                    candidate_relations.add("issued")
+                if direction in candidate_relations:
+                    score += 12.0
+                elif direction == "reply_given" or candidate_relations:
+                    score -= 18.0
+
+            elif direction == "reply_not_required":
+                desc = str(cand.get('desc') or '').casefold()
+                not_required_signal = bool(re.search(
+                    r"not\s+required|not\s+necessary|अपेक्षित\s*नहीं|अपेक्षित\s*नही|"
+                    r"आवश्यक\s*नहीं|जरूरी\s*नहीं|आवश्यकता\s*नहीं", desc
+                ))
+                score += 20.0 if not_required_signal else -18.0
+
+            # When the user specifies the language of received/input material,
+            # compare it to the language attached to the incoming side of the
+            # candidate's own label, before the receive marker. This keeps the
+            # source language distinct from the reply language in matrix forms.
+            if condition_languages and source_direction == "received":
+                desc = str(cand.get('desc') or '').casefold()
+                receive_match = re.search(r"प्राप्त|received|mila|mile|prapt", desc)
+                if receive_match:
+                    source_segment = desc[:receive_match.start()]
+                    language_patterns = {
+                        "hindi": r"हिन्दी|हिंदी|hindi",
+                        "english": r"अंग्रेज़ी|अंग्रेजी|english",
+                        "bilingual": r"द्विभाषी|द्विभाषीय|bilingual",
+                    }
+                    candidate_source_languages = {
+                        lang for lang, pattern in language_patterns.items()
+                        if re.search(pattern, source_segment, re.IGNORECASE)
+                    }
+                    if candidate_source_languages:
+                        score += 16.0 if set(condition_languages) & candidate_source_languages else -22.0
 
             # 3. Structural boost: Section 3(3)
             if q_has_33 and _SECTION_33_RE.search(cand['desc']):
@@ -779,45 +878,21 @@ class StructuredTableEngine:
         query: str = '',
     ) -> str:
         unique_cands = list({c['display']: c for c in selected}.values())
+        if len(unique_cands) == 1:
+            value = str(unique_cands[0].get('details', {}).get('value', '')).strip()
+            asks_yes_no = bool(re.search(
+                r"(?<![\w\u0900-\u097F])(?:kya|hai\s+ya\s+nahi|is|are|was|were|do|does|did|has|have|whether|क्या|क्या\s यह|क्या\s ये)(?![\w\u0900-\u097F])",
+                query or '', re.IGNORECASE
+            ))
+            if asks_yes_no and re.fullmatch(
+                r"(?:हां|हाँ|जी\s*हाँ|नहीं|नही|yes|no|true|false)", value, re.IGNORECASE
+            ):
+                return value
         cleaned_displays = [cls._strip_clause_bullet(c['display'], query) for c in unique_cands]
         evidence_text = '\n'.join(cleaned_displays)
-        values = [str(c.get('details', {}).get('value', '')).strip() for c in unique_cands]
-
-        # Case 1: Exactly 2 results where one is hindi-medium and other is broader
-        if len(unique_cands) == 2:
-            hindi_toks = _normalize_tokens('\u0939\u093f\u0902\u0926\u0940 \u0939\u093f\u0928\u094d\u0926\u0940 hindi')
-            t0 = _normalize_tokens(unique_cands[0]['display'])
-            t1 = _normalize_tokens(unique_cands[1]['display'])
-            is_h0 = bool(t0 & hindi_toks)
-            is_h1 = bool(t1 & hindi_toks)
-            if is_h0 != is_h1:
-                total_val = values[1] if is_h0 else values[0]
-                hindi_val = values[0] if is_h0 else values[1]
-                summary = (
-                    f'**Answer:** **\u0915\u0941\u0932 {total_val} '
-                    f'\u092d\u0947\u091c\u0940 \u0917\u0908\u0902 '
-                    f'\u0914\u0930 \u0909\u0928\u092e\u0947\u0902 \u0938\u0947 '
-                    f'{hindi_val} \u0939\u093f\u0902\u0926\u0940 \u092e\u0947\u0902 \u0925\u0940\u0902\u0964**'
-                )
-                return f'{evidence_text}\n\n{summary}'
-
-        # Case 2: Multiple numeric rows (e.g. regional rows) -> sum
-        numeric_vals = []
-        for v in values:
-            m = re.search(r'[-+]?\d+', v)
-            if m:
-                numeric_vals.append(int(m.group()))
-
-        if len(numeric_vals) == len(values) and len(values) > 1:
-            total_num = sum(numeric_vals)
-            summary = f'**Answer:** **{total_num}.**'
-            return f'{evidence_text}\n\n{summary}'
-
-        # Case 3: Single result
-        if len(values) == 1:
-            summary = f'**Answer:** **{values[0]}.**'
-            return f'{evidence_text}\n\n{summary}'
-
+        # Keep answers tied to the matched document labels and values. Summing
+        # multiple candidates here can combine different regions or columns
+        # unless the query explicitly requested an aggregation.
         return evidence_text
 
     # ------------------------------------------------------------------

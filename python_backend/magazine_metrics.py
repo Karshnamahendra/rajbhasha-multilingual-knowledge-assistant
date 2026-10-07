@@ -22,6 +22,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from doc_scope import in_scope, get_scope
 from index_knowledge_layer import romanize_generic
+from terminology_memory import DynamicTerminologyMemory
 
 _TOKEN_RE = re.compile(r"[a-z0-9]+|[ऀ-ॿ]+")
 _YEAR_RE = re.compile(r"(?<!\d)(20\d{2})(?!\d)")
@@ -64,30 +65,6 @@ _CATEGORY_QUERY = [
      lambda sec, typ: "कॉर्नर" in sec or "corner" in sec.lower(), "राजभाषा कॉर्नर"),
 ]
 
-# Topic words -> variants seen in Hindi titles
-_TOPIC_ALIASES = {
-    "ai": ["कृत्रिम बुद्धिमत्ता", "एआई", "आर्टिफिशियल", "artificial intelligence", "ai"],
-    "बुद्धिमत्ता": ["कृत्रिम बुद्धिमत्ता", "एआई", "आर्टिफिशियल", "ai"],
-    "artificial": ["कृत्रिम बुद्धिमत्ता", "एआई", "आर्टिफिशियल", "artificial intelligence", "ai"],
-    "intelligence": ["कृत्रिम बुद्धिमत्ता", "एआई", "आर्टिफिशियल", "artificial intelligence", "ai"],
-    "कृत्रिम": ["कृत्रिम बुद्धिमत्ता", "एआई", "आर्टिफिशियल", "ai"],
-    "एआई": ["कृत्रिम बुद्धिमत्ता", "एआई", "आर्टिफिशियल", "ai"],
-    "cyber": ["साइबर", "साईबर", "cyber"],
-    "saibar": ["साइबर", "साईबर", "cyber"],
-    "साइबर": ["साइबर", "साईबर", "cyber"],
-    "साईबर": ["साइबर", "साईबर", "cyber"],
-    "digital": ["डिजिटल", "डि़जिटाइजेशन", "digital"],
-    "डिजिटल": ["डिजिटल", "डि़जिटाइजेशन", "digital"],
-    "software": ["सॉफ्टवेयर", "सॉफ़्टवेयर", "software"],
-    "सॉफ्टवेयर": ["सॉफ्टवेयर", "सॉफ़्टवेयर", "software"],
-    "security": ["सुरक्षा", "security", "सिक्योरिटी"],
-    "suraksha": ["सुरक्षा", "security", "सिक्योरिटी"],
-    "सुरक्षा": ["सुरक्षा", "security", "सिक्योरिटी"],
-    "yoga": ["योग"], "yog": ["योग"], "योग": ["योग"],
-    "mahakumbh": ["महाकुंभ"], "महाकुंभ": ["महाकुंभ"],
-    "rajbhasha": ["राजभाषा"], "राजभाषा": ["राजभाषा"],
-}
-
 # Words that never name a topic
 _STOP = {
     "की", "का", "के", "में", "मे", "है", "हैं", "था", "थे", "और", "या", "पर", "से", "को", "ने", "कितने", "कितनी",
@@ -100,11 +77,10 @@ _STOP = {
     "kahani", "magazine", "patrika", "ank", "technical", "takniki", "gair", "kis", "kisne", "batao", "dikhao",
     "the", "of", "in", "on", "about", "is", "are", "how", "many", "much", "what", "which", "who", "list", "all",
     "articles", "article", "poems", "poem", "stories", "story", "authors", "author", "writers", "writer", "wrote",
-    "written", "by", "total", "count", "number", "most", "non", "and", "or", "a", "an", "to", "there", "have",
+    "written", "by", "total", "count", "number", "most", "non", "related", "about", "all", "and", "or", "a", "an", "to", "there", "have",
     "has", "vs", "compare", "comparison", "edition", "issue", "top", "name", "names",
 }
 
-_MAX_LIST = 25
 
 
 def _tokens(text: str) -> List[str]:
@@ -141,6 +117,7 @@ class MagazineMetrics:
     def __init__(self, index_store, doc_type_of: Optional[Callable[[str], Optional[str]]] = None):
         self.index_store = index_store
         self.doc_type_of = doc_type_of
+        self.term_memory = DynamicTerminologyMemory()
 
     # -- data ---------------------------------------------------------------------
     def entries(self, document_ids: Optional[List[str]] = None) -> Dict[str, List[Dict[str, Any]]]:
@@ -172,8 +149,7 @@ class MagazineMetrics:
                 return pred, label
         return None, None
 
-    @staticmethod
-    def _topic_terms(query: str) -> List[List[str]]:
+    def _topic_terms(self, query: str) -> List[List[str]]:
         """Each topic word in the question -> its variants. [] if the question names no topic."""
         topics = []
         for tok in _tokens(query):
@@ -181,13 +157,19 @@ class MagazineMetrics:
                 continue
             if any(p.search(tok) for p, _, _ in _CATEGORY_QUERY):
                 continue
-            group = _TOPIC_ALIASES.get(tok, [tok])
+            group = {tok}
+            canonical = self.term_memory.resolve_term(tok)
+            record = self.term_memory.terms.get(canonical, {}) if canonical else {}
+            group.update({str(record.get("canonical") or "")})
+            for form in (record.get("english", set()) | record.get("hindi", set())
+                         | record.get("roman", set()) | record.get("ocr_variants", set())):
+                group.add(str(form))
+            roman = romanize_generic(tok)
+            if roman:
+                group.add(roman)
+            group = [item for item in group if item]
             if group not in topics:          # "कृत्रिम बुद्धिमत्ता" = one topic, not two
                 topics.append(group)
-        # "साइबर सुरक्षा / cyber security" is one subject: cyber alone decides
-        cyber = _TOPIC_ALIASES["cyber"]
-        if cyber in topics:
-            topics = [g for g in topics if g is cyber or g == cyber or g != _TOPIC_ALIASES["security"]]
         return topics
 
     @staticmethod
@@ -278,11 +260,11 @@ class MagazineMetrics:
                 noun = cat_label or "रचनाएँ"
                 text = f"{topic_txt}{noun}: **{len(chosen)}**"
                 if chosen:
-                    text += "\n" + "\n".join(self._line(e) for e in chosen[:_MAX_LIST])
-                    if len(chosen) > _MAX_LIST:
-                        text += f"\n- … और {len(chosen) - _MAX_LIST}"
+                    # The contents index is the authoritative list. Return every
+                    # matching entry so requests for all articles are complete.
+                    text += "\n" + "\n".join(self._line(e) for e in chosen)
             if wants_list and not pred and not topics:
-                text += "\n" + "\n".join(self._line(e) for e in entries[:_MAX_LIST])
+                text += "\n" + "\n".join(self._line(e) for e in entries)
             parts.append((head + "\n" if head else "") + text)
             evidence.extend(chosen if (pred or topics) else entries)
             results.append({"document_id": doc, "count": len(chosen) if (pred or topics) else len(entries),
@@ -394,7 +376,10 @@ class MagazineMetrics:
                 if res:
                     return res
 
-            if not (_WORK_RE.search(q) and (_COUNT_RE.search(q) or _LIST_RE.search(q) or _MOST_RE.search(q))):
+            topic_request = bool(self._topic_terms(q))
+            if not (_WORK_RE.search(q) and (
+                _COUNT_RE.search(q) or _LIST_RE.search(q) or _MOST_RE.search(q) or topic_request
+            )):
                 return None
             # One year named: answer for that edition only
             if len(years) == 1:
