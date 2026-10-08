@@ -9,6 +9,7 @@ import numpy as np
 from terminology_memory import DynamicTerminologyMemory
 from structured_store import FieldNormalizer
 from index_knowledge_layer import romanize_generic
+from region_utils import REGION_EN_TO_HI
 
 logger = logging.getLogger("QueryAnalyzer")
 logger.setLevel(logging.INFO)
@@ -826,25 +827,33 @@ class SemanticQueryAnalyzer:
         )
         parent_section = ("section " + re.sub(r"\s+", "", section_match.group(1))) if section_match else None
 
-        # Match a name next to a region marker in either order. Prefer the
-        # trailing-marker form so a following Hindi postposition (e.g. "me")
-        # cannot be mistaken for the region's name.
+        # Match a name next to a region marker in either order. Prefer
+        # "Region B" first; otherwise "from Region B" can be misread as the
+        # trailing-marker form "from Region".
         region_marker = r"(?:region|zone|kshetra|kshetr|क्षेत्र|अंचल)"
         region_name = r"[\w\u0900-\u097F-]+"
+        invalid_region_names = {
+            "me", "mein", "में", "in", "under", "from", "se", "से", "to", "ko",
+            "and", "or", "aur", "के", "का", "की", "hai", "है",
+        }
         region_match = re.search(
-            rf"(?<![\w\u0900-\u097F])(?P<name>{region_name})\s*(?:[‘’'\"“”])?\s+{region_marker}(?![\w\u0900-\u097F])",
+            rf"(?<![\w\u0900-\u097F]){region_marker}\s+(?P<name>{region_name})(?![\w\u0900-\u097F])",
             lower_q, re.IGNORECASE
         )
+        if region_match and region_match.group("name").casefold() in invalid_region_names:
+            region_match = None
         if not region_match:
             region_match = re.search(
-                rf"(?<![\w\u0900-\u097F]){region_marker}\s+(?P<name>{region_name})(?![\w\u0900-\u097F])",
+                rf"(?<![\w\u0900-\u097F])(?P<name>{region_name})\s*(?:[‘’'\"“”])?\s+{region_marker}(?![\w\u0900-\u097F])",
                 lower_q, re.IGNORECASE
             )
-            if region_match and region_match.group("name").casefold() in {
-                "me", "mein", "में", "in", "under", "के", "का", "की", "hai", "है"
-            }:
+            if region_match and region_match.group("name").casefold() in invalid_region_names:
                 region_match = None
-        requested_region = canonical_label(region_match.group("name"), transliterate=True) if region_match else None
+        region_name_value = region_match.group("name").strip("‘’'\"“”").casefold() if region_match else ""
+        requested_region = (
+            REGION_EN_TO_HI.get(region_name_value)
+            or (canonical_label(region_match.group("name"), transliterate=True) if region_match else None)
+        )
 
         # Recognize language concepts in the query text, allowing modest OCR/
         # spelling variation for established language names without adding

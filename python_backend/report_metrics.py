@@ -24,6 +24,8 @@ import re
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from doc_scope import in_scope, get_scope
+from index_knowledge_layer import romanize_generic
+from region_utils import REGION_EN_TO_HI as _REGION_EN_TO_HI
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Text helpers
@@ -31,7 +33,6 @@ from doc_scope import in_scope, get_scope
 
 _REGION_RE = re.compile(r"[‘'\"`]\s*(क|ख|ग)\s*[’'\"`]\s*क्षेत्र")
 _REGION_EN_RE = re.compile(r"region\s*[‘'\"`]?\s*([abc])\b", re.I)
-_REGION_EN_TO_HI = {"a": "क", "b": "ख", "c": "ग"}
 _SECTION_NO_RE = re.compile(r"^\s*(\d{1,2})\s*[.)]?\s*$")
 _NUMBER_RE = re.compile(r"^\s*([0-9][0-9,]*(?:\.[0-9]+)?)\s*(%)?\s*\**\s*$")
 _PERIOD_RE = re.compile(r"(\d{1,2})[._-](\d{1,2})[._-](\d{4})")
@@ -89,14 +90,22 @@ _ALIASES = {
     "karmachariyon": "कर्मचारियों", "staff": "कर्मचारियों",
     "uttaron": "उत्तर", "jawab": "उत्तर", "answered": "उत्तर",
     "correspondence": "पत्राचार", "original": "मूल", "note": "टिप्पणियों",
+    "nhi": "नहीं", "nahi": "नहीं", "requirement": "अपेक्षित", "required": "अपेक्षित",
+    "need": "अपेक्षित", "needed": "अपेक्षित", "expected": "अपेक्षित",
     "karyashalaon": "कार्यशाला", "karyashalayen": "कार्यशाला",
 }
 
 # Direction words: "को / to" = letters sent to a region, "से / from" = received from it
 _DIRECTION_TO = {"को", "ko", "to", "bheje", "भेजे", "issued", "sent"}
-_DIRECTION_FROM = {"से", "se", "from", "प्राप्त", "prapt", "received"}
+_DIRECTION_FROM = {"से", "se", "from", "प्राप्त", "prapt", "receive", "received", "aaye", "aye"}
+_RECEIPT_TERMS = {"प्राप्त", "prapt", "receive", "received", "aaye", "aye"}
 _ANSWER_TERMS = {"उत्तर", "uttar", "जवाब", "jawab", "reply", "replies", "replied",
                  "answer", "answers", "answered", "response", "responses"}
+_NO_REPLY_RE = re.compile(
+    r"(?:reply|replies|answer|answers|उत्तर|जवाब|uttar|jawab).{0,64}(?:not|required|requirement|need|expected|no|nhi|nahi|नहीं|नही|अपेक्षित|आवश्यक)|"
+    r"(?:not|required|requirement|need|expected|no|nhi|nahi|नहीं|नही|अपेक्षित|आवश्यक).{0,64}(?:reply|replies|answer|answers|उत्तर|जवाब|uttar|jawab)",
+    re.I,
+)
 _HINDI_TERMS = {"hindi", "हिंदी", "हिन्दी"}
 _ENGLISH_TERMS = {"english", "अंग्रेजी", "अंग्रेज़ी"}
 
@@ -109,13 +118,16 @@ def _language_near_action(query: str, action_terms: set) -> Optional[str]:
     for i, token in enumerate(tokens):
         language = "hindi" if token in _HINDI_TERMS else "english" if token in _ENGLISH_TERMS else None
         if language:
-            distance = min((abs(i - action) for action in actions), default=999)
-            if distance <= 3:
-                candidates.append((distance, language))
+            nearest_actions = [(abs(i - action), 0 if i >= action else 1) for action in actions]
+            distance, side_priority = min(nearest_actions, default=(999, 1))
+            if distance <= 5:
+                candidates.append((distance, side_priority, language))
     if not candidates:
         return None
-    candidates.sort(key=lambda item: item[0])
-    return candidates[0][1]
+    # If a reply action has a language on both sides, prefer the language
+    # after the action ("replied in English") over the received language before it.
+    candidates.sort(key=lambda item: (item[0], item[1]))
+    return candidates[0][2]
 
 _COMPARE_RE = re.compile(
     r"(?<![\wऀ-ॿ])(compare|comparison|vs\.?|versus|increase|increased|increasing|decrease|decreased|decreasing|change|changed|तुलना|tulna|बनाम|banaam|अंतर|antar|difference|फर्क|farak|growth|वृद्धि|vriddhi|badlav|बदलाव)(?![\wऀ-ॿ])",
@@ -143,7 +155,11 @@ _COUNT_INTENT_RE = re.compile(
 )
 # "region A", "क क्षेत्र", "‘क’ क्षेत्र", "ka kshetra"
 _NAMED_REGION_RE = re.compile(
-    r"regions?\s*[‘'\"`]?\s*([abc])\b|(?<![ऀ-ॿ])[‘'\"`]?\s*(क|ख|ग)\s*[’'\"`]?\s*क्षेत्र|[‘'\"`]?\b(ka|kha|kh|k|ga|g)\b[’'\"`]?\s+kshetr(?:a)?",
+    r"regions?\s*[‘'\"`]?\s*(?P<en_after>[abc])\b|"
+    r"(?<![a-z])(?P<en_before>[abc])\s+(?:regions?|zones?)\b|"
+    r"(?<![ऀ-ॿ])[‘'\"`]?\s*(?P<hi>[कखग])\s*[’'\"`]?\s*क्षेत्र|"
+    r"(?<![a-z])[‘'\"`]?\s*(?P<roman_before>ka|kha|kh|k|ga|g)\b[‘'\"`]?\s+(?:kshetr(?:a)?|regions?|zones?)\b|"
+    r"(?:kshetr(?:a)?|regions?|zones?)\s+[‘'\"`]?\s*(?P<roman_after>ka|kha|kh|k|ga|g)\b",
     re.I,
 )
 _REGION_ENUM_EN_RE = re.compile(
@@ -180,9 +196,27 @@ def _stem_match(a: str, b: str) -> bool:
     return len(short) >= 3 and long_.startswith(short)
 
 
+def _query_matches_label(query_token: str, label_token: str) -> bool:
+    """Match stems and modest Roman-Hindi spelling variation across scripts."""
+    if _stem_match(query_token, label_token):
+        return True
+    query_token, label_token = query_token.casefold(), label_token.casefold()
+    if re.search(r"[a-z]", query_token) and re.search(r"[ऀ-ॿ]", label_token):
+        label_token = romanize_generic(label_token).casefold()
+    elif re.search(r"[ऀ-ॿ]", query_token) and re.search(r"[a-z]", label_token):
+        query_token = romanize_generic(query_token).casefold()
+    else:
+        return False
+    query_token = re.sub(r"[^a-z0-9]", "", query_token)
+    label_token = re.sub(r"[^a-z0-9]", "", label_token)
+    if min(len(query_token), len(label_token)) < 5 or abs(len(query_token) - len(label_token)) > 3:
+        return False
+    return difflib.SequenceMatcher(None, query_token, label_token).ratio() >= 0.78
+
+
 def _overlap(query_toks: Iterable[str], label_toks: Iterable[str]) -> int:
     label_toks = list(label_toks)
-    return sum(1 for q in set(query_toks) if any(_stem_match(q, l) for l in label_toks))
+    return sum(1 for q in set(query_toks) if any(_query_matches_label(q, l) for l in label_toks))
 
 
 def _best_section_scope(query: str, rows: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], bool]:
@@ -196,7 +230,7 @@ def _best_section_scope(query: str, rows: List[Dict[str, Any]]) -> Tuple[List[Di
         for term in terms:
             section_frequency[term] = section_frequency.get(term, 0) + 1
     scores = [
-        sum(max((1.0 / section_frequency[term] for term in terms if _stem_match(qterm, term)), default=0.0)
+        sum(max((1.0 / section_frequency[term] for term in terms if _query_matches_label(qterm, term)), default=0.0)
             for qterm in set(query_terms))
         for terms in section_terms
     ]
@@ -204,6 +238,26 @@ def _best_section_scope(query: str, rows: List[Dict[str, Any]]) -> Tuple[List[Di
     if strongest >= 1.0:
         return [row for row, score in zip(rows, scores) if score >= strongest - 0.25], True
     return rows, False
+
+
+def _scope_explicit_section(rows: List[Dict[str, Any]], reference: re.Match) -> List[Dict[str, Any]]:
+    """Resolve a section reference against report numbering or cited law numbering."""
+    wanted_no, wanted_sub = reference.group(1), reference.group(2)
+    if wanted_sub:
+        citation = re.compile(
+            rf"(?<!\d)(?:section|धारा)\s*{re.escape(wanted_no)}\s*\(\s*{re.escape(wanted_sub)}\s*\)",
+            re.I,
+        )
+        cited = [row for row in rows if citation.search(
+            f'{row.get("section") or ""} {row.get("metric") or row.get("metric_short") or ""}')]
+        if cited:
+            return cited
+    numbered = [row for row in rows if str(row.get("section_no") or "") == wanted_no]
+    if wanted_sub and numbered:
+        exact_sub = re.compile(rf"(?<!\d){re.escape(wanted_no)}\s*\(\s*{re.escape(wanted_sub)}\s*\)")
+        exact = [row for row in numbered if exact_sub.search(str(row.get("section") or ""))]
+        return exact or numbered
+    return numbered
 
 
 def _short_label(label: str) -> str:
@@ -267,8 +321,28 @@ def _matrix(table: Dict[str, Any]) -> List[List[str]]:
 
 
 def records_from_table(table: Dict[str, Any], period: str) -> List[Dict[str, Any]]:
-    if table.get("extraction_method") not in {"docx_xml", "pdfplumber"}:
-        return []  # form/period fallbacks duplicate the same numbers
+    method = table.get("extraction_method")
+    if method not in {
+        "docx_xml", "pdfplumber", "key_value_form", "period_field_pattern"
+    }:
+        return []
+    if method in {"key_value_form", "period_field_pattern"}:
+        # Fallback extractors already provide explicit label/value fields. Parse
+        # those directly so words such as “Region A” inside a field label are
+        # treated as context, not mistaken for a standalone region header row.
+        headers = list(table.get("headers") or [])
+        if len(headers) < 2:
+            return []
+        out = []
+        for row in table.get("rows") or []:
+            label = str(row.get(headers[0]) or "").strip()
+            raw = str(row.get(headers[-1]) or "").strip()
+            value, is_percent = _parse_value(raw)
+            if not label or value is None:
+                continue
+            out.append(_record(table, period, "", table.get("heading") or "", None, "",
+                               label, raw, value, is_percent))
+        return out
     matrix = _matrix(table)
     # A contents/list table ("1 | title | : | author | 7") looks like a run of numbered
     # rows that each end in a number. Report tables have headed sections instead.
@@ -388,9 +462,10 @@ def _record(table, period, section_no, section, region, region_header, label, ra
     # as a separate header row (e.g. "‘क’ क्षेत्र (letters sent in Hindi %)").
     # Normalize that schema so matching, comparison tables, and charts can use
     # region + metric as separate fields without depending on a report template.
-    inline_region = _REGION_RE.search(label or "")
+    inline_region = _REGION_RE.search(label or "") or _REGION_EN_RE.search(label or "")
     if region is None and inline_region:
-        region = inline_region.group(1)
+        region = (inline_region.group(1) if inline_region.re is _REGION_RE
+                  else _REGION_EN_TO_HI[inline_region.group(1).lower()])
         region_header = inline_region.group(0)
         remainder = (label[:inline_region.start()] + " " + label[inline_region.end():]).strip(" :-–—()'‘’\"`")
         # If the region is the entire visible label and the metric follows in
@@ -445,7 +520,16 @@ class ReportMetrics:
         out: List[Dict[str, Any]] = []
         for doc, doc_tables in by_doc.items():
             period = _period_of(doc, doc_tables[0].get("filename", ""), doc_tables)
-            for t in doc_tables:
+            # Prefer native table structure when available; text-form parsing is
+            # a fallback for PDFs without extractable table geometry. Mixing both
+            # representations of the same page can duplicate every metric.
+            native_tables = [t for t in doc_tables
+                             if t.get("extraction_method") in {"docx_xml", "pdfplumber"}]
+            usable_tables = native_tables or [
+                t for t in doc_tables
+                if t.get("extraction_method") in {"key_value_form", "period_field_pattern"}
+            ]
+            for t in usable_tables:
                 out.extend(records_from_table(t, period))
         return out
 
@@ -499,11 +583,30 @@ class ReportMetrics:
         label_english = bool(label_raw & {"english", "अंग्रेजी", "अंग्रेज़ी"})
         context_hindi = bool(context_raw & _HINDI_TERMS)
         context_english = bool(context_raw & _ENGLISH_TERMS)
+        asks_sent = bool(raw_q & _DIRECTION_TO) or bool(raw_q & {"send", "sent", "issue", "issued"})
+        source_language = None if asks_sent else _language_near_action(query, _DIRECTION_FROM)
+        if source_language:
+            # Source language is indicated by the section heading around the
+            # incoming/received action. Row labels often describe reply language,
+            # so using them here confuses source and response language.
+            section_source_language = _language_near_action(str(rec.get("section") or ""), _DIRECTION_FROM)
+            source_matches = section_source_language == source_language
+            score += 7.0 if source_matches else -7.0
         response_language = _language_near_action(query, _ANSWER_TERMS)
         asks_answer = bool(raw_q & _ANSWER_TERMS)
         label_is_answer = bool(label_raw & _ANSWER_TERMS)
+        asks_no_reply = bool(_NO_REPLY_RE.search(query or ""))
+        label_no_reply = bool(label_raw & {"नहीं", "नही", "not", "no"}) and bool(
+            label_raw & {"अपेक्षित", "आवश्यक", "required", "expected", "need"}
+        )
+        if asks_no_reply:
+            score += 14.0 if label_no_reply else -14.0
+        asks_received_count = bool(raw_q & _RECEIPT_TERMS) and not asks_sent and not asks_answer and not asks_no_reply
+        if asks_received_count:
+            label_is_received_count = bool(label_raw & _RECEIPT_TERMS)
+            score += 10.0 if label_is_received_count else (-10.0 if label_is_answer else 0.0)
         if asks_answer:
-            score += 8.0 if label_is_answer else -8.0
+            score += 8.0 if label_is_answer and not (asks_no_reply and not label_no_reply) else -8.0
         if asks_answer and response_language:
             row_language_matches = (response_language == "hindi" and label_hindi) or (
                 response_language == "english" and label_english)
@@ -548,12 +651,15 @@ class ReportMetrics:
             found.update(_ROMAN_REGION[letter.lower()]
                          for letter in re.findall(r"(?<![a-z])(?:kha|kh|ka|k|ga|g)(?![a-z])", enum.group(1), re.I))
         for m in _NAMED_REGION_RE.finditer(query or ""):
-            if m.group(1):
-                found.add(_REGION_EN_TO_HI[m.group(1).lower()])
-            elif m.group(2):
-                found.add(m.group(2))
-            elif m.group(3):
-                found.add(_ROMAN_REGION[m.group(3).lower()])
+            region_en = m.group("en_after") or m.group("en_before")
+            region_hi = m.group("hi")
+            region_roman = m.group("roman_before") or m.group("roman_after")
+            if region_en:
+                found.add(_REGION_EN_TO_HI[region_en.lower()])
+            elif region_hi:
+                found.add(region_hi)
+            elif region_roman:
+                found.add(_ROMAN_REGION[region_roman.lower()])
         return found
 
     # -- intents ------------------------------------------------------------------
@@ -672,12 +778,7 @@ class ReportMetrics:
         # loose keyword. It prevents a Section 3(3) question matching Section 2.
         section_ref = _SECTION_REF_RE.search(query or "")
         if section_ref:
-            wanted_no, wanted_sub = section_ref.group(1), section_ref.group(2)
-            scoped = [row for row in table if str(row.get("section_no") or "") == wanted_no]
-            if wanted_sub:
-                sub_re = re.compile(rf"(?<!\d){re.escape(wanted_no)}\s*\(\s*{re.escape(wanted_sub)}\s*\)")
-                exact_sub = [row for row in scoped if sub_re.search(str(row.get("section") or ""))]
-                scoped = exact_sub or scoped
+            scoped = _scope_explicit_section(table, section_ref)
             if not scoped:
                 return None
             table = scoped
@@ -791,6 +892,14 @@ class ReportMetrics:
                 target["evidence"].extend(row.get("evidence") or [])
             table = list(grouped.values())
 
+        # Count/display only periods that actually contain matched values for
+        # this question; unrelated reports in an all-documents scope should not
+        # inflate the period count or produce an empty chart series.
+        periods = sorted({period for row in table for period, value in row["values"].items()
+                          if value is not None}, key=_period_sort_key)
+        if len(periods) < 2:
+            return None
+        docs_by_period = {period: docs_by_period.get(period) for period in periods}
         first, last = periods[0], periods[-1]
         out_rows = []
         selected_rows = table if max_rows is None else table[:max_rows]
@@ -841,8 +950,9 @@ class ReportMetrics:
                 "documents": {p: docs_by_period.get(p) for p in periods},
                 "comparison": out_rows, "chart_data": chart, "evidence": evidence}
 
-    def lookup(self, query: str, document_ids: List[str]) -> Optional[Dict[str, Any]]:
-        """Answer a numeric question from one selected report's extracted tables."""
+    def lookup(self, query: str, document_ids: Optional[List[str]] = None,
+               latest_report_only: bool = False) -> Optional[Dict[str, Any]]:
+        """Answer a numeric question from extracted report tables."""
         if not _COUNT_INTENT_RE.search(query or ""):
             return None
         rows = [r for r in self.records(document_ids) if r.get("value") is not None]
@@ -850,12 +960,28 @@ class ReportMetrics:
             return None
         section_ref = _SECTION_REF_RE.search(query or "")
         if section_ref:
-            rows = [r for r in rows if str(r.get("section_no") or "") == section_ref.group(1)]
+            rows = _scope_explicit_section(rows, section_ref)
         wanted_regions = self.named_regions(query)
         if wanted_regions:
             rows = [r for r in rows if r.get("region") in wanted_regions]
         if not rows:
             return None
+
+        # For questions that state the language of received letters, scope to
+        # sections whose heading identifies that incoming language. This keeps
+        # "Hindi letters replied in English" from matching the separate table
+        # for "English letters replied in Hindi". Derive it from each heading;
+        # no section number, metric value, or report-specific mapping is used.
+        query_tokens = set(_tokens(query or ""))
+        asks_sent = bool(query_tokens & _DIRECTION_TO) or bool(query_tokens & {"send", "sent", "issue", "issued"})
+        source_language = None if asks_sent else _language_near_action(query, _DIRECTION_FROM)
+        if source_language:
+            source_scoped = [
+                row for row in rows
+                if _language_near_action(str(row.get("section") or ""), _DIRECTION_FROM) == source_language
+            ]
+            if source_scoped:
+                rows = source_scoped
         rows, _ = _best_section_scope(query, rows)
 
         scored = [(self._score(query, row), row) for row in rows]
@@ -863,7 +989,29 @@ class ReportMetrics:
         if top < 2.0:
             return None
         selected = [row for score, row in scored if score >= max(2.0, top - 0.6)]
+        if latest_report_only and selected:
+            # A plain fact question over multiple selected reports refers to the
+            # latest matching report by default. Explicit comparisons are handled
+            # separately and retain every requested period.
+            latest_period = max((str(row.get("period") or "") for row in selected),
+                                key=_period_sort_key)
+            rows = [row for row in rows if str(row.get("period") or "") == latest_period]
+            selected = [row for row in selected if str(row.get("period") or "") == latest_period]
         asks_total = bool(set(_tokens(query or "")) & _TOTAL_WORDS)
+        raw_query_tokens = set(_tokens(query or ""))
+        asks_category = bool(raw_query_tokens & {
+            "hindi", "हिंदी", "हिन्दी", "english", "अंग्रेजी", "अंग्रेज़ी",
+            "bilingual", "द्विभाषी", "original", "मूल",
+        })
+        if asks_total and not asks_category:
+            # A total question should resolve to the row explicitly labelled as
+            # the total, not a similarly worded subtotal such as bilingual-only.
+            explicit_totals = [
+                row for row in selected
+                if set(_tokens(row.get("metric_short") or "")) & {"कुल", "total"}
+            ]
+            if explicit_totals:
+                selected = explicit_totals
         if asks_total:
             requested_groups = {str(row.get("aggregation_group") or "").casefold()
                                 for row in selected if row.get("aggregation_group")}
@@ -902,7 +1050,10 @@ class ReportMetrics:
         try:
             scope = get_scope()
             several = bool((document_ids and len(document_ids) > 1) or (scope and len(scope) > 1))
-            if self.is_comparison(query, several):
+            compare_all_periods = bool(
+                document_ids is None and not scope and _MULTI_PERIOD_RE.search(query or "")
+            )
+            if self.is_comparison(query, several) or compare_all_periods:
                 res = self.compare(query, document_ids)
                 if res:
                     return res
@@ -910,8 +1061,11 @@ class ReportMetrics:
                 result = self.region_total(query, document_ids)
                 if result:
                     return result
-            if document_ids and len(document_ids) == 1:
-                return self.lookup(query, document_ids)
+            # With all/multiple reports in scope, a simple fact lookup returns
+            # the newest matching report. If the query asks for both periods or
+            # comparison, compare() above returns the full period-by-period result.
+            multiple_or_all = document_ids is None or len(document_ids) != 1 or bool(scope and len(scope) > 1)
+            return self.lookup(query, document_ids, latest_report_only=multiple_or_all)
         except Exception as exc:  # never break chat because of this layer
             print(f"[ReportMetrics] skipped: {exc}")
         return None

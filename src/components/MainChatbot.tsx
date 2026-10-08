@@ -200,6 +200,10 @@ export const MainChatbot: React.FC = () => {
         if (existing) return prev.map((d) => (d.id === richDoc.id ? richDoc : d));
         return [...prev, richDoc];
       });
+      // Make follow-up questions target the document just indexed. An empty
+      // selection means “search all documents”, which can otherwise surface an
+      // older report with a similar table label.
+      setSelectedDocIds([richDoc.id]);
 
       // Auto-switch tab to the category just uploaded
       setActiveCategoryTab(uploadCategory === 'magazine' ? 'magazines' : 'reports');
